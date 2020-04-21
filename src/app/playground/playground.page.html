@@ -1,0 +1,37 @@
+<ion-header>
+  <ion-toolbar color="success">
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>
+      Playground
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+
+  <!-- grid mode -->
+  <ion-grid no-padding>
+    <ion-row *ngIf="data?.rows">
+      <!-- Searchbar with cancel button always shown -->
+      <ion-searchbar showCancelButton="focus" debounce="1000" animated mode="ios"
+      ></ion-searchbar>
+    </ion-row>
+    <ion-row>
+      <ng-container *ngFor="let row of data?.rows, let i = index">
+        <ion-col size="12" size-sm="8" size-xl="4">
+          <ion-card>
+            <ion-card-header color="tertiary">
+              card title
+            </ion-card-header>
+            <ion-card-content>
+              card content
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+      </ng-container>
+    </ion-row>
+  </ion-grid>
+
+</ion-content>
