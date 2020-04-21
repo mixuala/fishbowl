@@ -4,6 +4,7 @@ import { LoadingController } from '@ionic/angular';
 
 import { environment } from '../../environments/environment';
 import { HttpParams } from '@angular/common/http';
+import { tap } from 'rxjs/operators';
 
 declare let window;
 
@@ -33,6 +34,17 @@ export class PlaygroundPage implements OnInit {
   }
 
   ngOnInit() {
+    if (this.activatedRoute && this.activatedRoute.snapshot) {
+      const routeData = this.activatedRoute.snapshot.data['data'];
+      const {user$, user} = routeData;
+      user$.pipe(
+        tap( (u:firebase.User)=>{
+          let {uid, displayName, email, isAnonymous } = u;
+          console.log("user=", {uid, displayName, email, isAnonymous });
+        })
+      ).subscribe();
+      Object.assign(this, {user$, user});
+    }    
   }
 
   ionViewDidEnter() {
@@ -40,7 +52,6 @@ export class PlaygroundPage implements OnInit {
   }
 
   // Helpers
-
   async presentLoading() {
     const loading = await this.loadingController.create({
       message: 'Please wait...',
