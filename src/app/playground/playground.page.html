@@ -37,7 +37,7 @@
                 </ion-text>
               </div>
               <div>
-                <ion-button expand="block" color="success" (click)="resetTimer()">30s timer</ion-button>
+                <ion-button #playTimer expand="block" color="success" (click)="resetTimer()">30s timer</ion-button>
               </div>
               <div>
                 <app-countdown-timer fill="time" [duration]="(timer$ | async)" [units]="{from: 'second', to: 'second'}"

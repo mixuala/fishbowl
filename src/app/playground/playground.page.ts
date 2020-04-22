@@ -1,6 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LoadingController } from '@ionic/angular';
+import { LoadingController, IonButton } from '@ionic/angular';
 import * as dayjs from 'dayjs';
 
 import { environment } from '../../environments/environment';
@@ -15,7 +15,7 @@ declare let window;
 @Component({
   selector: 'app-playground',
   templateUrl: './playground.page.html',
-  styleUrls: ['./playground.page.scss'],
+  styleUrls: ['./playground.page.scss', './animate.css'],
 })
 export class PlaygroundPage implements OnInit {
   public data: {
@@ -26,6 +26,7 @@ export class PlaygroundPage implements OnInit {
   public gameDateTime:dayjs.Dayjs;
   public timer$:Subject<{seconds:number}>;
 
+  @ViewChild( 'playTimer', {static:false} ) playTimer:IonButton; 
 
   constructor(
     private  activatedRoute: ActivatedRoute,
@@ -91,12 +92,20 @@ export class PlaygroundPage implements OnInit {
   }
   
   // Helpers
-  resetTimer(duration=30){
+  resetTimer(duration=3){
     this.timer$.next( {seconds: duration} );
   }
 
   onTimerDone(t:Date|{seconds:number}) {
-    console.log("BUZZ done at t=", t)
+    console.log("BUZZ done at t=", t);
+    this.animate(this.playTimer);
+
+  }
+
+  animate( el:HTMLElement | any, animation="long-wobble" ){
+    el = el.hasOwnProperty('el') ? el['el'] : el;
+    el.classList.add("animated", "slow", animation)
+    el.addEventListener('animationend', ()=>{ el.classList.remove("animated", "slow", animation) })
   }
 
 

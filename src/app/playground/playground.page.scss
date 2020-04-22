@@ -32,3 +32,150 @@ app-countdown-timer {
 .game-time {
   padding: 20px 0;
 }
+
+
+ion-button.animated {
+  --ion-color-base: var(--ion-color-danger) !important;
+}
+
+
+//  extend animate.scss
+
+@-webkit-keyframes longWobble {
+  from {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
+
+  5% {
+    -webkit-transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+    transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+  }
+
+  10% {
+    -webkit-transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+    transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+  }
+
+  15% {
+    -webkit-transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+    transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+  }
+
+  20% {
+    -webkit-transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+    transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+  }
+
+  25% {
+    -webkit-transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+    transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+  }
+
+  30% {
+    -webkit-transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+    transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+  }
+
+  37.5% {
+    -webkit-transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+    transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+  }
+
+  45% {
+    -webkit-transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 3deg);
+    transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 3deg);
+  }
+
+  55% {
+    -webkit-transform: translate3d(-15%, 0, 0) rotate3d(0, 0, 1, -3deg);
+    transform: translate3d(-15%, 0, 0) rotate3d(0, 0, 1, -3deg);
+  }
+
+  65% {
+    -webkit-transform: translate3d(10%, 0, 0) rotate3d(0, 0, 1, 2deg);
+    transform: translate3d(10%, 0, 0) rotate3d(0, 0, 1, 2deg);
+  }
+
+  75% {
+    -webkit-transform: translate3d(-5%, 0, 0) rotate3d(0, 0, 1, -1deg);
+    transform: translate3d(-5%, 0, 0) rotate3d(0, 0, 1, -1deg);
+  }
+
+  to {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes longWobble {
+  from {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
+
+  5% {
+    -webkit-transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+    transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+  }
+
+  10% {
+    -webkit-transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+    transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+  }
+
+  15% {
+    -webkit-transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+    transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+  }
+
+  20% {
+    -webkit-transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+    transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+  }
+
+  25% {
+    -webkit-transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+    transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+  }
+
+  30% {
+    -webkit-transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+    transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 5deg);
+  }
+
+  37.5% {
+    -webkit-transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+    transform: translate3d(-20%, 0, 0) rotate3d(0, 0, 1, -5deg);
+  }
+
+  45% {
+    -webkit-transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 3deg);
+    transform: translate3d(20%, 0, 0) rotate3d(0, 0, 1, 3deg);
+  }
+
+  55% {
+    -webkit-transform: translate3d(-15%, 0, 0) rotate3d(0, 0, 1, -3deg);
+    transform: translate3d(-15%, 0, 0) rotate3d(0, 0, 1, -3deg);
+  }
+
+  65% {
+    -webkit-transform: translate3d(10%, 0, 0) rotate3d(0, 0, 1, 2deg);
+    transform: translate3d(10%, 0, 0) rotate3d(0, 0, 1, 2deg);
+  }
+
+  75% {
+    -webkit-transform: translate3d(-5%, 0, 0) rotate3d(0, 0, 1, -1deg);
+    transform: translate3d(-5%, 0, 0) rotate3d(0, 0, 1, -1deg);
+  }
+
+  to {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.long-wobble {
+  -webkit-animation-name: longWobble;
+  animation-name: longWobble;
+}
