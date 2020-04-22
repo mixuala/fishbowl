@@ -19,6 +19,8 @@ import { AngularFirestoreModule, FirestoreSettingsToken } from '@angular/fire/fi
 // import { AngularFireStorageModule } from '@angular/fire/storage';
 import { AngularFireAuthModule } from '@angular/fire/auth';
 
+import { NativeAudio } from '@ionic-native/native-audio/ngx';
+
 @NgModule({
   declarations: [AppComponent],
   entryComponents: [],
@@ -36,7 +38,8 @@ import { AngularFireAuthModule } from '@angular/fire/auth';
     // AngularFireMessagingModule,
   ],
   providers: [
-    { provide: RouteReuseStrategy, useClass: IonicRouteStrategy }
+    { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
+    NativeAudio
   ],
   bootstrap: [AppComponent]
 })

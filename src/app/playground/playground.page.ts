@@ -6,6 +6,7 @@ import * as dayjs from 'dayjs';
 import { environment } from '../../environments/environment';
 import { HttpParams } from '@angular/common/http';
 import { Player } from '../user/role';
+import { AudioService } from '../services/audio.service';
 
 import { Observable, Subject } from 'rxjs';
 import { map, tap } from 'rxjs/operators';
@@ -31,7 +32,8 @@ export class PlaygroundPage implements OnInit {
   constructor(
     private  activatedRoute: ActivatedRoute,
     private  router: Router,
-    private loadingController: LoadingController,  
+    private loadingController: LoadingController,
+    private nativeAudio: AudioService,
   ) {
 
     if (environment.production==false){
@@ -61,6 +63,12 @@ export class PlaygroundPage implements OnInit {
       tap( v=>console.log("RESET timer=", v) ),
     ).subscribe();
   }
+
+  ngAfterViewInit(){
+    ["click","buzz",].forEach( k=>this.nativeAudio.preload(k));
+  }
+
+
 
   loadPlayer$(user$:Observable<firebase.User>):Observable<Player> {
     return user$.pipe(
@@ -94,6 +102,7 @@ export class PlaygroundPage implements OnInit {
   // Helpers
   resetTimer(duration=3){
     this.timer$.next( {seconds: duration} );
+    this.nativeAudio.play("click");
   }
 
   onTimerDone(t:Date|{seconds:number}) {
@@ -102,10 +111,14 @@ export class PlaygroundPage implements OnInit {
 
   }
 
-  animate( el:HTMLElement | any, animation="long-wobble" ){
+  async animate( el:HTMLElement | any, animation="long-wobble" ){
     el = el.hasOwnProperty('el') ? el['el'] : el;
     el.classList.add("animated", "slow", animation)
-    el.addEventListener('animationend', ()=>{ el.classList.remove("animated", "slow", animation) })
+    let stop = await this.nativeAudio.play("buzz");
+    el.addEventListener('animationend', ()=>{ 
+      el.classList.remove("animated", "slow", animation);
+      stop();
+    });
   }
 
 

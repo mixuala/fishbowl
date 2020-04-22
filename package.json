@@ -28,6 +28,8 @@
     "@capacitor/cli": "^1.5.0",
     "@capacitor/core": "^1.5.0",
     "@capacitor/ios": "^1.5.0",
+    "@ionic-native/core": "^5.24.0",
+    "@ionic-native/native-audio": "^5.24.0",
     "@ionic/angular": "5.0.0",
     "angular-pipes": "^9.0.2",
     "angularfire2": "^5.4.2",
