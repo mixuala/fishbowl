@@ -1,18 +1,9 @@
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, Output, EventEmitter, SimpleChange } from '@angular/core';
 
-import { Observable, Subject, interval } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Observable, Subject, interval, BehaviorSubject } from 'rxjs';
+import { takeUntil, takeWhile, filter} from 'rxjs/operators';
 
-// TODO:  dayjs is throwing this ERROR:
-//        error TS2339: Property 'to' does not exist on type 'Dayjs'.
-// Luckily there's a PR that apparently fixes this (https://github.com/iamkun/dayjs/issues/297#issuecomment-442748858)
-
-// When fixed, uncomment this
-// import * as dayjs from 'dayjs';
-
-// When fixed, remove this
-import * as _dayjs from 'dayjs';
-const dayjs: any = _dayjs;
+import * as dayjs from 'dayjs';
 
 @Component({
   selector: 'app-countdown-timer',
@@ -28,6 +19,8 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
 
   _updateInterval: Observable<any> = interval(1000);
   private _unsubscribeSubject: Subject<void> = new Subject();
+  pauseTimer$: BehaviorSubject<boolean> = new BehaviorSubject(false);
+  complete$: BehaviorSubject<boolean> = new BehaviorSubject(false);
 
   _daysLeft: number;
   _hoursLeft: number;
@@ -58,6 +51,16 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   @Input()
   set end(endingTime: string) {
     this._endingTime = (endingTime !== undefined && endingTime !== null) ? dayjs(endingTime) : dayjs();
+  }
+
+  @Input() 
+  set duration( o: {seconds: number}) {
+    const LATENCY_MS = 1005;
+    if (o && o.hasOwnProperty('seconds')) {
+      this.stash.duration = o;
+      let duration = o.seconds*1000 + LATENCY_MS;
+      this._endingTime = dayjs().add(duration, 'millisecond');
+    }
   }
 
   @Input()
@@ -94,23 +97,85 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     }
   }
 
+  @Output() onBuzz = new EventEmitter<Date | {seconds: number}>(); 
+  @Input() stopAtZero:boolean = true;
+
+  stash:any = {};
+
   constructor() { }
 
   ngOnInit(): void {
-    this._updateInterval.pipe(takeUntil(this._unsubscribeSubject)).subscribe(
+    this.startCountdown();
+  }
+
+  startCountdown(): void {
+    if (!this._endingTime) {
+      this._secondsLeft = 0;
+      return
+    }
+    if (this.stopAtZero) {
+      const secondsLeft = this._endingTime.diff(dayjs(), 'second');
+      if (secondsLeft<=0) {
+        this._secondsLeft = 0;
+        return
+      }
+    }    
+
+    if (this.stash.running) {
+      this.stash.running.unsubscribe();
+    }
+    this.complete$.next(false);
+    this.pauseTimer$.next(false);
+    this.stash.running = this._updateInterval.pipe(
+      takeUntil(this._unsubscribeSubject),
+      takeWhile( _=>this.complete$.value==false),
+      filter( _=> this.pauseTimer$.value==false ),
+    ).subscribe(
       (val) => {
         const secondsLeft = this._endingTime.diff(dayjs(), 'second');
-
+        
         this._daysLeft = Math.floor(this._dayModulus(secondsLeft) / this._dayDivisor);
         this._hoursLeft = Math.floor(this._hourModulus(secondsLeft) / this._hourDivisor);
         this._minutesLeft = Math.floor(this._minuteModulus(secondsLeft) / this._minuteDivisor);
         this._secondsLeft = Math.floor(this._secondModulus(secondsLeft) / this._secondDivisor);
+
+        if (secondsLeft <=0 ) {
+          let result = this.stash.duration || (this._endingTime as dayjs.Dayjs).toDate();
+          if (this.stopAtZero) {
+            this.complete$.next(true);
+            this._secondsLeft = 0;
+            this.onBuzz.emit(result);
+          }
+          else if (!this.stash.buzzed)
+          {
+            // buzz ONCE when complete, but may continue counting negative
+            this.onBuzz.emit(result);
+            this.stash.buzzed = true;
+          }
+        }
       },
-      (error) => console.error(error)
-      // () => console.log('[takeUntil] complete')
+      (error) => console.error(error),
+      // () => console.log('CountdownTimer subscription complete')
     );
   }
 
+  ngOnChanges(o){
+    Object.entries(o).forEach( (en:[string,SimpleChange])=>{
+      let [k, change] = en;
+      switch(k){
+        case 'duration':
+        case 'end': {
+          if (change.firstChange) {  // skip firstChange from ngOnInit()
+            return
+          }
+          if (this._endingTime) {
+            this.startCountdown();
+          }
+        }
+      }
+    });
+  }
+  
   ngOnDestroy(): void {
     this._unsubscribeSubject.next();
     this._unsubscribeSubject.complete();
