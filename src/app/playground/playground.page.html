@@ -19,18 +19,35 @@
       ></ion-searchbar>
     </ion-row>
     <ion-row>
-      <ng-container *ngFor="let row of data?.rows, let i = index">
         <ion-col size="12" size-sm="8" size-xl="4">
           <ion-card>
             <ion-card-header color="tertiary">
-              card title
+              <ion-card-title>
+                Fishbowl
+              </ion-card-title>
+              <ion-card-subtitle>
+              </ion-card-subtitle>
             </ion-card-header>
+              
             <ion-card-content>
-              card content
+              <div class="game-time ion-text-center">
+                <app-countdown-timer fill="time" [end]="gameDateTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
+                <ion-text  color="dark">
+                  Game Time: {{ gameDateTime.toDate() | appTimeAgo:"ddd, MMM D @ h:mma" }} 
+                </ion-text>
+              </div>
+              <div>
+                <ion-button expand="block" color="success" (click)="resetTimer()">30s timer</ion-button>
+              </div>
+              <div>
+                <app-countdown-timer fill="time" [duration]="(timer$ | async)" [units]="{from: 'second', to: 'second'}"
+                  [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
+                ></app-countdown-timer>
+              </div>
+              
             </ion-card-content>
           </ion-card>
         </ion-col>
-      </ng-container>
     </ion-row>
   </ion-grid>
 

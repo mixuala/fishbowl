@@ -1,10 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LoadingController } from '@ionic/angular';
+import * as dayjs from 'dayjs';
 
 import { environment } from '../../environments/environment';
 import { HttpParams } from '@angular/common/http';
-import { tap } from 'rxjs/operators';
+import { Player } from '../user/role';
+
+import { Observable, Subject } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
 
 declare let window;
 
@@ -19,6 +23,8 @@ export class PlaygroundPage implements OnInit {
     count: number,
   };
   public stash:object = {};
+  public gameDateTime:dayjs.Dayjs;
+  public timer$:Subject<{seconds:number}>;
 
 
   constructor(
@@ -30,21 +36,42 @@ export class PlaygroundPage implements OnInit {
     if (environment.production==false){
       window['_dbg'] = window['_dbg'] || {};
       window._dbg.stash = this.stash
+      window._dbg.dayjs = dayjs
     }
+
+    // timers
+    this.gameDateTime = this.setGameDateTime()
+    this.timer$ = new Subject();
   }
 
   ngOnInit() {
-    if (this.activatedRoute && this.activatedRoute.snapshot) {
-      const routeData = this.activatedRoute.snapshot.data['data'];
+    const routeData = this.activatedRoute && this.activatedRoute.snapshot && this.activatedRoute.snapshot.data['data'];
+    if (routeData) {
       const {user$, user} = routeData;
-      user$.pipe(
-        tap( (u:firebase.User)=>{
-          let {uid, displayName, email, isAnonymous } = u;
-          console.log("user=", {uid, displayName, email, isAnonymous });
+      Object.assign(this, {user$, user});
+      this.loadPlayer$(user$).pipe(
+        tap( (p)=>{
+          console.log("player=", p);
         })
       ).subscribe();
-      Object.assign(this, {user$, user});
-    }    
+    }
+
+    this.timer$.pipe(
+      tap( v=>console.log("RESET timer=", v) ),
+    ).subscribe();
+  }
+
+  loadPlayer$(user$:Observable<firebase.User>):Observable<Player> {
+    return user$.pipe(
+      map( u=>{
+        let p:Player = {
+          uid: u.uid,
+          name: u.displayName,
+          gamesPlayed: 0,
+        }
+        return p;
+      })
+    )
   }
 
   ionViewDidEnter() {
@@ -61,6 +88,30 @@ export class PlaygroundPage implements OnInit {
 
     const { role, data } = await loading.onDidDismiss();
     console.log('Loading dismissed!');
+  }
+  
+  // Helpers
+  resetTimer(duration=30){
+    this.timer$.next( {seconds: duration} );
+  }
+
+  onTimerDone(t:Date|{seconds:number}) {
+    console.log("BUZZ done at t=", t)
+  }
+
+
+  setGameDateTime(day:number=5, hour:number=19){
+    let datetime = {
+      day, // Fri
+      hour,
+      startOf: 'hour'
+    }
+    let startTime = Object.entries(datetime).reduce( (d, [k,v])=>{
+      if (k=='startOf') return d.startOf(v as dayjs.UnitType)
+      return d.set(k as dayjs.UnitType, v as number);
+    }, dayjs() );
+    console.log("Game starts at=", startTime);
+    return startTime
   }
 
 }

@@ -1,0 +1,34 @@
+app-countdown-timer {
+  --countdown-fill-border: none;
+  --countdown-fill-border-radius: 10px;
+  --countdown-fill-background: #FFFFFF;
+  --countdown-fill-shadow: 0px 0px 5px 0px rgba(0,0,0, 0.2);
+}
+app-countdown-timer {
+  --countdown-margin: 4px;
+  --countdown-padding: 4px;
+  --countdown-time-margin: 4px;
+  --countdown-time-padding: 4px;
+  --countdown-inner-time-margin: 2px;
+  --countdown-inner-time-padding: 0px;
+}
+
+app-countdown-timer {
+  background-color: transparent;
+  --countdown-padding: 10px;
+  --countdown-time-margin: 0px 4px;
+  --countdown-time-padding: 10px 10px;
+  --countdown-fill-border: none;
+  --countdown-fill-border-radius: 10px;
+  --countdown-fill-shadow: 0px 0px 5px 0px rgba(0,0,0, 0.2);
+}
+
+app-countdown-timer {
+  --countdown-fill-background: var(--ion-color-tertiary);
+  --countdown-value-color: var(--ion-color-light);
+  --countdown-unit-color: var(--ion-color-light);
+}
+
+.game-time {
+  padding: 20px 0;
+}
