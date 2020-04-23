@@ -22,12 +22,15 @@ export class AuthService {
     return this.afAuth.user;
   }
 
-  doAnonymousSignIn(){
-    firebase.auth().signInAnonymously().catch( (error)=>{
+  doAnonymousSignIn():Promise<firebase.User>{
+    return firebase.auth().signInAnonymously()
+    .then( res=>res.user )
+    .catch( (error)=>{
       // Handle Errors here.
       var errorCode = error.code;
       var errorMessage = error.message;
       // ...
+      return Promise.reject(error)
     });
   }
 

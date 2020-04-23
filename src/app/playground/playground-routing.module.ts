@@ -10,7 +10,7 @@ const routes: Routes = [
     path: '',
     component: PlaygroundPage,
     resolve: {
-      data: PlaygroundPageResolver,
+      // data: PlaygroundPageResolver,
     }
   }
 ];

@@ -15,9 +15,10 @@ import { environment } from '../environments/environment';
 
 import { AngularFireModule } from '@angular/fire';
 // import { AngularFireMessagingModule } from '@angular/fire/messaging';
-import { AngularFirestoreModule, FirestoreSettingsToken } from '@angular/fire/firestore';
+// import { AngularFirestoreModule, FirestoreSettingsToken } from '@angular/fire/firestore';
 // import { AngularFireStorageModule } from '@angular/fire/storage';
 import { AngularFireAuthModule } from '@angular/fire/auth';
+import { AngularFireDatabase, AngularFireDatabaseModule } from '@angular/fire/database';
 
 import { NativeAudio } from '@ionic-native/native-audio/ngx';
 
@@ -36,10 +37,12 @@ import { NativeAudio } from '@ionic-native/native-audio/ngx';
     AngularFireAuthModule, // imports firebase/auth
     // AngularFireStorageModule, // imports firebase/storage
     // AngularFireMessagingModule,
+    AngularFireDatabaseModule,
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
-    NativeAudio
+    NativeAudio,
+    // AngularFireDatabase
   ],
   bootstrap: [AppComponent]
 })

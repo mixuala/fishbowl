@@ -1,17 +1,25 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LoadingController, IonButton } from '@ionic/angular';
+import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
 import { environment } from '../../environments/environment';
-import { HttpParams } from '@angular/common/http';
+import { AuthService } from '../services/auth-service.service';
 import { Player } from '../user/role';
 import { AudioService } from '../services/audio.service';
 
-import { Observable, Subject } from 'rxjs';
-import { map, tap } from 'rxjs/operators';
+import { Observable, Subject, of, from, throwError } from 'rxjs';
+import { map, tap, switchMap, take } from 'rxjs/operators';
 
 declare let window;
+
+interface Game {     
+  uid?: string
+  label: string;
+  gameDateTime?: string;
+  timer?: {seconds: number};
+}
 
 @Component({
   selector: 'app-playground',
@@ -27,6 +35,11 @@ export class PlaygroundPage implements OnInit {
   public gameDateTime:dayjs.Dayjs;
   public timer$:Subject<{seconds:number}>;
 
+  public upcomingGames$: Observable<Game[]>;
+  public game$:Observable<Game>;
+  public gameRef:AngularFireObject<Game>;
+
+
   @ViewChild( 'playTimer', {static:false} ) playTimer:IonButton; 
 
   constructor(
@@ -34,6 +47,8 @@ export class PlaygroundPage implements OnInit {
     private  router: Router,
     private loadingController: LoadingController,
     private nativeAudio: AudioService,
+    private db: AngularFireDatabase,
+    private authService: AuthService,
   ) {
 
     if (environment.production==false){
@@ -42,36 +57,69 @@ export class PlaygroundPage implements OnInit {
       window._dbg.dayjs = dayjs
     }
 
-    // timers
-    this.gameDateTime = this.setGameDateTime()
-    this.timer$ = new Subject();
   }
 
-  ngOnInit() {
-    const routeData = this.activatedRoute && this.activatedRoute.snapshot && this.activatedRoute.snapshot.data['data'];
-    if (routeData) {
-      const {user$, user} = routeData;
-      Object.assign(this, {user$, user});
-      this.loadPlayer$(user$).pipe(
-        tap( (p)=>{
-          console.log("player=", p);
-        })
-      ).subscribe();
-    }
-
-    this.timer$.pipe(
-      tap( v=>console.log("RESET timer=", v) ),
+  async ngOnInit() {
+    this.loadPlayer$().pipe(
+      tap( (p)=>{ console.log("player=", p) })
     ).subscribe();
+    
+    let loading = await this.presentLoading();
+    
+    of([]).pipe(
+      switchMap( ()=>{
+        this.upcomingGames$ =  this.db.list<Game>('games').snapshotChanges().pipe(
+          map( sa=>sa.map( o=>{
+            let value = o.payload.val();
+            value.uid = o.key;
+            return value;
+          }))
+        );
+        return this.upcomingGames$
+      }),
+      tap( gameList=>{
+        console.log( "games=", gameList);
+        let isEmpty = gameList.length==0;
+        if (isEmpty){
+          let cloudGame = {
+            label: 'game-in-cloud',
+            gameDateTime: this.setGameDateTime(6,19).toJSON(),
+          }
+          this.db.list<Game>('games').push(cloudGame).then( v=>{
+            console.log("ngOnInit list<Games>", v )
+          });
+          return throwError( "DEV: no games")
+          // emits valueChanges() from above
+        }
+      }),
+      map( gameList=>gameList.shift() ),
+      tap( (game)=>{
+        let gameId = game.uid || this.activatedRoute.snapshot.paramMap.get('id')
+        if (!this.gameRef) {
+          this.gameRef = this.db.object(`/games/${gameId}`);  
+          this.game$ = this.gameRef.valueChanges();
+        }
+      }),
+      tap( ()=>{
+        loading && loading.dismiss();
+      }),
+    ).subscribe();
+
   }
 
-  ngAfterViewInit(){
-    ["click","buzz",].forEach( k=>this.nativeAudio.preload(k));
-  }
 
+  loadPlayer$():Observable<Player> {
+    return this.authService.getCurrentUser$().pipe(
+      switchMap( u=>{
+        if (!!u) return of(u);
 
+        return from(this.authService.doAnonymousSignIn());
 
-  loadPlayer$(user$:Observable<firebase.User>):Observable<Player> {
-    return user$.pipe(
+        // email/passwd signIn with DEV user
+        console.log( `DEV: auto-login to default app user.`);
+        return this.authService.doLogin({email:'test@test.com', password:'hellow'})
+
+      }),
       map( u=>{
         let p:Player = {
           uid: u.uid,
@@ -80,32 +128,39 @@ export class PlaygroundPage implements OnInit {
         }
         return p;
       })
-    )
+    );
+  }
+
+
+  ngAfterViewInit(){
+    ["click","buzz",].forEach( k=>this.nativeAudio.preload(k));
   }
 
   ionViewDidEnter() {
-    const id = this.activatedRoute.snapshot.paramMap.get('id');
+
   }
 
   // Helpers
   async presentLoading() {
     const loading = await this.loadingController.create({
-      message: 'Please wait...',
-      duration: 2000
+      message: 'Loading...',
+      duration: 4000,
+      spinner: "dots",
     });
-    await loading.present();
-
-    const { role, data } = await loading.onDidDismiss();
-    console.log('Loading dismissed!');
+    loading.present();
+    return loading;
   }
   
   // Helpers
   resetTimer(duration=3){
-    this.timer$.next( {seconds: duration} );
-    this.nativeAudio.play("click");
+    this.gameRef.update({ timer:{seconds: duration} }).then( _=>{
+      this.nativeAudio.play("click");
+    });
   }
 
   onTimerDone(t:Date|{seconds:number}) {
+    this.gameRef.update({ timer:null }).then( _=>{
+    });
     console.log("BUZZ done at t=", t);
     this.animate(this.playTimer);
 
@@ -122,7 +177,7 @@ export class PlaygroundPage implements OnInit {
   }
 
 
-  setGameDateTime(day:number=5, hour:number=19){
+  setGameDateTime(day:number=5, hour:number=19):dayjs.Dayjs{
     let datetime = {
       day, // Fri
       hour,
@@ -132,8 +187,8 @@ export class PlaygroundPage implements OnInit {
       if (k=='startOf') return d.startOf(v as dayjs.UnitType)
       return d.set(k as dayjs.UnitType, v as number);
     }, dayjs() );
-    console.log("Game starts at=", startTime);
-    return startTime
+    console.log("Set gameDateTime=", startTime);
+    return startTime;
   }
 
 }

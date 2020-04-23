@@ -29,18 +29,18 @@
               </ion-card-subtitle>
             </ion-card-header>
               
-            <ion-card-content>
+            <ion-card-content *ngIf="game$ | async as game">
               <div class="game-time ion-text-center">
-                <app-countdown-timer fill="time" [end]="gameDateTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
+                <app-countdown-timer fill="time" [end]="game.gameDateTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
                 <ion-text  color="dark">
-                  Game Time: {{ gameDateTime.toDate() | appTimeAgo:"ddd, MMM D @ h:mma" }} 
+                  Game Time: {{ game.gameDateTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                 </ion-text>
               </div>
               <div>
                 <ion-button #playTimer expand="block" color="success" (click)="resetTimer()">30s timer</ion-button>
               </div>
               <div>
-                <app-countdown-timer fill="time" [duration]="(timer$ | async)" [units]="{from: 'second', to: 'second'}"
+                <app-countdown-timer fill="time" [duration]="game.timer" [units]="{from: 'second', to: 'second'}"
                   [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
                 ></app-countdown-timer>
               </div>

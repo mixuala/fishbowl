@@ -2,6 +2,9 @@ import { Injectable } from '@angular/core';
 import { Platform } from '@ionic/angular';
 import { NativeAudio } from '@ionic-native/native-audio/ngx';
 
+
+declare let document;
+
 interface Sound {
   key: string;
   asset: string;
@@ -19,15 +22,17 @@ export class AudioService {
     click: "assets/audio/448080__breviceps__wet-click.wav",
   }
 
+
   private sounds: Sound[] = [];
-  private audioPlayer: HTMLAudioElement = new Audio();
+  private audioPlayer: HTMLAudioElement;
   private forceWebAudio: boolean = true;
 
   constructor(
     private platform: Platform, 
     private nativeAudio: NativeAudio,
   ){
-
+    // safari HTML5 hack
+    this.audioPlayer = new Audio();
   }
 
   preload(key: string, asset: string=null): void {
@@ -77,7 +82,7 @@ export class AudioService {
       });
 
     } else {
-
+      this.audioPlayer.volume = 0.1;
       this.audioPlayer.src = soundToPlay.asset;
       this.audioPlayer.play();
       let stop = ()=>{
