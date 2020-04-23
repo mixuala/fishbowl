@@ -25,7 +25,7 @@ interface Game {
 @Component({
   selector: 'app-playground',
   templateUrl: './playground.page.html',
-  styleUrls: ['./playground.page.scss', './animate.css'],
+  styleUrls: ['./playground.page.scss'],
 })
 export class PlaygroundPage implements OnInit {
   public audioVolumeIcons = ["volume-mute","volume-low","volume-medium","volume-high"];
@@ -86,7 +86,7 @@ export class PlaygroundPage implements OnInit {
         if (isEmpty){
           let cloudGame = {
             label: 'game-in-cloud',
-            gameDateTime: this.setGameDateTime(6,19).toJSON(),
+            gameDateTime: this.setGameDateTime(5,19).toJSON(),
           }
           this.db.list<Game>('games').push(cloudGame).then( v=>{
             console.log("ngOnInit list<Games>", v )
