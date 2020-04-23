@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { Platform } from '@ionic/angular';
 import { NativeAudio } from '@ionic-native/native-audio/ngx';
+import {Howl, Howler} from 'howler';
 
 import { AppConfig } from '../services/app.helpers';
-
 
 declare let document;
 
@@ -24,21 +24,15 @@ export class AudioService {
     click: "assets/audio/448080__breviceps__wet-click.wav",
   }
 
-
   private sounds: Sound[] = [];
-  private audioPlayer: HTMLAudioElement;
   private forceWebAudio: boolean = true;
 
   constructor(
     private platform: Platform, 
     private nativeAudio: NativeAudio,
   ){
-    this.audioPlayer = new Audio();
-    this.audioPlayer.volume = 0.1;
-    if (AppConfig.detectBrowser().includes('safari')) {
-      // safari HTML5 hack
-      this.setVolume(0);
-    }
+    let initialVolume = 1;
+    this.setVolume(initialVolume);
   }
 
   preload(key: string, asset: string=null): void {
@@ -57,8 +51,11 @@ export class AudioService {
 
     } else {
 
-      let audio = new Audio();
-      audio.src = asset;
+      new Howl({
+        src: [asset],
+        preload: true,
+        mute: true,
+      });
 
       this.sounds.push({
         key: key,
@@ -90,22 +87,22 @@ export class AudioService {
       });
 
     } else {
-      this.audioPlayer.src = soundToPlay.asset;
-      this.audioPlayer.play();
-      let stop = ()=>{
-        this.audioPlayer.pause();
-      }
-      return Promise.resolve(stop);
 
+      let sound = new Howl({
+        src: [soundToPlay.asset]
+      });
+      let id = sound.play();
+      return Promise.resolve( ()=>{
+        sound.stop([id]);
+      });
     }
 
   }
 
   setVolume(value:number, playClick=true){
-    let decode = [0, 0.1, 0.3, 1]
-    this.audioPlayer.volume = decode[value];
-    console.log("play volume=", this.audioPlayer.volume)
-    if (playClick) this.play('click')
+    let decode = [0, 0.1, 0.3, 1];
+    Howler.volume( decode[value] );
+    if (playClick) this.play('click');
   }
 
 }

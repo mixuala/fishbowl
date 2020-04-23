@@ -32,6 +32,7 @@ export class GamePage implements OnInit {
   public stash:any = {
     listen: true,
     audioVolumeIcon: null,
+    active: false,
   };
 
   public listen$ : Subject<boolean> = new Subject<boolean>();
@@ -60,6 +61,7 @@ export class GamePage implements OnInit {
   }
 
   async ngOnInit() {
+
     this.loadPlayer$().pipe(
       take(1),
       tap( (p)=>{ console.log("player=", p) })
@@ -70,10 +72,16 @@ export class GamePage implements OnInit {
     of([]).pipe(
       tap( (game)=>{
         let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
-        if (!this.gameRef) {
-          this.gameRef = this.db.object(`/games/${gameId}`);  
-          this.game$ = this.gameRef.valueChanges();
-        }
+        let now = new Date();
+        this.gameRef = this.db.object(`/games/${gameId}`);  
+        this.game$ = this.gameRef.valueChanges();
+        this.game$.pipe( 
+          take(1),
+          tap( o=>{
+            this.stash.active = new Date(o.gameDateTime) < now;
+          })
+        )
+
       }),
       filter( _=>this.stash.listen),
       tap( ()=>{
@@ -82,8 +90,7 @@ export class GamePage implements OnInit {
     ).subscribe();
 
     // # set initial volume
-    let volume = (AppConfig.detectBrowser().includes('safari')) ? 0 : 1;
-    this.toggleVolumeIcon(volume, false);
+    this.toggleVolumeIcon(1, false);
   }
 
 
@@ -112,9 +119,9 @@ export class GamePage implements OnInit {
 
 
   ngAfterViewInit(){
-    ["click","buzz",].forEach( k=>this.audio.preload(k));
+    this.preloadAudio();
   }
-
+  
   ionViewDidEnter() {
     this.stash.listen = true;
   }
@@ -135,6 +142,7 @@ export class GamePage implements OnInit {
   
   // Helpers
   toggleVolumeIcon(volume:number = null, playSound=true){
+
     if (!volume) {
       volume = this.audioVolumeIcons.findIndex(v=>v==this.stash.audioVolumeIcon);
       volume += 1;
@@ -146,7 +154,7 @@ export class GamePage implements OnInit {
   }
 
   preloadAudio(){
-    console.log("preloading")
+    ["click","buzz"].forEach( k=>this.audio.preload(k));
   }
 
   resetTimer(duration=3){

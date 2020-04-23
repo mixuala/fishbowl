@@ -13,11 +13,6 @@
 
   <!-- grid mode -->
   <ion-grid no-padding>
-    <ion-row *ngIf="data?.rows">
-      <!-- Searchbar with cancel button always shown -->
-      <ion-searchbar showCancelButton="focus" debounce="1000" animated mode="ios"
-      ></ion-searchbar>
-    </ion-row>
     <ion-row>
         <ion-col size="12" size-sm="8" size-xl="4">
           <ion-card  *ngIf="game$ | async as game">
@@ -31,12 +26,16 @@
             </ion-card-header>
               
             <ion-card-content>
-              <div class="game-time ion-text-center">
+            <ion-list class="ion-no-padding">
+
+              <div class="game-time ion-text-center" *ngIf="stash.active==false">
                 <app-countdown-timer fill="time" [end]="game.gameDateTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
                 <ion-text  color="dark">
                   Game Time: {{ game.gameDateTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                 </ion-text>
+                <ion-item-divider></ion-item-divider>
               </div>
+
               <div class="timer-controls">
                 <ion-button #playTimer id="play-timer" expand="block" color="success" (click)="resetTimer()">30s timer</ion-button>
                 <ion-button color="light" (click)="toggleVolumeIcon()">
@@ -44,13 +43,15 @@
                     <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
                   </ion-icon>
                 </ion-button>
-              </div>
-              <div>
+
                 <app-countdown-timer fill="time" [duration]="game.timer" [units]="{from: 'second', to: 'second'}"
                   [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
                 ></app-countdown-timer>
+
+                <ion-item-divider></ion-item-divider>
               </div>
-              
+
+            </ion-list>
             </ion-card-content>
           </ion-card>
         </ion-col>
