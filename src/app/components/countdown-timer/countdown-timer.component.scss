@@ -41,6 +41,7 @@
     flex-direction: var(--countdown-time-flex-direction);
     align-items: center;
     justify-content: center;
+    min-height: 5em;
 
     .time-unit {
       display: block;
@@ -49,6 +50,7 @@
       text-align: center;
       text-transform: uppercase;
       width: 2ex;
+      line-height: 1em;
     }
 
     .time-value {

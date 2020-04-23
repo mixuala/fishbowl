@@ -1,6 +1,6 @@
 <ion-row class="countdown">
   <ion-col class="time" *ngIf="_initialUnit === 'day'">
-    <span class="time-unit">D</span>
+    <span class="time-unit">{{_daysLeft==1 ? "Day" : "Days"}}</span>
     <div class="inner-time">
       <span class="time-value">{{ _daysLeft }}</span>
     </div>
@@ -18,9 +18,16 @@
     </div>
   </ion-col>
   <ion-col class="time" *ngIf="_endingUnit === 'second'">
-    <span class="time-unit">S</span>
-    <div class="inner-time">
-      <span class="time-value">{{ _secondsLeft }}</span>
-    </div>
+    <ng-container *ngIf="stopAtZero==false || _secondsLeft!=0; else done">
+      <span class="time-unit">S</span>
+      <div class="inner-time">
+        <span class="time-value">{{ _secondsLeft }}</span>
+      </div>
+    </ng-container>
+    <ng-template #done>
+      <div class="inner-time">
+        <span class="time-value">done!</span>
+      </div>
+    </ng-template>
   </ion-col>
 </ion-row>
