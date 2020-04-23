@@ -81,6 +81,23 @@ const routes: Routes = [
         ]
       },
       {
+        path: 'games',
+        children: [
+          {
+            path: '',
+            loadChildren: () => import('../fishbowl/list/list.module').then(m => m.ListPageModule)
+          }
+        ]
+      },    
+      {
+        path: 'list',
+        loadChildren: () => import('../fishbowl/list/list.module').then( m => m.ListPageModule)
+      },    
+      {
+        path: 'game',
+        loadChildren: () => import('../fishbowl/game/game.module').then( m => m.GamePageModule)
+      },
+      {
         path: 'playground',
         children: [
           {
