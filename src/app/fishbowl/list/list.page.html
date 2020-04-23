@@ -12,15 +12,14 @@
 <ion-content>
 
   <!-- grid mode -->
-  <ion-grid no-padding>
-    <ion-row *ngIf="data?.rows">
-      <!-- Searchbar with cancel button always shown -->
+  <ion-grid no-padding *ngIf="(games$ | async) as games">
+    <!-- <ion-row *ngIf="games.length>5">
       <ion-searchbar showCancelButton="focus" debounce="1000" animated mode="ios"
       ></ion-searchbar>
-    </ion-row>
+    </ion-row> -->
     <ion-row>
         <ion-col size="12" size-sm="8" size-xl="4">
-          <ion-card  *ngIf="game$ | async as game">
+          <ion-card  *ngFor="let game of games, let i=index">
             <ion-card-header color="tertiary">
               <ion-card-title>
                 {{game.label}}
@@ -34,23 +33,15 @@
               <div class="game-time ion-text-center">
                 <app-countdown-timer fill="time" [end]="game.gameDateTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
                 <ion-text  color="dark">
-                  Game Time: {{ game.gameDateTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
+                  Game Time: {{ game.gameDateTime | appTimeAgo:"ddd, MMM D @ h:mma" }}
                 </ion-text>
-              </div>
-              <div class="timer-controls">
-                <ion-button #playTimer id="play-timer" expand="block" color="success" (click)="resetTimer()">30s timer</ion-button>
-                <ion-button color="light" (click)="toggleVolumeIcon()">
-                  <ion-icon [name]="stash.audioVolumeIcon" >
-                    <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
-                  </ion-icon>
-                </ion-button>
-              </div>
-              <div>
-                <app-countdown-timer fill="time" [duration]="game.timer" [units]="{from: 'second', to: 'second'}"
-                  [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
-                ></app-countdown-timer>
-              </div>
-              
+              </div>  
+              <ion-item lines="none">
+                <ion-label>players</ion-label>
+                <ion-text slot="end" >{{game.playerCount || 0}}</ion-text>
+                <!-- <ion-note slot="end"></ion-note> -->
+              </ion-item>
+              <ion-button expand="block" color="success" (click)="join(game, i)" >Join Game</ion-button>   
             </ion-card-content>
           </ion-card>
         </ion-col>

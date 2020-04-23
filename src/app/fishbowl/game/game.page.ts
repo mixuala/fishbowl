@@ -10,6 +10,7 @@ import { Player } from '../../user/role';
 import { Game } from '../types';
 import { AudioService } from '../../services/audio.service';
 import { AppConfig } from '../../services/app.helpers';
+import { FishbowlHelpers } from '../fishbowl.helpers'
 
 import { Observable, Subject, of, from, throwError } from 'rxjs';
 import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
@@ -67,40 +68,14 @@ export class GamePage implements OnInit {
     let loading = await this.presentLoading();
     
     of([]).pipe(
-      switchMap( ()=>{
-        this.upcomingGames$ =  this.db.list<Game>('games').snapshotChanges().pipe(
-          map( sa=>sa.map( o=>{
-            let value = o.payload.val();
-            value.uid = o.key;
-            return value;
-          }))
-        );
-        return this.upcomingGames$
-      }),
-      filter( _=>this.stash.listen),
-      tap( gameList=>{
-        console.log( "games=", gameList);
-        let isEmpty = gameList.length==0;
-        if (isEmpty){
-          let cloudGame = {
-            label: 'game-in-cloud',
-            gameDateTime: this.setGameDateTime(5,19).toJSON(),
-          }
-          this.db.list<Game>('games').push(cloudGame).then( v=>{
-            console.log("ngOnInit list<Games>", v )
-          });
-          return throwError( "DEV: no games")
-          // emits valueChanges() from above
-        }
-      }),
-      map( gameList=>gameList.shift() ),
       tap( (game)=>{
-        let gameId = game.uid || this.activatedRoute.snapshot.paramMap.get('id')
+        let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
         if (!this.gameRef) {
           this.gameRef = this.db.object(`/games/${gameId}`);  
           this.game$ = this.gameRef.valueChanges();
         }
       }),
+      filter( _=>this.stash.listen),
       tap( ()=>{
         loading && loading.dismiss();
       }),
@@ -196,21 +171,6 @@ export class GamePage implements OnInit {
       el.classList.remove("animated", "slow", animation);
       stop();
     });
-  }
-
-
-  setGameDateTime(day:number=5, hour:number=19):dayjs.Dayjs{
-    let datetime = {
-      day, // Fri
-      hour,
-      startOf: 'hour'
-    }
-    let startTime = Object.entries(datetime).reduce( (d, [k,v])=>{
-      if (k=='startOf') return d.startOf(v as dayjs.UnitType)
-      return d.set(k as dayjs.UnitType, v as number);
-    }, dayjs() );
-    console.log("Set gameDateTime=", startTime);
-    return startTime;
   }
 
 }

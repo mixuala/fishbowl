@@ -94,7 +94,7 @@ const routes: Routes = [
         loadChildren: () => import('../fishbowl/list/list.module').then( m => m.ListPageModule)
       },    
       {
-        path: 'game',
+        path: 'game/:uid',
         loadChildren: () => import('../fishbowl/game/game.module').then( m => m.GamePageModule)
       },
       {
