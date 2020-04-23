@@ -98,7 +98,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   }
 
   @Output() onBuzz = new EventEmitter<Date | {seconds: number}>(); 
-  @Input() stopAtZero:boolean = true;
+  @Input() stopAtZero:boolean = false;
 
   stash:any = {};
 
