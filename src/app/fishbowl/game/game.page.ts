@@ -6,14 +6,14 @@ import * as dayjs from 'dayjs';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
-import { Player } from '../../user/role';
-import { Game } from '../types';
+import { Player, } from '../../user/role';
+import { Game, SpotlightPlayer } from '../types';
 import { AudioService } from '../../services/audio.service';
-import { AppConfig } from '../../services/app.helpers';
+import { AppConfig, Helpful} from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers'
 
-import { Observable, Subject, of, from, throwError } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
+import { Observable, Subject, of, from, throwError, pipe, combineLatest } from 'rxjs';
+import { map, tap, switchMap, take, takeWhile, filter, concatMap, withLatestFrom } from 'rxjs/operators';
 
 declare let window;
 
@@ -32,13 +32,17 @@ export class GamePage implements OnInit {
   public stash:any = {
     listen: true,
     audioVolumeIcon: null,
-    active: false,
+    activeGame: false,
   };
+  public displayName:string;
 
   public listen$ : Subject<boolean> = new Subject<boolean>();
   public upcomingGames$: Observable<Game[]>;
   public game$:Observable<Game>;
   public gameRef:AngularFireObject<Game>;
+  private game:Game;
+  private player: Player;
+  public spotlight:SpotlightPlayer;
 
 
   @ViewChild( 'playTimer', {static:false} ) playTimer:IonButton; 
@@ -64,26 +68,28 @@ export class GamePage implements OnInit {
 
     this.loadPlayer$().pipe(
       take(1),
-      tap( (p)=>{ console.log("player=", p) })
+      tap( (p)=>{ this.player = p })
     ).subscribe();
     
     let loading = await this.presentLoading();
     
     of([]).pipe(
-      tap( (game)=>{
+      switchMap( (game)=>{
         let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
         let now = new Date();
         this.gameRef = this.db.object(`/games/${gameId}`);  
-        this.game$ = this.gameRef.valueChanges();
-        this.game$.pipe( 
-          take(1),
+        return this.game$ = this.gameRef.valueChanges().pipe( 
           tap( o=>{
-            this.stash.active = new Date(o.gameDateTime) < now;
+            this.game = o;
+            this.stash.activeGame = new Date(o.gameDateTime) < now;
+            // DEV
+            this.stash.activeGame = true;
           })
-        )
-
+        );
       }),
-      filter( _=>this.stash.listen),
+      tap( (game)=>{
+        this.spotlightPlayer();
+      }),
       tap( ()=>{
         loading && loading.dismiss();
       }),
@@ -91,6 +97,15 @@ export class GamePage implements OnInit {
 
     // # set initial volume
     this.toggleVolumeIcon(1, false);
+
+    combineLatest([this.loadPlayer$(), this.game$]).pipe(
+      take(1),
+      tap( (res)=>{
+        let name = this.game.players && this.game.players[this.player.uid]
+        if (typeof name == "number") name = this.player.displayName || "";
+        this.displayName = name;
+      })
+    ).subscribe()
   }
 
 
@@ -113,8 +128,60 @@ export class GamePage implements OnInit {
           gamesPlayed: 0,
         }
         return p;
+      }),
+      tap( p=>{
+        this.player = p;
       })
     );
+  }
+
+  beginRound():boolean{
+    if (!this.stash.activeGame) return;
+    if (!this.game) return;
+    if (!this.game.lineup) {
+      let spotlightIndex:number;
+      let lineup:number[];
+      // ignore teams for now
+      let players = Object.entries(this.game.players).map( ([uid, name])=> {
+        return {
+          uid,
+          displayName: name as string
+        }
+      });
+      lineup = Helpful.shuffle(Array.from(Array(players.length).keys()));
+      spotlightIndex = 0;
+      this.gameRef.update( {lineup, spotlightIndex} );
+      return true;
+    }
+    return;
+  }
+
+  nextPlayer(){
+    if (this.stash.activeGame) {
+      let spotlightIndex = this.game.spotlightIndex +1;
+      if (spotlightIndex==this.game.lineup.length){
+        console.log("ROUND IS COMPLETE");
+        spotlightIndex = 0;
+      }
+      this.gameRef.update( {spotlightIndex})
+    }
+  }
+
+  spotlightPlayer(){
+    if (this.stash.activeGame) {
+      try {
+        let {lineup, spotlightIndex} = this.game;
+        let playerIndex = lineup[spotlightIndex];
+        let [uid, displayName] = Object.entries(this.game.players)[ playerIndex ];
+        this.spotlight =  {uid, displayName}
+      
+        // this player is under the spotlight
+        this.stash.isUnderSpotlight =  (uid === this.player.uid);
+        
+      } catch (err) {
+        // console.error( "spotlightPlayer", err);
+      }
+    }
   }
 
 
@@ -158,6 +225,7 @@ export class GamePage implements OnInit {
   }
 
   resetTimer(duration=3){
+    this.gameRef
     this.gameRef.update({ timer:{seconds: duration} }).then( _=>{
       this.audio.play("click");
     });
@@ -179,6 +247,11 @@ export class GamePage implements OnInit {
       el.classList.remove("animated", "slow", animation);
       stop();
     });
+  }
+
+  doSettings() {
+    let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
+    this.router.navigate(['/app/entry', gameId])
   }
 
 }

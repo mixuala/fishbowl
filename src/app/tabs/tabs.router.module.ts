@@ -98,6 +98,10 @@ const routes: Routes = [
         loadChildren: () => import('../fishbowl/game/game.module').then( m => m.GamePageModule)
       },
       {
+        path: 'entry/:uid',
+        loadChildren: () => import('../fishbowl/entry/entry.module').then( m => m.EntryPageModule)
+      },      
+      {
         path: 'playground',
         children: [
           {

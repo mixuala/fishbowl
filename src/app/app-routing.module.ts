@@ -56,6 +56,10 @@ const routes: Routes = [
   {
     path: '**',
     redirectTo: 'page-not-found'
+  },
+  {
+    path: 'entry',
+    loadChildren: () => import('./fishbowl/entry/entry.module').then( m => m.EntryPageModule)
   }
 ];
 @NgModule({

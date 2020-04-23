@@ -28,6 +28,7 @@ export class ListPage implements OnInit {
 
   public listen$ : Subject<boolean> = new Subject<boolean>();
   public games$: Observable<Game[]>;
+  public player: Player;
 
   constructor(
     private  activatedRoute: ActivatedRoute,
@@ -48,7 +49,10 @@ export class ListPage implements OnInit {
   async ngOnInit() {
     this.loadPlayer$().pipe(
       take(1),
-      tap( (p)=>{ console.log("player=", p) })
+      tap( (p)=>{ 
+        this.player = p;
+        console.log("player=", p);
+      })
     ).subscribe();
     
     let loading = await this.presentLoading();
@@ -66,19 +70,19 @@ export class ListPage implements OnInit {
       }),
       filter( _=>this.stash.listen),
       tap( gameList=>{
-        console.log( "games=", gameList);
-        let isEmpty = gameList.length==0;
-        if (isEmpty){
-          let cloudGame = {
-            label: 'Saturday night special',
-            gameDateTime: FishbowlHelpers.setGameDateTime(6,19).toJSON(),
-          }
-          this.db.list<Game>('games').push(cloudGame).then( v=>{
-            console.log("ngOnInit list<Games>", v )
-          });
-          return throwError( "DEV: no games")
-          // emits valueChanges() from above
-        }
+        // console.log( "games=", gameList);
+        // let isEmpty = gameList.length==0;
+        // if (isEmpty){
+        //   let cloudGame = {
+        //     label: 'Saturday night special',
+        //     gameDateTime: FishbowlHelpers.setGameDateTime(6,19).toJSON(),
+        //   }
+        //   this.db.list<Game>('games').push(cloudGame).then( v=>{
+        //     console.log("ngOnInit list<Games>", v )
+        //   });
+        //   return throwError( "DEV: no games")
+        //   // emits valueChanges() from above
+        // }
       }),
       tap( ()=>{
         loading && loading.dismiss();
@@ -129,7 +133,12 @@ export class ListPage implements OnInit {
   }
   
   join(game, index) {
-    this.router.navigate(['/app/game', game.uid])
+    if (game.players && game.players[this.player.uid]) {
+      this.router.navigate(['/app/game', game.uid]);
+    }
+    else {
+      this.router.navigate(['/app/entry', game.uid]);
+    }
   }
 
 }
