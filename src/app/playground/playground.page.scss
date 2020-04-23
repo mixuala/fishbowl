@@ -33,6 +33,18 @@ app-countdown-timer {
   padding: 20px 0;
 }
 
+.timer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  &>ion-button {
+    flex: 1;
+    width: 100%;
+  }
+  & > ion-button#play-timer {
+    flex: 0 80%;
+  }
+}
+
 
 ion-button.animated {
   --ion-color-base: var(--ion-color-danger) !important;

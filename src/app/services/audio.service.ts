@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { Platform } from '@ionic/angular';
 import { NativeAudio } from '@ionic-native/native-audio/ngx';
 
+import { AppConfig } from '../services/app.helpers';
+
 
 declare let document;
 
@@ -31,8 +33,12 @@ export class AudioService {
     private platform: Platform, 
     private nativeAudio: NativeAudio,
   ){
-    // safari HTML5 hack
     this.audioPlayer = new Audio();
+    this.audioPlayer.volume = 0.1;
+    if (AppConfig.detectBrowser().includes('safari')) {
+      // safari HTML5 hack
+      this.setVolume(0);
+    }
   }
 
   preload(key: string, asset: string=null): void {
@@ -70,6 +76,8 @@ export class AudioService {
       return sound.key === key;
     });
 
+    if (!soundToPlay) return
+
     if(soundToPlay.isNative){
 
       return this.nativeAudio.play(soundToPlay.asset).then((id) => {
@@ -82,7 +90,6 @@ export class AudioService {
       });
 
     } else {
-      this.audioPlayer.volume = 0.1;
       this.audioPlayer.src = soundToPlay.asset;
       this.audioPlayer.play();
       let stop = ()=>{
@@ -92,6 +99,13 @@ export class AudioService {
 
     }
 
+  }
+
+  setVolume(value:number, playClick=true){
+    let decode = [0, 0.1, 0.3, 1]
+    this.audioPlayer.volume = decode[value];
+    console.log("play volume=", this.audioPlayer.volume)
+    if (playClick) this.play('click')
   }
 
 }

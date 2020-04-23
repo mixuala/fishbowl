@@ -2,6 +2,8 @@ import { Component } from '@angular/core';
 import { Plugins } from '@capacitor/core';
 const { SplashScreen } = Plugins;
 
+import { AppConfig } from './services/app.helpers';
+
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
@@ -62,7 +64,9 @@ export class AppComponent {
    }
  ];
 
-  constructor() {
+  constructor(
+    private appConfig: AppConfig,
+  ) {
     this.initializeApp();
   }
 

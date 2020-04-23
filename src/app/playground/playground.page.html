@@ -36,8 +36,13 @@
                   Game Time: {{ game.gameDateTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                 </ion-text>
               </div>
-              <div>
-                <ion-button #playTimer expand="block" color="success" (click)="resetTimer()">30s timer</ion-button>
+              <div class="timer-controls">
+                <ion-button #playTimer id="play-timer" expand="block" color="success" (click)="resetTimer()">30s timer</ion-button>
+                <ion-button color="light" (click)="toggleVolumeIcon()">
+                  <ion-icon [name]="stash.audioVolumeIcon" >
+                    <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
+                  </ion-icon>
+                </ion-button>
               </div>
               <div>
                 <app-countdown-timer fill="time" [duration]="game.timer" [units]="{from: 'second', to: 'second'}"

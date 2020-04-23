@@ -8,9 +8,10 @@ import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth-service.service';
 import { Player } from '../user/role';
 import { AudioService } from '../services/audio.service';
+import { AppConfig } from '../services/app.helpers';
 
 import { Observable, Subject, of, from, throwError } from 'rxjs';
-import { map, tap, switchMap, take } from 'rxjs/operators';
+import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
 
 declare let window;
 
@@ -27,14 +28,14 @@ interface Game {
   styleUrls: ['./playground.page.scss', './animate.css'],
 })
 export class PlaygroundPage implements OnInit {
-  public data: {
-    rows: Array<any>,
-    count: number,
+  public audioVolumeIcons = ["volume-mute","volume-low","volume-medium","volume-high"];
+  
+  public stash:any = {
+    listen: true,
+    audioVolumeIcon: null,
   };
-  public stash:object = {};
-  public gameDateTime:dayjs.Dayjs;
-  public timer$:Subject<{seconds:number}>;
 
+  public listen$ : Subject<boolean> = new Subject<boolean>();
   public upcomingGames$: Observable<Game[]>;
   public game$:Observable<Game>;
   public gameRef:AngularFireObject<Game>;
@@ -46,7 +47,7 @@ export class PlaygroundPage implements OnInit {
     private  activatedRoute: ActivatedRoute,
     private  router: Router,
     private loadingController: LoadingController,
-    private nativeAudio: AudioService,
+    private audio: AudioService,
     private db: AngularFireDatabase,
     private authService: AuthService,
   ) {
@@ -61,6 +62,7 @@ export class PlaygroundPage implements OnInit {
 
   async ngOnInit() {
     this.loadPlayer$().pipe(
+      take(1),
       tap( (p)=>{ console.log("player=", p) })
     ).subscribe();
     
@@ -77,6 +79,7 @@ export class PlaygroundPage implements OnInit {
         );
         return this.upcomingGames$
       }),
+      filter( _=>this.stash.listen),
       tap( gameList=>{
         console.log( "games=", gameList);
         let isEmpty = gameList.length==0;
@@ -105,6 +108,9 @@ export class PlaygroundPage implements OnInit {
       }),
     ).subscribe();
 
+    // # set initial volume
+    let volume = (AppConfig.detectBrowser().includes('safari')) ? 0 : 1;
+    this.toggleVolumeIcon(volume, false);
   }
 
 
@@ -133,11 +139,14 @@ export class PlaygroundPage implements OnInit {
 
 
   ngAfterViewInit(){
-    ["click","buzz",].forEach( k=>this.nativeAudio.preload(k));
+    ["click","buzz",].forEach( k=>this.audio.preload(k));
   }
 
   ionViewDidEnter() {
-
+    this.stash.listen = true;
+  }
+  ionViewDidLeave() {
+    this.stash.listen = false;
   }
 
   // Helpers
@@ -152,9 +161,24 @@ export class PlaygroundPage implements OnInit {
   }
   
   // Helpers
+  toggleVolumeIcon(volume:number = null, playSound=true){
+    if (!volume) {
+      volume = this.audioVolumeIcons.findIndex(v=>v==this.stash.audioVolumeIcon);
+      volume += 1;
+    }
+    if (volume<0 || volume > 3) volume = 0;
+
+    this.stash.audioVolumeIcon = this.audioVolumeIcons[volume];
+    this.audio.setVolume(volume, playSound);
+  }
+
+  preloadAudio(){
+    console.log("preloading")
+  }
+
   resetTimer(duration=3){
     this.gameRef.update({ timer:{seconds: duration} }).then( _=>{
-      this.nativeAudio.play("click");
+      this.audio.play("click");
     });
   }
 
@@ -169,7 +193,7 @@ export class PlaygroundPage implements OnInit {
   async animate( el:HTMLElement | any, animation="long-wobble" ){
     el = el.hasOwnProperty('el') ? el['el'] : el;
     el.classList.add("animated", "slow", animation)
-    let stop = await this.nativeAudio.play("buzz");
+    let stop = await this.audio.play("buzz");
     el.addEventListener('animationend', ()=>{ 
       el.classList.remove("animated", "slow", animation);
       stop();
