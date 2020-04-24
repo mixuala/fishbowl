@@ -7,13 +7,18 @@ import * as dayjs from 'dayjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
 import { Player, } from '../../user/role';
-import { Game, SpotlightPlayer } from '../types';
 import { AudioService } from '../../services/audio.service';
 import { AppConfig, Helpful} from '../../services/app.helpers';
-import { FishbowlHelpers } from '../fishbowl.helpers'
+import { FishbowlHelpers } from '../fishbowl.helpers';
+import { 
+  Game, GamePlayRound, RoundEnum,
+  PlayerByUids, TeamRosters,
+  SpotlightPlayer 
+} from '../types';
 
 import { Observable, Subject, of, from, throwError, pipe, combineLatest } from 'rxjs';
 import { map, tap, switchMap, take, takeWhile, filter, concatMap, withLatestFrom } from 'rxjs/operators';
+import { ThrowStmt } from '@angular/compiler';
 
 declare let window;
 
@@ -41,6 +46,7 @@ export class GamePage implements OnInit {
   public game$:Observable<Game>;
   public gameRef:AngularFireObject<Game>;
   private game:Game;
+  private gameId:string;
   private player: Player;
   public spotlight:SpotlightPlayer;
 
@@ -81,6 +87,7 @@ export class GamePage implements OnInit {
         return this.game$ = this.gameRef.valueChanges().pipe( 
           tap( o=>{
             this.game = o;
+            this.game['uid'] = gameId;  // stash here
             this.stash.activeGame = new Date(o.gameDateTime) < now;
             // DEV
             this.stash.activeGame = true;
@@ -88,7 +95,7 @@ export class GamePage implements OnInit {
         );
       }),
       tap( (game)=>{
-        this.spotlightPlayer();
+        this.listenToGame(game);
       }),
       tap( ()=>{
         loading && loading.dismiss();
@@ -135,49 +142,141 @@ export class GamePage implements OnInit {
     );
   }
 
-  beginRound():boolean{
+
+
+  /**
+   * GameMaster components
+   */
+
+  // tested OK
+  async loadRounds(force=false):Promise<boolean>{
+    if (!this.game) return false;
+
+    //TODO: need a form to add teamNames
+    let existingRoundEnums = Object.values(this.game.rounds || {});
+    if (existingRoundEnums.find( v=>v>1000) && !force) {
+      return false; // game has already begun, round value is unixtime/timestamp
+    }
+
+    let rounds = [RoundEnum.Taboo, RoundEnum.OneWord, RoundEnum.Charades]
+      .filter( e=>existingRoundEnums.find( ex=>ex==e )==null )
+      .map( (round)=>{
+      let gameRound = FishbowlHelpers.buildGamePlayRound(this.game, round);
+      gameRound.uid = this.db.createPushId();
+      return gameRound;
+    });
+    // DEV: init if missing
+    let teamNames = this.game.teamNames || Object.keys(rounds[0].teams);
+    let rounds_DbRef = this.db.database.ref().child('/rounds');
+
+    // insert Rounds
+    let updateBatch = rounds.reduce( (o, v)=>{
+      let path = `/${v.uid}`
+      o[path] = v
+      return o
+    }, {});
+    await rounds_DbRef.update(updateBatch);  // firebase directly
+
+    // update Game, use AngularFire ref
+    // insert rounds in gameplay order
+    let result = this.gameRef.update({
+      teamNames, // DEV
+      rounds: rounds.reduce( (o,v)=>(o[v.uid]=v.round, o), {})
+    });
+    console.log("FFF> update Game, result=", result);
+    return true;
+  }
+
+
+  beginRound(round:RoundEnum=RoundEnum.Taboo):boolean{
     if (!this.stash.activeGame) return;
     if (!this.game) return;
-    if (!this.game.lineup) {
-      let spotlightIndex:number;
-      let lineup:number[];
-      // ignore teams for now
-      let players = Object.entries(this.game.players).map( ([uid, name])=> {
-        return {
-          uid,
-          displayName: name as string
-        }
-      });
-      lineup = Helpful.shuffle(Array.from(Array(players.length).keys()));
-      spotlightIndex = 0;
-      this.gameRef.update( {lineup, spotlightIndex} );
-      return true;
+
+    // get round, NOTE: rounds are created in gameplay order
+    let {rounds} = this.game;
+    let [roundId, timestamp] = Object.entries(rounds)[round-1];
+    let gameData = {
+      activeRound: roundId
     }
-    return;
+    if (timestamp < 1000) {
+      // upgrade Game.rounds{ [uid]: RoundEnum => Date.now() }
+      rounds = Object.assign({}, rounds, {[roundId]: Date.now()});
+      gameData['rounds'] = rounds;
+    }
+    this.gameRef.update(gameData);
+
+
+    let roundRef = this.db.object<GamePlayRound>(`/rounds/${roundId}`);
+    let round$ = roundRef.valueChanges();
+    round$.pipe(
+      take(1),
+      tap( round=>{
+        this.stash.gamePlay = { round, round$, roundRef };
+        FishbowlHelpers.moveSpotlight(round, roundRef);
+      })
+    ).subscribe();
+    return true;
   }
 
   nextPlayer(){
-    if (this.stash.activeGame) {
-      let spotlightIndex = this.game.spotlightIndex +1;
-      if (spotlightIndex==this.game.lineup.length){
-        console.log("ROUND IS COMPLETE");
-        spotlightIndex = 0;
-      }
-      this.gameRef.update( {spotlightIndex})
-    }
+    if (!this.stash.activeGame) return;
+    if (!this.game) return;
+    if (!this.stash.gamePlay) return;
+
+    let { roundRef } = this.stash.gamePlay;
+    roundRef.valueChanges().pipe( 
+      take(1),
+      tap( (round:GamePlayRound)=>{
+        FishbowlHelpers.moveSpotlight(round, roundRef);
+      })
+    ).subscribe();
+    return true;
+
   }
 
-  spotlightPlayer(){
+  listenToGame(game:Game){
+    if (!this.stash.activeGame) return;
+    if (!game.activeRound) return;
+    
+    let { done, round, roundRef } = this.stash.gamePlay || {done:null, round:null, roundRef:null};
+    if (done && round && round.uid !== game.activeRound) {
+      done.unsubscribe();
+      this.spotlight = null;
+      roundRef = null;
+      round = null;
+    }
+
+    // TODO: handle case when activeRound changes
+    roundRef = this.db.object<GamePlayRound>(`/rounds/${game.activeRound}`);
+    let round$ = roundRef.valueChanges();
+    done = round$.pipe(
+      tap( (round:GamePlayRound)=>{
+        this.spotlight = FishbowlHelpers.getSpotlightPlayer(round);
+        // this player is under the spotlight
+        this.stash.isUnderSpotlight = (this.spotlight.uid === this.player.uid);
+      }),
+    ).subscribe();
+
+    round$.pipe(
+      take(1),
+      tap( round=>{
+        this.stash.gamePlay = { done, round, roundRef, };
+        console.info("RACE>>> stash.gamePlay", this.stash.gamePlay);
+      })
+    ).subscribe();
+  }
+
+  XXXspotlightPlayer(){
     if (this.stash.activeGame) {
       try {
         let {lineup, spotlightIndex} = this.game;
         let playerIndex = lineup[spotlightIndex];
         let [uid, displayName] = Object.entries(this.game.players)[ playerIndex ];
-        this.spotlight =  {uid, displayName}
+        this.spotlight =  {uid, label: displayName}
       
         // this player is under the spotlight
         this.stash.isUnderSpotlight =  (uid === this.player.uid);
-        
+
       } catch (err) {
         // console.error( "spotlightPlayer", err);
       }
@@ -250,8 +349,8 @@ export class GamePage implements OnInit {
   }
 
   doSettings() {
-    let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
-    this.router.navigate(['/app/entry', gameId])
+    // let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
+    this.router.navigate(['/app/entry', this.game.uid])
   }
 
 }
