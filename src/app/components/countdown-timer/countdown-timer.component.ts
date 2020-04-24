@@ -57,9 +57,17 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   set duration( o: {seconds: number}) {
     const LATENCY_MS = 1005;
     if (o && o.hasOwnProperty('seconds')) {
-      this.stash.duration = o;
-      let duration = o.seconds*1000 + LATENCY_MS;
-      this._endingTime = dayjs().add(duration, 'millisecond');
+      if (o.seconds===null) {
+        this._endingTime=null;
+      }
+      else {
+        this.stash.duration = o;
+        let duration = o.seconds*1000 + LATENCY_MS;
+        this._endingTime = dayjs().add(duration, 'millisecond');
+      }
+    }
+    else {
+      this._endingTime=null;
     }
   }
 
@@ -132,6 +140,8 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
       filter( _=> this.pauseTimer$.value==false ),
     ).subscribe(
       (val) => {
+        if (!this._endingTime) return;
+
         const secondsLeft = this._endingTime.diff(dayjs(), 'second');
         
         this._daysLeft = Math.floor(this._dayModulus(secondsLeft) / this._dayDivisor);
@@ -170,6 +180,12 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
           }
           if (this._endingTime) {
             this.startCountdown();
+          }
+          else if (this._endingTime===null) {
+            this.complete$.next(false);
+            this.pauseTimer$.next(false);
+            this._secondsLeft = 0;
+            console.log("countdownTimer stopped with value=null")
           }
         }
       }

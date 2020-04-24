@@ -1,5 +1,5 @@
 import { SnapshotAction, AngularFireObject } from 'angularfire2/database';
-import { pipe, } from 'rxjs';
+import { pipe, Observable, } from 'rxjs';
 import { map, } from 'rxjs/operators';
 import * as dayjs from 'dayjs';
 
@@ -103,6 +103,40 @@ export class FishbowlHelpers {
     let label = players[ uid ];
     return {uid, label};
   }
+
+
+  /**
+   * link clue streaming to the timer, wait for the timer to start
+   * pipe(
+   *  filter( ()=>!!timerState),
+   *  takeUntil( timerComplete$ )
+   *  
+   * )
+   */
+  static 
+  preparePlayerRound$( timerState:boolean, timerComplete$:Observable<void>) {
+
+  }
+
+  static
+  nextWord( round:GamePlayRound, lastword:string=null, correct:boolean=null ):string {
+    if (lastword && correct!==null) {
+      round.entries[lastword]=correct ? false : null;   // null==pass, false=used
+    }
+    let entries = Object.entries(round.entries).filter( ([word,avail])=>avail===true ).map( ([word,avail])=>word );
+    let word = Helpful.shuffle(entries, 1).pop();
+    return word;
+  }
+  
+  static
+  cleanupEntries( round:GamePlayRound, roundRef:AngularFireObject<GamePlayRound>){
+    Object.entries(round.entries).forEach( ([word,avail])=>{
+      if (avail===null)  round.entries[word]=true;
+    });
+    roundRef.update( {entries:round.entries});
+  }
+
+
 
   static
   pipeSnapshot2Data() {

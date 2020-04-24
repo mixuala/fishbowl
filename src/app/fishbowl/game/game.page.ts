@@ -253,34 +253,17 @@ export class GamePage implements OnInit {
       tap( (round:GamePlayRound)=>{
         this.spotlight = FishbowlHelpers.getSpotlightPlayer(round);
         // this player is under the spotlight
-        this.stash.isUnderSpotlight = (this.spotlight.uid === this.player.uid);
+        this.stash.onTheSpot = (this.spotlight.uid === this.player.uid);
       }),
     ).subscribe();
 
     round$.pipe(
       take(1),
       tap( round=>{
-        this.stash.gamePlay = { done, round, roundRef, };
-        console.info("RACE>>> stash.gamePlay", this.stash.gamePlay);
+        this.stash.gamePlay = Object.assign(this.stash.gamePlay||{}, { done, round, roundRef, });
+        console.info("listenToGame()>>> stash.gamePlay", this.stash.gamePlay);
       })
     ).subscribe();
-  }
-
-  XXXspotlightPlayer(){
-    if (this.stash.activeGame) {
-      try {
-        let {lineup, spotlightIndex} = this.game;
-        let playerIndex = lineup[spotlightIndex];
-        let [uid, displayName] = Object.entries(this.game.players)[ playerIndex ];
-        this.spotlight =  {uid, label: displayName}
-      
-        // this player is under the spotlight
-        this.stash.isUnderSpotlight =  (uid === this.player.uid);
-
-      } catch (err) {
-        // console.error( "spotlightPlayer", err);
-      }
-    }
   }
 
 
@@ -320,21 +303,65 @@ export class GamePage implements OnInit {
   }
 
   preloadAudio(){
-    ["click","buzz"].forEach( k=>this.audio.preload(k));
+    ["click","buzz", "bells"].forEach( k=>this.audio.preload(k));
   }
 
-  resetTimer(duration=3){
-    this.gameRef
+  resetTimer(duration=30){
+    let {gamePlay} = this.stash;
+    if (!gamePlay) {
+      return console.warn("error: round is not loaded");
+    }
+
+    // manual reset for testing
+    let entries = gamePlay.round.entries;
+    Object.keys(entries).forEach( k=>entries[k]=true )
+
+    gamePlay.word = FishbowlHelpers.nextWord(gamePlay.round);
     this.gameRef.update({ timer:{seconds: duration} }).then( _=>{
       this.audio.play("click");
     });
+    gamePlay.ticking = true;
+    // console.log(this.stash.gamePlay)
   }
 
-  onTimerDone(t:Date|{seconds:number}) {
-    this.gameRef.update({ timer:null }).then( _=>{
+  onTimerDone(t:Date|{seconds:number}, buzz=true) {
+    let {gamePlay} = this.stash;
+    if (!gamePlay) {
+      return console.warn("error: round is not loaded");
+    }
+
+    this.gameRef.update({ timer:null }).then( ()=>{
+      this.audio.play('bells')
     });
-    console.log("BUZZ done at t=", t);
-    this.animate(this.playTimer);
+    if (buzz) {
+      // console.log("BUZZ done at t=", t);
+      this.animate(this.playTimer);
+      gamePlay.ticking = false;
+    } 
+    FishbowlHelpers.cleanupEntries(gamePlay.round, gamePlay.roundRef);
+  }
+
+  // TODO: the game master can also trigger a wordAction
+  wordAction( word:string, action:string){
+    let {gamePlay} = this.stash;
+    if (!gamePlay) {
+      return console.warn("error: round is not loaded");
+    }
+    if (gamePlay.ticking==false) return;
+    if (!word) return
+    if (gamePlay.word != word ) {
+      return console.warn("error: wordAction value does not gamePlay", word, gamePlay.word);
+    }
+
+    this.audio.play("click");
+    let entries = gamePlay.round.entries;
+    if (entries.hasOwnProperty(word)==false) 
+      return console.warn("wordAction(): INVALID WORD, word=", word);
+
+    let correct = action=="OK" ? true : false;
+    let nextWord = FishbowlHelpers.nextWord( gamePlay.round, word, correct);
+    if (!nextWord) this.onTimerDone( new Date(), false);
+    gamePlay.word = nextWord;
 
   }
 

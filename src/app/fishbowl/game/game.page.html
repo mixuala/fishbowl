@@ -25,39 +25,94 @@
               </ion-card-subtitle>
             </ion-card-header>
               
-            <ion-card-content>
+            <ion-card-content [ngClass]="{'on-the-spot': stash.onTheSpot}">
             <ion-list class="ion-no-padding">
 
-              <div class="game-time ion-text-center" *ngIf="stash.activeGame==false">
-                <app-countdown-timer fill="time" [end]="game.gameDateTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
-                <ion-text  color="dark">
-                  Game Time: {{ game.gameDateTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
-                </ion-text>
-                <ion-item-divider></ion-item-divider>
+              <div class="game-countdown"  *ngIf="stash.activeGame==false">
+                <ion-item-divider class="ion-margin-top">
+                  <ion-note>countdown to game time</ion-note>
+                </ion-item-divider>
+                <div class="game-time ion-text-center">
+                  <app-countdown-timer fill="time" [end]="game.gameDateTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
+                  <ion-text  color="dark">
+                    Game Time: {{ game.gameDateTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
+                  </ion-text>
+                </div>
               </div>
 
-              <ion-item class="game-controls" *ngIf="stash.activeGame">
-                <ion-button color="primary" expand="block" 
-                [disabled]="game.rounds" (click)="loadRounds()">Load Rounds</ion-button>
-                <ion-button color="secondary" expand="block" 
-                [disabled]="!game.rounds || !!game.activeRound" (click)="beginRound()">Begin Round</ion-button>
-                <ion-button color="tertiary" expand="block" 
-                [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer()">Next Player</ion-button>
-              </ion-item>
+              <div class="game-controls" *ngIf="stash.activeGame">
+                <ion-item-divider class="ion-margin-top">
+                  <ion-note>game controls</ion-note>
+                </ion-item-divider>
+                <ion-item>
+                  <ion-button size="small" color="primary" 
+                  [disabled]="game.rounds" (click)="loadRounds()">Load Rounds</ion-button>
+                  <ion-button size="small" color="secondary" 
+                  [disabled]="!game.rounds || !!game.activeRound" (click)="beginRound()">Begin Round</ion-button>
+                  <ion-button size="small" color="tertiary" 
+                  [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer()">Next Player</ion-button>
+                </ion-item>
+              </div>
 
-              <ion-item class="game-summary" *ngIf="stash.activeGame">
-                <ion-label>
-                  players: {{game?.playerCount}}
-                </ion-label>
-              </ion-item>
+              <div class="game-summary" *ngIf="stash.activeGame">
+                <ion-item-divider class="ion-margin-top hide-under-spotlight">
+                  <ion-note>game summary</ion-note>
+                </ion-item-divider>
+                <ion-item>
+                  <ion-grid>
+                    <ion-row class="hide-under-spotlight">
+                      <ion-col size=6>
+                        <ion-label>
+                          <p><ion-note>round:</ion-note> {{stash.gamePlay?.round.round}}</p>
+                          <p><ion-note>players:</ion-note> {{game.playerCount}}</p>
+                        </ion-label>
+                      </ion-col>
+                      <ion-col size=6>
+                        <ion-label>
+                          <p><ion-note>duration:</ion-note> {{stash.gamePlay?.round.startTimeDesc*-1 | appTimeAgo}}</p>
+                          <p><ion-note>teams:</ion-note> {{game.teamNames.length}}</p>
+                        </ion-label>
+                      </ion-col>
+                    </ion-row>
+                    <ion-row><ion-col>
+                      <p><ion-note>on the spot</ion-note></p>
+                      <ion-button color="success" expand="block" class="spotlight" 
+                      [color]="stash.onTheSpot ? 'success' : 'light'"
+                      [ngClass]="{'on-the-spot': stash.onTheSpot}" 
+                      >
+                        {{spotlight?.label}}
+                      </ion-button>
+                    </ion-col></ion-row>
+                  </ion-grid>
+                </ion-item>
+              </div>
 
-              <ion-item class="spotlight" *ngIf="spotlight?.label" [ngClass]="{'on-the-spot': stash.isUnderSpotlight}" [color]="stash.isUnderSpotlight ? 'success' : 'light'">
-                <ion-label position="stacked">In the spotlight</ion-label>
-                <ion-input>{{spotlight?.label}}</ion-input>
-              </ion-item>
-
+              <div class="teleprompter" *ngIf="stash.onTheSpot">
+                <p><ion-note>this is your word</ion-note></p>
+                <ion-item color="medium" expand="block" >
+                  <ion-label class="ion-text-wrap ion-text-center">
+                    {{stash.gamePlay?.word || (!!stash.gamePlay?.ticking ? '[done]' : '[ready]')}}
+                  </ion-label>
+                </ion-item>
+                <ion-grid class="ion-no-padding"><ion-row>
+                  <ion-col size=5>
+                    <ion-button color="danger" expand="block"
+                    (click)="wordAction(stash.gamePlay.word, 'PASS')"
+                    >PASS</ion-button>
+                  </ion-col>
+                  <ion-col size=7>
+                    <ion-button color="success" expand="block"
+                    (click)="wordAction(stash.gamePlay.word, 'OK')"
+                    >OK</ion-button>
+                  </ion-col>
+                </ion-row></ion-grid>
+              </div>
+              
               <div class="timer-controls">
-                <ion-button #playTimer id="play-timer" expand="block" color="success" [disabled]="stash.isUnderSpotlight==false" (click)="resetTimer()">30s timer</ion-button>
+                <ion-item-divider>
+                  <ion-note>play timer</ion-note>
+                </ion-item-divider>
+                <ion-button #playTimer id="play-timer" expand="block" color="success" [disabled]="stash.onTheSpot==false" (click)="resetTimer()">30s timer</ion-button>
                 <ion-button color="light" (click)="toggleVolumeIcon()">
                   <ion-icon [name]="stash.audioVolumeIcon" >
                     <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
@@ -67,15 +122,19 @@
                 <app-countdown-timer fill="time" [duration]="game.timer" [units]="{from: 'second', to: 'second'}"
                   [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
                 ></app-countdown-timer>
-
-                <ion-item-divider></ion-item-divider>
               </div>
-              <ion-item>
-                <ion-label>{{displayName}}</ion-label>
-                <ion-button slot="end" fill="outline" [disabled]="stash.activeGame" (click)="doSettings()">
-                  <ion-icon name="settings-outline"></ion-icon>
-                </ion-button>   
-              </ion-item>
+
+              <div class="user-controls">
+                <ion-item-divider>
+                  <ion-note>player</ion-note>
+                </ion-item-divider>
+                <ion-item>
+                  <ion-label>{{displayName}}</ion-label>
+                  <ion-button slot="end" fill="outline" [disabled]="stash.activeGame" (click)="doSettings()">
+                    <ion-icon name="settings-outline"></ion-icon>
+                  </ion-button>   
+                </ion-item>
+              </div>              
 
             </ion-list>
             </ion-card-content>
