@@ -14,7 +14,7 @@
   <!-- grid mode -->
   <ion-grid no-padding>
     <ion-row>
-        <ion-col size="12" size-sm="8" size-xl="4">
+        <ion-col size="12" size-sm="8" offset-sm="2" offset-xl="3" size-xl="6">
           <ion-card  *ngIf="game$ | async as game">
             <ion-card-header color="tertiary">      
               <ion-card-title>
@@ -80,6 +80,7 @@
                       [color]="stash.onTheSpot ? 'success' : 'light'"
                       [ngClass]="{'on-the-spot': stash.onTheSpot}" 
                       >
+                        <ion-icon name="person" slot="start"></ion-icon>
                         {{spotlight?.label}}
                       </ion-button>
                     </ion-col></ion-row>
@@ -108,7 +109,7 @@
                 </ion-row></ion-grid>
               </div>
               
-              <div  class="timer-controls">
+              <div  class="timer-controls ion-margin-bottom">
                 <ion-item-divider>
                   <ion-note>play timer</ion-note>
                 </ion-item-divider>

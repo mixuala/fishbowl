@@ -18,8 +18,8 @@
       ></ion-searchbar>
     </ion-row> -->
     <ion-row>
-        <ion-col size="12" size-sm="8" size-xl="4">
-          <ion-card  *ngFor="let game of games, let i=index">
+        <ion-col size="12" size-sm="6" size-xl="4" *ngFor="let game of games, let i=index">
+          <ion-card>
             <ion-card-header color="tertiary">
               <ion-card-title>
                 {{game.label}}

@@ -395,7 +395,11 @@ export class GamePage implements OnInit {
     if (!gamePlay) {
       return console.warn("error: round is not loaded");
     }
-    if (gamePlay.isTicking==false) return;
+    if (!gamePlay.isTicking) {
+      this.startTimer();
+      return
+    };
+
     if (!word) return
     if (gamePlay.word != word ) {
       return console.warn("error: wordAction value does not gamePlay", word, gamePlay.word);
