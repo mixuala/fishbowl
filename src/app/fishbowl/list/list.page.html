@@ -45,6 +45,31 @@
             </ion-card-content>
           </ion-card>
         </ion-col>
+        <ion-col size="12" size-sm="6" size-xl="4">
+          <ion-card>
+            <ion-card-header color="primary">
+              <ion-card-title>
+                Game Setup
+              </ion-card-title>
+              <ion-card-subtitle>
+                Fishbowl
+              </ion-card-subtitle>
+            </ion-card-header>
+              
+            <ion-card-content>                
+              <div class="game-admin">
+                <ion-item-divider class="ion-margin-top">
+                  <ion-note>game controls</ion-note>
+                </ion-item-divider>
+                <ion-item>
+                  <ion-button size="small" color="primary" 
+                  [disabled]="games.length>2" 
+                  (click)="create3Games()">Create Games</ion-button>
+                </ion-item>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
     </ion-row>
   </ion-grid>
 

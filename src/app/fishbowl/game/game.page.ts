@@ -91,7 +91,7 @@ export class GamePage implements OnInit {
           tap( o=>{
             this.game = o;
             this.game['uid'] = gameId;  // stash here
-            this.stash.activeGame = new Date(o.gameDateTime) < now;
+            this.stash.active = -o.gameDatetimeDesc < Date.now();
             // DEV
             this.stash.activeGame = true;
           })

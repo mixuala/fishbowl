@@ -98,7 +98,7 @@ export class EntryPage implements OnInit {
         this.game$ = this.gameRef.valueChanges().pipe( 
           tap( o=>{
             this.game = o;
-            this.stash.active = new Date(o.gameDateTime) < now;
+            this.stash.active = -o.gameDatetimeDesc < Date.now();
             this.loadEntries();
           })
         )

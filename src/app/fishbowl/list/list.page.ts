@@ -70,19 +70,11 @@ export class ListPage implements OnInit {
       }),
       filter( _=>this.stash.listen),
       tap( gameList=>{
-        // console.log( "games=", gameList);
-        // let isEmpty = gameList.length==0;
-        // if (isEmpty){
-        //   let cloudGame = {
-        //     label: 'Saturday night special',
-        //     gameDateTime: FishbowlHelpers.setGameDateTime(6,19).toJSON(),
-        //   }
-        //   this.db.list<Game>('games').push(cloudGame).then( v=>{
-        //     console.log("ngOnInit list<Games>", v )
-        //   });
-        //   return throwError( "DEV: no games")
-        //   // emits valueChanges() from above
-        // }
+        console.log( "games=", gameList);
+        let createGame = false;
+        if (createGame){
+          this.createGame("the next game")
+        }
       }),
       tap( ()=>{
         loading && loading.dismiss();
@@ -141,4 +133,33 @@ export class ListPage implements OnInit {
     }
   }
 
+
+
+  // admin
+  create3Games(){
+    [
+      {label:"Fish Taco Tuesday",day:2},
+      {label:"Saturday Night Special",day:6},
+      {label:"Maybe Sunday",day:7}
+    ].forEach( o=>{
+      this.createGame(o.label, o.day)
+    });
+  }
+
+  createGame(label:string, day:number=7){
+    let createGame = true;
+    if (createGame){
+      let date = FishbowlHelpers.setGameDateTime(day,19).toDate();
+      let cloudGame:Game = {
+        uid: this.db.createPushId(),
+        label,
+        gameDatetimeDesc: date.getTime(),
+        timezoneOffset: date.getTimezoneOffset()
+      }
+      this.db.list<Game>('/games').update(cloudGame.uid, cloudGame).then( v=>{
+        console.log("ngOnInit list<Games>", v )
+      });
+    }
+    else console.warn( "createGame: set createGame=true")
+  }
 }

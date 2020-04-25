@@ -1,8 +1,8 @@
 export interface Game {
   uid: string;
   label: string;
-  // TODO: convert to Date.now()
-  gameDateTime?: string;
+  gameDatetimeDesc: number;
+  timezoneOffset: number;
   playerCount?: number;
   players?: {
     [uid:string]: string;
@@ -10,18 +10,11 @@ export interface Game {
   entries?: {
     [uid:string]: string[]
   }
-  teamNames: string[],
-  rounds: {
+  teamNames?: string[],
+  rounds?: {
     [rid: string]:  number // Date.now() or RoundTypeEnum
   }
   activeRound?: string;
-  
-    // deprecate below
-  timer?: {
-    seconds: number;
-  }
-  lineup?:number[]
-  spotlightIndex?: number
 }
 
 export interface GamePlayRound {
