@@ -100,6 +100,7 @@ export class ListPage implements OnInit {
           uid: u.uid,
           name: u.displayName,
           gamesPlayed: 0,
+          isAnonymous: u.isAnonymous,
         }
         return p;
       })

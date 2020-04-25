@@ -1,8 +1,11 @@
 import { Component } from '@angular/core';
 import { Plugins } from '@capacitor/core';
-const { SplashScreen } = Plugins;
 
 import { AppConfig } from './services/app.helpers';
+import { AuthService } from './services/auth-service.service';
+
+const { SplashScreen } = Plugins;
+
 
 @Component({
   selector: 'app-root',
@@ -14,6 +17,9 @@ import { AppConfig } from './services/app.helpers';
   ]
 })
 export class AppComponent {
+
+  public isAuthorized: boolean = false;
+
   appPages = [
    {
      title: 'Categories',
@@ -65,17 +71,29 @@ export class AppComponent {
  ];
 
   constructor(
+    private authService: AuthService,
     private appConfig: AppConfig,
   ) {
     this.initializeApp();
   }
 
   async initializeApp() {
-   try {
-     await SplashScreen.hide();
-   } catch (err) {
-     console.log('This is normal in a browser', err);
-   }
- }
+    try {
+      await SplashScreen.hide();
+    } catch (err) {
+      console.log('This is normal in a browser', err);
+    }
+
+    this.authService.getCurrentUser$().subscribe( v=>{
+      this.isAuthorized = !!v;
+    });
+  }
+
+  doLogin(){
+    if (this.isAuthorized) {
+      this.authService.doLogout();
+    }
+    return true;
+  }
 
 }
