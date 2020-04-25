@@ -260,4 +260,14 @@ export class Helpful {
     return `{ ${kv.join(', ')} }`;
   }
 
+  public static findHtmlElement(o:any):HTMLElement{
+    // while (!o.hasOwnProperty('classList')) {
+    while (o instanceof HTMLElement == false) {
+      let child = o['el'] || o['nativeElement'];
+      if (!child) break;
+      o = child;
+    }
+    return o;
+  }
+
 }

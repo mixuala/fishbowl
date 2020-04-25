@@ -108,20 +108,26 @@
                 </ion-row></ion-grid>
               </div>
               
-              <div class="timer-controls">
+              <div  class="timer-controls">
                 <ion-item-divider>
                   <ion-note>play timer</ion-note>
                 </ion-item-divider>
-                <ion-button #playTimer id="play-timer" expand="block" color="success" [disabled]="stash.onTheSpot==false" (click)="resetTimer()">30s timer</ion-button>
-                <ion-button color="light" (click)="toggleVolumeIcon()">
-                  <ion-icon [name]="stash.audioVolumeIcon" >
-                    <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
-                  </ion-icon>
-                </ion-button>
+                <div #animateTarget class="wrapper">
+                  <ion-button id="play-timer" expand="block" color="success" [disabled]="stash.onTheSpot==false" 
+                    (click)="startTimer()">
+                    <span class="when-not-ticking">{{stash.gamePlay?.timerPausedAt || stash.timerDuration}}s</span>
+                    <ion-spinner class="when-ticking" name="circles" color="dark"></ion-spinner>
+                  </ion-button>
+                  <ion-button color="light" (click)="toggleVolumeIcon()">
+                    <ion-icon [name]="stash.audioVolumeIcon" >
+                      <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
+                    </ion-icon>
+                  </ion-button>
 
-                <app-countdown-timer fill="time" [duration]="game.timer" [units]="{from: 'second', to: 'second'}"
-                  [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
-                ></app-countdown-timer>
+                  <app-countdown-timer #countdownTimer fill="time" [duration]="stash.round$$?.timer" [units]="{from: 'second', to: 'second'}"
+                    [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
+                  >[done]</app-countdown-timer>
+                </div>
               </div>
 
               <div class="user-controls">

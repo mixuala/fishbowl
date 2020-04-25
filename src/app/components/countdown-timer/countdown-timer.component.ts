@@ -5,6 +5,8 @@ import { takeUntil, takeWhile, filter} from 'rxjs/operators';
 
 import * as dayjs from 'dayjs';
 
+const LATENCY_MS = 995;
+
 @Component({
   selector: 'app-countdown-timer',
   templateUrl: './countdown-timer.component.html',
@@ -22,6 +24,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   pauseTimer$: BehaviorSubject<boolean> = new BehaviorSubject(false);
   complete$: BehaviorSubject<boolean> = new BehaviorSubject(false);
 
+  // display values
   _daysLeft: number;
   _hoursLeft: number;
   _minutesLeft: number;
@@ -54,8 +57,12 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   }
 
   @Input() 
-  set duration( o: {seconds: number}) {
-    const LATENCY_MS = 1005;
+  /**
+   * set duration to operation in "timer" mode
+   *  o==null cancels timer
+   *  o=={ pause:true } pauses timer, without  clearing ending time
+   */
+  set duration( o: {seconds?: number, pause?:boolean}) {
     if (o && o.hasOwnProperty('seconds')) {
       if (o.seconds===null) {
         this._endingTime=null;
@@ -64,9 +71,13 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
         this.stash.duration = o;
         let duration = o.seconds*1000 + LATENCY_MS;
         this._endingTime = dayjs().add(duration, 'millisecond');
+        // console.info("timer set to duration=", duration/1000)
       }
     }
-    else {
+    else if (o && o.pause){
+      this.stop();  // and do NOT restart ngOnChange
+    }
+    else if (!o) {
       this._endingTime=null;
     }
   }
@@ -114,6 +125,16 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.startCountdown();
+  }
+
+  public getTimeRemaining(units:dayjs.UnitType='second'):number{
+    return this._endingTime && this._endingTime.diff(dayjs().add(LATENCY_MS/4,'millisecond'), units);
+  }
+
+  public stop(units:dayjs.UnitType='second'):number{
+    this.complete$.next(true);
+    this.pauseTimer$.next(true);
+    return this.getTimeRemaining(units);
   }
 
   startCountdown(): void {
@@ -178,14 +199,14 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
           if (change.firstChange) {  // skip firstChange from ngOnInit()
             return
           }
-          if (this._endingTime) {
+          if (this._endingTime && change.currentValue.pause!=true)  {
             this.startCountdown();
           }
           else if (this._endingTime===null) {
-            this.complete$.next(false);
-            this.pauseTimer$.next(false);
+            this.complete$.next(true);
+            this.pauseTimer$.next(true);
             this._secondsLeft = 0;
-            console.log("countdownTimer stopped with value=null")
+            // console.log("countdownTimer stopped with value=null");
           }
         }
       }

@@ -63,23 +63,54 @@ ion-card-content{
 
   .timer-controls {
     margin: 20px auto 0;
-    display: flex;
-    flex-wrap: wrap;
-    &>ion-button {
+    .wrapper {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    & ion-button {
       flex: 1;
       width: 100%;
       // height: 5em;
     }
-    & > ion-button#play-timer {
+    & ion-button#play-timer {
       flex: 0 75%;
       z-index: 100;
     }
     
-    ion-button.animated {
+    .animated app-countdown-timer {
       --ion-color-base: var(--ion-color-danger) !important;
+      --countdown-fill-background: var(--ion-color-danger) !important;
     }
+
+
+    .when-ticking {
+      display: none;
+    }
+
+    .ticking {
+      &:not(.paused) .when-ticking {
+        display: inline;
+      }
+      .when-not-ticking{
+        display:none;
+      }
+      &.paused{ 
+        ion-button#play-timer {
+          --ion-color-base: var(--ion-color-warning) !important;
+        }
+        .when-not-ticking {
+          display: inline;
+        }
+      }
+    }
+
     app-countdown-timer {
       width: 100%;
+      font-size: 2em;
+      --countdown-time-margin: 0px;
+      --countdown-margin: 0;
+      --countdown-padding: 0;
+      
     }
   }  
 }

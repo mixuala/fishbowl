@@ -18,7 +18,7 @@ import {
 
 import { Observable, Subject, of, from, throwError, pipe, combineLatest } from 'rxjs';
 import { map, tap, switchMap, take, takeWhile, filter, concatMap, withLatestFrom } from 'rxjs/operators';
-import { ThrowStmt } from '@angular/compiler';
+
 
 declare let window;
 
@@ -36,8 +36,10 @@ export class GamePage implements OnInit {
   
   public stash:any = {
     listen: true,
+    timerDuration: 30,
     audioVolumeIcon: null,
     activeGame: false,
+    round$$: null,        // dereference Observable<round>
   };
   public displayName:string;
 
@@ -51,7 +53,8 @@ export class GamePage implements OnInit {
   public spotlight:SpotlightPlayer;
 
 
-  @ViewChild( 'playTimer', {static:false} ) playTimer:IonButton; 
+  @ViewChild( 'animateTarget', {static:false} ) animateTarget:HTMLElement;
+  @ViewChild( 'countdownTimer', {static:false} ) countdownTimer:CountdownTimerComponent;
 
   constructor(
     private  activatedRoute: ActivatedRoute,
@@ -103,7 +106,7 @@ export class GamePage implements OnInit {
     ).subscribe();
 
     // # set initial volume
-    this.toggleVolumeIcon(1, false);
+    this.toggleVolumeIcon(0, false);
 
     combineLatest([this.loadPlayer$(), this.game$]).pipe(
       take(1),
@@ -254,7 +257,15 @@ export class GamePage implements OnInit {
         this.spotlight = FishbowlHelpers.getSpotlightPlayer(round);
         // this player is under the spotlight
         this.stash.onTheSpot = (this.spotlight.uid === this.player.uid);
+        this.stash.round$$ = Object.assign({}, round);  // dereference round$ observable
+        
       }),
+
+      /**
+       * cannot style Target until AFTER (game$ | async) resolves and the content is added to DOM
+       * let target = Helpful.findHtmlElement(this.animateTarget);
+       */
+      // FishbowlHelpers.pipeStyleTimerFromRound(target),
     ).subscribe();
 
     round$.pipe(
@@ -306,22 +317,52 @@ export class GamePage implements OnInit {
     ["click","buzz", "bells"].forEach( k=>this.audio.preload(k));
   }
 
-  resetTimer(duration=30){
+  startTimer(duration=null){
     let {gamePlay} = this.stash;
     if (!gamePlay) {
       return console.warn("error: round is not loaded");
     }
-
-    // manual reset for testing
-    let entries = gamePlay.round.entries;
-    Object.keys(entries).forEach( k=>entries[k]=true )
-
-    gamePlay.word = FishbowlHelpers.nextWord(gamePlay.round);
-    this.gameRef.update({ timer:{seconds: duration} }).then( _=>{
+    
+    let el = Helpful.findHtmlElement(this.animateTarget);
+    let timeOnClock = duration || this.stash.timerDuration;
+    if (gamePlay.isTicking && !gamePlay.timerPausedAt) {
+      this.onTimerPause(gamePlay);
+      return;
+    } 
+    else if (gamePlay.timerPausedAt) {
+      // clear pause, then restart
+      timeOnClock = gamePlay.timerPausedAt;
+      el && el.classList.remove('ticking','paused');
+    }
+    else {
+      // DEV: manual reset of words
+      let entries = gamePlay.round.entries;
+      Object.keys(entries).forEach( k=>entries[k]=true )
+      // load word for gamePlay
+      if (!gamePlay.word) 
+      gamePlay.word = FishbowlHelpers.nextWord(gamePlay.round);
+    }
+    
+    gamePlay.roundRef.update({ timer:{seconds: timeOnClock} }).then( _=>{
       this.audio.play("click");
     });
-    gamePlay.ticking = true;
+    el && el.classList.add('ticking');
+    gamePlay.isTicking = true;
+    delete gamePlay['timerPausedAt'];
     // console.log(this.stash.gamePlay)
+  }
+
+  onTimerPause(gamePlay){
+    if (!gamePlay.isTicking) return;
+
+    // this pauses ONLY locally
+    gamePlay.timerPausedAt = this.countdownTimer.stop();
+    let el = Helpful.findHtmlElement(this.animateTarget);
+    el && el.classList.add('ticking', 'paused');
+    console.log("  PAUSE: updating round.timer.pause=true")
+    gamePlay.roundRef.update({ timer: {pause: true} }).then( ()=>{
+      this.audio.play("click");
+    });
   }
 
   onTimerDone(t:Date|{seconds:number}, buzz=true) {
@@ -330,15 +371,22 @@ export class GamePage implements OnInit {
       return console.warn("error: round is not loaded");
     }
 
-    this.gameRef.update({ timer:null }).then( ()=>{
-      this.audio.play('bells')
+    gamePlay.roundRef.update({ timer: null }).then( ()=>{
+      this.audio.play('bells');
+      buzz = false;
+      setTimeout( ()=>{
+        gamePlay.isTicking = false;  
+      },2000)
     });
     if (buzz) {
-      // console.log("BUZZ done at t=", t);
-      this.animate(this.playTimer);
-      gamePlay.ticking = false;
+      this.animate(this.animateTarget);
+      gamePlay.isTicking = false;
     } 
+
     FishbowlHelpers.cleanupEntries(gamePlay.round, gamePlay.roundRef);
+    let el = Helpful.findHtmlElement(this.animateTarget);
+    el && el.classList.remove('ticking', 'paused');
+    delete gamePlay.timerPausedAt;
   }
 
   // TODO: the game master can also trigger a wordAction
@@ -347,7 +395,7 @@ export class GamePage implements OnInit {
     if (!gamePlay) {
       return console.warn("error: round is not loaded");
     }
-    if (gamePlay.ticking==false) return;
+    if (gamePlay.isTicking==false) return;
     if (!word) return
     if (gamePlay.word != word ) {
       return console.warn("error: wordAction value does not gamePlay", word, gamePlay.word);
@@ -365,8 +413,8 @@ export class GamePage implements OnInit {
 
   }
 
-  async animate( el:HTMLElement | any, animation="long-wobble" ){
-    el = el.hasOwnProperty('el') ? el['el'] : el;
+  async animate( el:any, animation="long-wobble" ){
+    el = Helpful.findHtmlElement(el);
     el.classList.add("animated", "slow", animation)
     let stop = await this.audio.play("buzz");
     el.addEventListener('animationend', ()=>{ 
