@@ -34,25 +34,24 @@ export class AuthService {
     });
   }
 
-  doRegister(value){
-   return new Promise<any>((resolve, reject) => {
-     firebase.auth().createUserWithEmailAndPassword(value.email, value.password)
-     .then(
-       res => resolve(res),
-       err => reject(err))
-   })
+  async doRegister(value):Promise<firebase.auth.UserCredential>{
+    let anon = await this.getCurrentUser();
+    return firebase.auth().createUserWithEmailAndPassword(value.email, value.password)
+    .then( res=>{
+      return (anon && anon.isAnonymous) ? anon.linkWithCredential(res.credential) : res;
+    })
+    .catch(err=>{
+      console.error("doRegister", err);
+      return Promise.reject(err);
+    })
   }
 
-  doLogin(value){
-   return new Promise<any>((resolve, reject) => {
-     firebase.auth().signInWithEmailAndPassword(value.email, value.password)
-     .then(
-       res => resolve(res),
-       err => reject(err))
-   })
+  doLogin(value):Promise<firebase.User>{
+    return firebase.auth().signInWithEmailAndPassword(value.email, value.password)
+    .then( res=>res.user)
   }
 
-  doLogout(){
+  doLogout():Promise<void>{
     return new Promise((resolve, reject) => {
       this.afAuth.auth.signOut()
       .then(() => {
@@ -65,8 +64,9 @@ export class AuthService {
     })
   }
 
-  isLoggedIn$() {
-    return this.getCurrentUser$
+  // legacy
+  isLoggedIn$():Observable<firebase.User> {
+    return this.getCurrentUser$()
   }
 
 }

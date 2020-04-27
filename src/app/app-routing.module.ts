@@ -4,7 +4,7 @@ import { Routes, RouterModule } from '@angular/router';
 const routes: Routes = [
   {
     path: '',
-    redirectTo: '/app/categories',
+    redirectTo: '/app/list',
     pathMatch: 'full'
   },
   {
@@ -17,6 +17,10 @@ const routes: Routes = [
   },
   {
     path: 'auth/login',
+    loadChildren: () => import('./login/login.module').then(m => m.LoginPageModule)
+  },
+  {
+    path: 'auth/logout',
     loadChildren: () => import('./login/login.module').then(m => m.LoginPageModule)
   },
   {

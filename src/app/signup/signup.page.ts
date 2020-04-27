@@ -1,11 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { Validators, FormGroup, FormControl } from '@angular/forms';
-import { Router } from '@angular/router';
-import { ModalController, MenuController } from '@ionic/angular';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ModalController, MenuController, ToastController } from '@ionic/angular';
 
 import { TermsOfServicePage } from '../terms-of-service/terms-of-service.page';
 import { PrivacyPolicyPage } from '../privacy-policy/privacy-policy.page';
 import { PasswordValidator } from '../validators/password.validator';
+
+import { AuthService } from '../services/auth-service.service';
 
 @Component({
   selector: 'app-signup',
@@ -17,6 +19,7 @@ import { PasswordValidator } from '../validators/password.validator';
 export class SignupPage implements OnInit {
   signupForm: FormGroup;
   matching_passwords_group: FormGroup;
+  errorResponse:string;
 
   validation_messages = {
     'email': [
@@ -25,7 +28,7 @@ export class SignupPage implements OnInit {
     ],
     'password': [
       { type: 'required', message: 'Password is required.' },
-      { type: 'minlength', message: 'Password must be at least 5 characters long.' }
+      { type: 'minlength', message: 'Password must be at least 6 characters long.' }
     ],
     'confirm_password': [
       { type: 'required', message: 'Confirm password is required' }
@@ -35,14 +38,19 @@ export class SignupPage implements OnInit {
     ]
   };
 
+  @ViewChild('submitBtn',{static:false})  submitBtn:any;
+
   constructor(
+    private activatedRoute: ActivatedRoute,
     public router: Router,
     public modalController: ModalController,
-    public menu: MenuController
+    public menu: MenuController,
+    public toastController: ToastController,
+    private authService:  AuthService, 
   ) {
     this.matching_passwords_group = new FormGroup({
       'password': new FormControl('', Validators.compose([
-        Validators.minLength(5),
+        Validators.minLength(6),
         Validators.required
       ])),
       'confirm_password': new FormControl('', Validators.required)
@@ -63,6 +71,14 @@ export class SignupPage implements OnInit {
     this.menu.enable(false);
   }
 
+  ionViewDidEnter(){
+    this.errorResponse = null;
+    let msg = this.activatedRoute.snapshot.paramMap.get('msg');
+    if (msg) {
+      this.presentToast(msg)
+    }
+  }
+
   async showTermsModal() {
     const modal = await this.modalController.create({
       component: TermsOfServicePage
@@ -78,22 +94,23 @@ export class SignupPage implements OnInit {
   }
 
   doSignup(): void {
-    console.log('do sign up');
-    this.router.navigate(['app/categories']);
+    this.authService.doRegister(this.signupForm.value).then( u=>{
+      if (!!u) this.router.navigate(['']);
+    })
+    .catch( err=>{
+      this.errorResponse = err      
+    });
   }
 
-  doFacebookSignup(): void {
-    console.log('facebook signup');
-    this.router.navigate(['app/categories']);
+  async presentToast(msg) {
+    const toast = await this.toastController.create({
+      message: msg,
+      position: "top",
+      animated: true,
+      color: "success",
+      duration: 2000
+    });
+    toast.present();
   }
 
-  doGoogleSignup(): void {
-    console.log('google signup');
-    this.router.navigate(['app/categories']);
-  }
-
-  doTwitterSignup(): void {
-    console.log('twitter signup');
-    this.router.navigate(['app/categories']);
-  }
 }

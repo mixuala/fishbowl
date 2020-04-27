@@ -89,26 +89,57 @@ ion-card-content{
     }
 
 
-    .when-ticking {
-      display: none;
+    // .paused {
+    //   &#play-timer {
+    //     --ion-color-base: var(--ion-color-warning) !important;
+    //   }
+    // }
+    :not(.is-ticking) {
+      .when-ticking {
+        display: none;
+      }
+      .when-not-ticking{
+        display: inline;
+      }
+      &.pause {
+        &#play-timer {
+          --ion-color-base: var(--ion-color-warning) !important;
+        }
+      }
     }
-
-    .ticking {
-      &:not(.paused) .when-ticking {
+    .is-ticking {
+      .when-ticking {
         display: inline;
       }
       .when-not-ticking{
         display:none;
       }
-      &.paused{ 
-        ion-button#play-timer {
-          --ion-color-base: var(--ion-color-warning) !important;
-        }
-        .when-not-ticking {
-          display: inline;
-        }
-      }
     }
+
+
+
+    // .when-ticking {
+    //   display: none;
+    // }
+
+    // .is-ticking {
+    //   // &:not(.paused) .when-ticking {
+    //   .when-ticking {
+    //     display: inline;
+    //   }
+    //   .when-not-ticking{
+    //     display:none;
+    //   }
+    //   &.paused{ 
+    //     ion-button#play-timer {
+    //       --ion-color-base: var(--ion-color-warning) !important;
+    //     }
+    //     .when-not-ticking {
+    //       display: inline;
+    //     }
+    //   }
+    // }
+
 
     app-countdown-timer {
       width: 100%;

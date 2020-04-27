@@ -1,7 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { Validators, FormGroup, FormControl } from '@angular/forms';
-import { Router } from '@angular/router';
-import { MenuController } from '@ionic/angular';
+import { ActivatedRoute, Router } from '@angular/router';
+import { MenuController, ToastController } from '@ionic/angular';
+
+import { AuthService } from '../services/auth-service.service';
+import { environment } from '../../environments/environment';
+
+declare let window;
 
 @Component({
   selector: 'app-login',
@@ -12,6 +17,7 @@ import { MenuController } from '@ionic/angular';
 })
 export class LoginPage implements OnInit {
   loginForm: FormGroup;
+  errorResponse:string;
 
   validation_messages = {
     'email': [
@@ -20,51 +26,94 @@ export class LoginPage implements OnInit {
     ],
     'password': [
       { type: 'required', message: 'Password is required.' },
-      { type: 'minlength', message: 'Password must be at least 5 characters long.' }
+      { type: 'minlength', message: 'Password must be at least 12 characters long.' }
     ]
   };
 
+  @ViewChild('submitBtn',{static:false})  submitBtn:any;
+
   constructor(
+    private activatedRoute: ActivatedRoute,
     public router: Router,
-    public menu: MenuController
+    public menu: MenuController,
+    public toastController: ToastController,
+    private authService:  AuthService, 
   ) {
     this.loginForm = new FormGroup({
-      'email': new FormControl('test@test.com', Validators.compose([
+      'email': new FormControl('', Validators.compose([
         Validators.required,
         Validators.pattern('^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+.[a-zA-Z0-9-.]+$')
       ])),
       'password': new FormControl('', Validators.compose([
-        Validators.minLength(5),
+        Validators.minLength(12),
         Validators.required
       ]))
     });
+
+    if (environment.production==false) {
+      this.loginForm.setValue({
+        email: 'test@test.com',
+        password: ''
+      });
+    }
+
   }
 
   ngOnInit(): void {
     this.menu.enable(false);
+    if (window.location.pathname == '/auth/logout'){
+      this.authService.doLogout().then( ()=>{
+        this.router.navigate(['/auth/login', {msg: "You are logged out"}]);
+      })
+    }
+  }
+
+  ionViewDidEnter(){
+    this.errorResponse = null;
+    let msg = this.activatedRoute.snapshot.paramMap.get('msg');
+    if (msg) {
+      this.presentToast(msg)
+    }
+  }
+
+  /**
+   * called by password onBlur
+   */
+  doSubmit(){
+    let isComplete = !!this.loginForm.get('email').value && !!this.loginForm.get('password').value
+    let isReady = this.submitBtn.disabled==false;
+    if (isComplete && isReady) {
+      this.authService.doLogin(this.loginForm.value).then( u=>{
+        if (!!u) this.router.navigate(['']);
+      })
+      .catch( err=>{
+        this.errorResponse = err
+      });
+    }
   }
 
   doLogin(): void {
-    console.log('do Log In');
-    this.router.navigate(['app/categories']);
+    this.authService.doLogin(this.loginForm.value).then( u=>{
+      if (!!u) this.router.navigate(['']);
+    })
+    .catch( err=>{
+      this.errorResponse = err      
+    });
   }
 
   goToForgotPassword(): void {
     console.log('redirect to forgot-password page');
   }
 
-  doFacebookLogin(): void {
-    console.log('facebook login');
-    this.router.navigate(['app/categories']);
+  async presentToast(msg) {
+    const toast = await this.toastController.create({
+      message: msg,
+      position: "top",
+      animated: true,
+      color: "success",
+      duration: 2000
+    });
+    toast.present();
   }
 
-  doGoogleLogin(): void {
-    console.log('google login');
-    this.router.navigate(['app/categories']);
-  }
-
-  doTwitterLogin(): void {
-    console.log('twitter login');
-    this.router.navigate(['app/categories']);
-  }
 }

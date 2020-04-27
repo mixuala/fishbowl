@@ -89,11 +89,11 @@ export class AppComponent {
     });
   }
 
-  doLogin(){
-    if (this.isAuthorized) {
-      this.authService.doLogout();
-    }
-    return true;
-  }
+  // doLogin(){
+  //   if (this.isAuthorized) {
+  //     this.authService.doLogout();
+  //   }
+  //   return true;
+  // }
 
 }

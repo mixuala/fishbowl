@@ -30,8 +30,7 @@
       <ion-content>
         <ion-list id="login">
           <ion-menu-toggle auto-hide="false">
-            <ion-item routerDirection="root" [routerLink]="['/auth/login']" (click)="doLogin()"
-              lines="none" detail="false">
+            <ion-item routerDirection="root" [routerLink]="['/auth/login']" lines="none" detail="false">
               <ion-icon slot="start"
                 [name]="isAuthorized ? 'log-out-outline' : 'log-in-outline'" 
                 [ios]="isAuthorized ? 'log-out-outline' : 'log-in-outline'" 
@@ -39,11 +38,16 @@
               </ion-icon>
               <ion-label>{{ isAuthorized ? "logout" : "login"}}</ion-label>
             </ion-item>
-            <ion-item routerDirection="root" [routerLink]="['/auth/change-password']" lines="none" detail="false"
+            <ion-item routerDirection="root" [routerLink]="['/auth/logout']" lines="none" detail="false"
+              *ngIf="isAuthorized">
+              <ion-icon slot="start" name="lock-closed"></ion-icon>
+              <ion-label>force logout</ion-label>
+            </ion-item>        
+            <!-- <ion-item routerDirection="root" [routerLink]="['/auth/change-password']" lines="none" detail="false"
               *ngIf="isAuthorized">
               <ion-icon slot="start" name="lock-closed"></ion-icon>
               <ion-label>change password</ion-label>
-            </ion-item>            
+            </ion-item>             -->
           </ion-menu-toggle>
         </ion-list> 
         
