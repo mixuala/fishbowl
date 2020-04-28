@@ -19,9 +19,14 @@ interface Sound {
 export class AudioService {
 
   public library:{ [propname:string]: string } = {
+    // timer buzz
     buzz: "assets/audio/54047__guitarguy1985__buzzer.wav",
-    bells: "assets/audio/106803__robinhood76__02252-ding-dong-bell-door-long-nasty.wav",
-    click: "assets/audio/448080__breviceps__wet-click.wav",
+    click: "assets/audio/448080__breviceps__wet-click.wav", 
+    ok: "assets/audio/66717__cj4096__bell.wav",
+    pass: "assets/audio/28477__simmfoc__buzz-1.wav",
+    dq: "assets/audio/511883__audiopapkin__impact-sfx-017.wav",
+    pause: "assets/audio/511883__audiopapkin__impact-sfx-017.wav",
+    // bells: "assets/audio/106803__robinhood76__02252-ding-dong-bell-door-long-nasty.wav",
   }
 
   private sounds: Sound[] = [];
