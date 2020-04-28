@@ -4,14 +4,19 @@ import { LoadingController, IonButton } from '@ionic/angular';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
+import { Observable, Subject, of, from, throwError } from 'rxjs';
+import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
+
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
 import { Player } from '../../user/role';
+import { Helpful } from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers'
-
-import { Observable, Subject, of, from, throwError } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
-import { Game } from '../types';
+import { GameHelpers } from '../game-helpers';
+import { 
+  Game, GameWatch, GameDict, RoundEnum,
+  PlayerByUids, TeamRosters,  
+} from '../types';
 
 declare let window;
 
@@ -36,6 +41,7 @@ export class ListPage implements OnInit {
     private loadingController: LoadingController,
     private db: AngularFireDatabase,
     private authService: AuthService,
+    private gameHelpers: GameHelpers,
   ) {
 
     if (environment.production==false){
@@ -45,6 +51,8 @@ export class ListPage implements OnInit {
     }
 
   }
+
+
 
   async ngOnInit() {
     this.loadPlayer$().pipe(
@@ -57,24 +65,12 @@ export class ListPage implements OnInit {
     
     let loading = await this.presentLoading();
     
-    of([]).pipe(
-      switchMap( ()=>{
-        this.games$ =  this.db.list<Game>('games').snapshotChanges().pipe(
-          map( sa=>sa.map( o=>{
-            let value = o.payload.val();
-            value.uid = o.key;
-            return value;
-          }))
-        );
-        return this.games$
-      }),
-      filter( _=>this.stash.listen),
+    this.games$ = this.gameHelpers.getGames$()
+    
+    this.games$.pipe(
+      filter( ()=>this.stash.listen),
       tap( gameList=>{
         console.log( "games=", gameList);
-        let createGame = false;
-        if (createGame){
-          this.createGame("the next game")
-        }
       }),
       tap( ()=>{
         loading && loading.dismiss();
@@ -154,10 +150,11 @@ export class ListPage implements OnInit {
       let cloudGame:Game = {
         uid: this.db.createPushId(),
         label,
-        gameDatetimeDesc: date.getTime(),
+        gameTime: date.getTime(),
         timezoneOffset: date.getTimezoneOffset()
       }
-      this.db.list<Game>('/games').update(cloudGame.uid, cloudGame).then( v=>{
+      this.db.list<Game>('/games').update(cloudGame.uid, cloudGame)
+      .then( v=>{
         console.log("ngOnInit list<Games>", v )
       });
     }

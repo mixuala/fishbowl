@@ -31,9 +31,9 @@
               
             <ion-card-content>
               <div class="game-time ion-text-center">
-                <app-countdown-timer fill="time" [end]="game.gameDateTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
+                <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
                 <ion-text  color="dark">
-                  Game Time: {{ game.gameDateTime | appTimeAgo:"ddd, MMM D @ h:mma" }}
+                  Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }}
                 </ion-text>
               </div>  
               <ion-item lines="none">

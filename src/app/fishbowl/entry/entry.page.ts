@@ -5,16 +5,20 @@ import { Validators, FormGroup, FormControl } from '@angular/forms';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
+import { Observable, Subject, of, from, throwError } from 'rxjs';
+import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
+
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
 import { Player } from '../../user/role';
-import { Game } from '../types';
 import { AudioService } from '../../services/audio.service';
-import { AppConfig } from '../../services/app.helpers';
+import { Helpful } from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers'
-
-import { Observable, Subject, of, from, throwError } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
+import { GameHelpers } from '../game-helpers';
+import { 
+  Game, GameWatch, GameDict, RoundEnum,
+  PlayerByUids, TeamRosters,  
+} from '../types';
 
 declare let window;
 
@@ -57,6 +61,7 @@ export class EntryPage implements OnInit {
     private audio: AudioService,
     private db: AngularFireDatabase,
     private authService: AuthService,
+    private gameHelpers: GameHelpers,
   ) {
 
     let validEntry = Validators.compose([

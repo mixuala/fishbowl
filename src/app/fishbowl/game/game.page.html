@@ -15,7 +15,7 @@
   <ion-grid no-padding>
     <ion-row>
         <ion-col size="12" size-sm="8" offset-sm="2" offset-xl="3" size-xl="6">
-          <ion-card  *ngIf="game$ | async as game">
+          <ion-card  *ngIf="this.game">
             <ion-card-header color="tertiary">      
               <ion-card-title>
                 {{game.label}}
@@ -49,48 +49,79 @@
                   [disabled]="game.rounds" (click)="loadRounds()">Load Rounds</ion-button>
                   <ion-button size="small" color="secondary" 
                   [disabled]="!game.rounds || !!game.activeRound" (click)="beginRound()">Begin Round</ion-button>
+                </ion-item><ion-item>
                   <ion-button size="small" color="tertiary" 
                   [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer()">Next Player</ion-button>
+                  <ion-button size="small" color="tertiary" 
+                  [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer(false)">Skip Player</ion-button>
                 </ion-item>
               </div>
 
               <div class="game-summary" *ngIf="stash.activeGame">
-                <ion-item-divider class="ion-margin-top hide-under-spotlight">
+                <ion-item-divider class="ion-margin-top XXXhide-under-spotlight">
                   <ion-note>game summary</ion-note>
                 </ion-item-divider>
                 <ion-item>
                   <ion-grid>
-                    <ion-row class="hide-under-spotlight">
+                    <ion-row class="XXXhide-under-spotlight">
                       <ion-col size=6>
-                        <ion-label>
-                          <p><ion-note>round:</ion-note> {{activeRound?.round}}</p>
-                          <p><ion-note>players:</ion-note> {{game.playerCount}}</p>
-                        </ion-label>
+                        <ion-item>
+                          <ion-label><ion-note>round</ion-note></ion-label>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{activeRound?.round || "––"}}</ion-badge>
+                        </ion-item>
                       </ion-col>
                       <ion-col size=6>
-                        <ion-label>
-                          <p><ion-note>duration:</ion-note> {{activeRound?.startTimeDesc*-1 | appTimeAgo}}</p>
-                          <p><ion-note>teams:</ion-note> {{game.teamNames?.length}}</p>
-                        </ion-label>
+                        <ion-item>
+                          <ion-label>
+                            <ion-note>players</ion-note> 
+                          </ion-label>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{game.playerCount}}</ion-badge>
+                        </ion-item>
                       </ion-col>
+                      <ion-col size=6>
+                        <ion-item>
+                          <ion-label>
+                            <ion-note>words remaining</ion-note> 
+                          </ion-label>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{stash.wordsRemaining}}</ion-badge>
+                        </ion-item>
+                      </ion-col>
+                      <ion-col size=6>
+                        <ion-item>
+                          <ion-label><ion-note>duration</ion-note></ion-label>
+                          <ion-badge color="light" class="ion-padding-horizontal">
+                            {{activeRound?.startTimeDesc*-1 | duration | date:"hh:mm:ss"}}
+                          </ion-badge>
+                        </ion-item>
+                      </ion-col>
+                      <!-- <ion-col size=6>
+                        <ion-item>
+                          <ion-label>
+                            <ion-note>teams</ion-note> 
+                          </ion-label>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{game.teamNames?.length}}</ion-badge>
+                        </ion-item>
+                      </ion-col> -->
                     </ion-row>
                     <ion-row>
-                      <ion-col size="6">
+                      <ion-col size="6" [class.on-the-spot]="spotlight?.teamName==game.teamNames[0]">
                         <ion-note>{{game.teamNames[0]}}</ion-note>
-                        <br />
-                        [score]
+                        <ion-badge class="ion-float-right ion-padding-horizontal ion-margin-horizontal">
+                          {{(scoreboard?.total[game.teamNames[0]])?.points || 0}} 
+                        </ion-badge>
                       </ion-col>
-                      <ion-col size="6">
-                        <ion-note>{{game.teamNames[1]}}</ion-note>
-                        <br />
-                        [score]
+                      <ion-col size="6"  [class.on-the-spot]="spotlight?.teamName==game.teamNames[1]">
+                        <ion-note class="ion-float-right">{{game.teamNames[1]}}</ion-note>
+                        <ion-badge class="ion-float-left ion-padding-horizontal ion-margin-horizontal">
+                          {{(scoreboard?.total[game.teamNames[1]])?.points || 0}}
+                        </ion-badge>
                       </ion-col>
                     </ion-row>
                     <ion-row><ion-col>
                       <p><ion-note>on the spot</ion-note></p>
                       <ion-button color="success" expand="block" class="spotlight" 
                       [color]="stash.onTheSpot ? 'success' : 'light'"
-                      [ngClass]="{'on-the-spot': stash.onTheSpot}" 
+                      [class.on-the-spot]="stash.onTheSpot" 
                       >
                         <ion-icon name="person" slot="start"></ion-icon>
                         {{spotlight?.label}}
@@ -132,18 +163,21 @@
                 </ng-container>
               </div>
 
-              <div class="round-scores" *ngIf="activeRound && !stash.onTheSpot">
+              <div class="round-scores" *ngIf="activeRound">
                 <ion-item-divider class="ion-margin-top">
                   <ion-note>round scores</ion-note>
                 </ion-item-divider>
-                <ion-list *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
-                  <ion-item ngFor="let point of gamePlay.log; let i=index">
-                    <ion-icon slot="start"
-                      [name]="point?.result ? 'checkbox' : 'close-circle'" 
-                      [color]="point?.result ? 'success' : 'danger'"></ion-icon>
-                    <ion-label>{{point?.result ? point?.word : '[PASS]' }}</ion-label>
-                  </ion-item>
-                </ion-list>
+                <ion-grid class="ion-no-padding" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
+                  <ion-row class="ion-no-padding condensed">
+                  <ion-col size="6" *ngFor="let log of (gamePlay.log | keyvalue)">
+                    <ion-item >
+                      <ion-icon slot="start" 
+                        [name]="log.value.result ? 'checkbox' : 'close-circle'" 
+                        [color]="log.value.result ? 'success' : 'danger'"></ion-icon>
+                      <ion-label  class="ion-text-wrap">{{log.value.result ? log.value.word : '[PASS]' }}</ion-label>
+                    </ion-item>
+                  </ion-col>
+                </ion-row></ion-grid>
               </div>
               
               <div  class="timer-controls ion-margin-bottom" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
@@ -175,7 +209,7 @@
                   <ion-note>player</ion-note>
                 </ion-item-divider>
                 <ion-item>
-                  <ion-label>{{displayName}}</ion-label>
+                  <ion-label>{{player?.displayName}}</ion-label>
                   <ion-button slot="end" fill="outline" [disabled]="stash.activeGame" (click)="doSettings()">
                     <ion-icon name="settings-outline"></ion-icon>
                   </ion-button>   

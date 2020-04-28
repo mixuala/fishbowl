@@ -19,7 +19,7 @@ import {
   Game, GamePlayRound, GameWatch, GameDict, RoundEnum,
   GamePlayWatch, GamePlayState,
   SpotlightPlayer,
-  PlayerByUids, TeamRosters, WordResult, 
+  PlayerByUids, TeamRosters, WordResult, Scoreboard, 
 } from '../types';
 
 
@@ -41,8 +41,10 @@ export class GamePage implements OnInit {
   private gamePlayWatch: GamePlayWatch;
   private gameDict:GameDict;
   public gameId: string;
+  public game: Game;
   public activeRound: GamePlayRound;
   public gamePlay$: Observable<GamePlayState>;
+  public scoreboard:Scoreboard;
 
   public roundDesc = {
     1: "give clues but don\'t say the word (\"Taboo\") ",
@@ -50,26 +52,16 @@ export class GamePage implements OnInit {
     3: "act it out (\"Charades\")"
   }
 
+  // from ionViewWillEnter
   public loadGame$(gameId):Observable<GameDict>{
     this.gameWatch = this.gameHelpers.getGameWatch( gameId );
     return this.gameWatch.gameDict$.pipe(
       tap( d=>{
         this.gameDict = d;
         this.activeRound = d.activeRound;
-        let game = this.gameDict[this.gameId] as Game;
-        let round = this.gameDict[game.activeRound] as GamePlayRound;
-        this.gamePlayWatch = this.gameHelpers.getGamePlay$(game, this.gameDict); 
-        this.gamePlayWatch.gamePlay$.pipe(
-          take(1),
-          tap( v=>{
-          }),
-          tap( v=>{
-            // guard: trigger in beginRound
-            console.warn("TODO: move to beginRound")
-            if (!v) this.gameHelpers.initGamePlayState(game)
-          })
-        ).subscribe();
-      })
+        this.game = this.gameDict[this.gameId] as Game;
+        this.gamePlayWatch = this.gameHelpers.getGamePlay$(this.game, this.gameDict); 
+      }),
     );
   }
 
@@ -106,15 +98,16 @@ export class GamePage implements OnInit {
   
   public stash:any = {
     // GameWatch changes
-    timerDuration: 5,
+    timerDuration: 10,
     audioVolumeIcon: null,
     activeGame: false,    // activeGame can be true between game.activeRound
     // activePlayer only
     onTheSpot: null,
-    
     // end GameWatch
+
+
+    // deprecate
     listen: true,
-    round$$: null,        // dereference Observable<round>
   };
   public displayName:string;
 
@@ -122,7 +115,6 @@ export class GamePage implements OnInit {
   public upcomingGames$: Observable<Game[]>;
   public game$:Observable<Game>;
   public gameRef:AngularFireObject<Game>;
-  private game:Game;
   private player: Player;
   public spotlight:SpotlightPlayer;
 
@@ -149,48 +141,17 @@ export class GamePage implements OnInit {
   }
 
   async ngOnInit() {
-
-    this.loadPlayer$().pipe(
-      take(1),
-      tap( (p)=>{ this.player = p })
-    ).subscribe();
-    
+    console.info("0>>> ***** ngOnInit(): load ******")
+    this.toggleVolumeIcon(1, false);
     let loading = await this.presentLoading();
-    
-    of([]).pipe(
-      switchMap( (game)=>{
-        let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
-        let now = new Date();
-        this.gameRef = this.db.object(`/games/${gameId}`);  
-        return this.game$ = this.gameRef.valueChanges().pipe( 
-          tap( o=>{
-            this.game = o;
-            this.game['uid'] = gameId;  // stash here
-            this.stash.active = o.gameTime < Date.now();
-            // DEV
-            this.stash.activeGame = true;
-          })
-        );
-      }),
-      tap( (game)=>{
-        this.listenToGame(game);
-      }),
+    // # set initial volume
+    this.loadPlayer$().pipe(
+      tap( (p)=>{ this.player = p }),
       tap( ()=>{
         loading && loading.dismiss();
       }),
     ).subscribe();
 
-    // # set initial volume
-    this.toggleVolumeIcon(1, false);
-
-    combineLatest([this.loadPlayer$(), this.game$]).pipe(
-      take(1),
-      tap( (res)=>{
-        let name = this.game.players && this.game.players[this.player.uid]
-        if (typeof name == "number") name = this.player.displayName || "";
-        this.displayName = name;
-      })
-    ).subscribe()
   }
 
 
@@ -198,13 +159,7 @@ export class GamePage implements OnInit {
     return this.authService.getCurrentUser$().pipe(
       switchMap( u=>{
         if (!!u) return of(u);
-
         return from(this.authService.doAnonymousSignIn());
-
-        // email/passwd signIn with DEV user
-        console.log( `DEV: auto-login to default app user.`);
-        return this.authService.doLogin({email:'test@test.com', password:'hellow'})
-
       }),
       map( u=>{
         let p:Player = {
@@ -227,7 +182,8 @@ export class GamePage implements OnInit {
    * GameMaster components
    */
 
-  // tested OK
+  // retest
+  // TODO: move the gameHelpers
   async loadRounds(force=false):Promise<boolean>{
     if (!this.game) return false;
 
@@ -266,91 +222,31 @@ export class GamePage implements OnInit {
     return true;
   }
 
+  // retest
+  async beginRound(round:RoundEnum=RoundEnum.Taboo):Promise<GamePlayRound>{
+    if (!this.game) return
 
-  beginRound(round:RoundEnum=RoundEnum.Taboo):boolean{
-    if (!this.stash.activeGame) return;
-    if (!this.game) return;
-
-    // get round, NOTE: rounds are created in gameplay order
-    let {rounds} = this.game;
-    let [roundId, timestamp] = Object.entries(rounds)[round-1];
-    let gameData = {
-      activeRound: roundId
+    // find activeRound or initialize/begin next round
+    let activeRound = await this.gameHelpers.loadNextRound(this.gameDict, this.gameId)
+    if (activeRound) {
+      this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound);
+      let entries = Object.entries(activeRound.entries).filter( ([word,avail])=>avail===true );
+      this.stash.wordsRemaining = entries && entries.length;
     }
-    if (timestamp < 1000) {
-      // upgrade Game.rounds{ [uid]: RoundEnum => Date.now() }
-      rounds = Object.assign({}, rounds, {[roundId]: Date.now()});
-      gameData['rounds'] = rounds;
+    else {
+      console.info("GAME COMPLETE")
     }
-    this.gameRef.update(gameData);
-
-
-    let roundRef = this.db.object<GamePlayRound>(`/rounds/${roundId}`);
-    let round$ = roundRef.valueChanges();
-    round$.pipe(
-      take(1),
-      tap( round=>{
-        this.stash.gamePlay = { round, round$, roundRef };
-        FishbowlHelpers.moveSpotlight(round, roundRef);
-      })
-    ).subscribe();
-    return true;
+    return activeRound
   }
 
-  nextPlayer(){
+  // called from game-controls
+  // tested OK
+  nextPlayer(nextTeam=true){
     if (!this.stash.activeGame) return;
-    if (!this.game) return;
-    if (!this.stash.gamePlay) return;
 
-    let { roundRef } = this.stash.gamePlay;
-    roundRef.valueChanges().pipe( 
-      take(1),
-      tap( (round:GamePlayRound)=>{
-        FishbowlHelpers.moveSpotlight(round, roundRef);
-      })
-    ).subscribe();
-    return true;
-
-  }
-
-  listenToGame(game:Game){
-    if (!this.stash.activeGame) return;
-    if (!game.activeRound) return;
-    
-    let { done, round, roundRef } = this.stash.gamePlay || {done:null, round:null, roundRef:null};
-    if (done && round && round.uid !== game.activeRound) {
-      done.unsubscribe();
-      this.spotlight = null;
-      roundRef = null;
-      round = null;
-    }
-
-    // TODO: handle case when activeRound changes
-    roundRef = this.db.object<GamePlayRound>(`/rounds/${game.activeRound}`);
-    let round$ = roundRef.valueChanges();
-    done = round$.pipe(
-      tap( (round:GamePlayRound)=>{
-        this.spotlight = FishbowlHelpers.getSpotlightPlayer(round);
-        // this player is under the spotlight
-        this.stash.onTheSpot = (this.spotlight.uid === this.player.uid);
-        this.stash.round$$ = Object.assign({}, round);  // dereference round$ observable
-        
-      }),
-
-      /**
-       * cannot style Target until AFTER (game$ | async) resolves and the content is added to DOM
-       * let target = Helpful.findHtmlElement(this.animateTarget);
-       */
-      // FishbowlHelpers.pipeStyleTimerFromRound(target),
-    ).subscribe();
-
-    round$.pipe(
-      take(1),
-      tap( round=>{
-        this.stash.gamePlay = Object.assign(this.stash.gamePlay||{}, { done, round, roundRef, });
-        console.info("listenToGame()>>> stash.gamePlay", this.stash.gamePlay);
-      })
-    ).subscribe();
+    let game = this.gameDict[this.gameId] as Game;
+    let round = this.activeRound;
+    this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, nextTeam);
   }
 
 
@@ -366,19 +262,56 @@ export class GamePage implements OnInit {
     if (this.gameDict && this.gameDict[this.gameId]) {
       // continue with current game
     } else {
-      // release old game, should be handled by takeWhile()
+      // release old game, should be handled by takeWhile();
+      console.info(" 0>>> ***** ionViewWillEnter(): load ******")
 
       // load new game
+      let game:Game;
+      let round:GamePlayRound;
       this.loadGame$(this.gameId).pipe(
         takeWhile( (d)=>!!d[this.gameId]),
+        tap( d=>{
+          game = d[this.gameId] as Game;
+          let name = game.players && game.players[this.player.uid];
+          this.player.displayName = name;
+
+          this.stash.active = game.gameTime < Date.now();
+          // DEV
+          this.stash.activeGame = true;          
+        }),
         switchMap( (d)=>{
           return this.gamePlayWatch.gamePlay$;
+          /**
+           * every NEW gamePlayState, caused by wordAction()
+           */
+        }),
+        tap( gamePlay=>{
+          if (!this.activeRound) return
+          round = this.activeRound;
+          if (!this.stash.wordsRemaining) {
+            let entries = Object.entries(round.entries).filter( ([word,avail])=>avail===true );
+            this.stash.wordsRemaining = entries && entries.length;          
+          }
+          this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
+          // true if this player is under the spotlight
+          this.stash.onTheSpot = (this.spotlight.uid === this.player.uid);
+        }),
+        tap( (gamePlay)=>{
+          this.gameHelpers.scoreRound$(this.gamePlayWatch, this.activeRound, gamePlay ).pipe(
+            take(1),
+            tap( score=>{
+              console.info( "score", score)
+              this.scoreboard = score;
+            })
+          ).subscribe();
         }),
         pairwise(),
         tap( (res)=>{
           this.doGamePlayUx(res);
         })
-      ).subscribe();
+      ).subscribe(null,null,
+        ()=>console.info(" 10>>> ***** ionViewWillEnter(): subscriber COMPLETE ******")
+      );
     }
   }
 
@@ -416,7 +349,7 @@ export class GamePage implements OnInit {
   }
 
   onTimerClick(duration=null){
-    if (!this.game.activeRound) return
+    if (!this.gameDict.activeRound) return
 
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),
@@ -449,7 +382,7 @@ export class GamePage implements OnInit {
       // serve next word
       if ("reset round"){
         // DEV: manual reset of words in round
-        let round = this.gameDict[this.game.activeRound] as GamePlayRound;
+        let round = this.activeRound;
         let entries = round.entries;
         Object.keys(entries).forEach( k=>entries[k]=true )
       }
@@ -457,8 +390,10 @@ export class GamePage implements OnInit {
       // load word for gamePlay
       // TODO: LET this.wordAction start timer, not the other way around
       if (!gamePlay.word) {
-        let round = this.gameDict[this.game.activeRound] as GamePlayRound;
-        update.word = FishbowlHelpers.nextWord(round); 
+        let round = this.activeRound;
+        let {word, remaining} = FishbowlHelpers.nextWord(round, gamePlay);
+        update.word = word;
+        this.stash.wordsRemaining = remaining;
       }
     }
 
@@ -509,39 +444,29 @@ export class GamePage implements OnInit {
     }
   }
 
-  onTimerDone(t:Date|{seconds:number}=null, buzz=true) {
+  async onTimerDone(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
+    if (!this.gameDict.activeRound) 
+      return;
+
+    let wasOnTheSpot = this.stash.onTheSpot;
     console.log( "TTT  0 > timer done")
-    // buzz=false when round complete
-    let {gamePlay} = this.stash;
-    if (!gamePlay) {
-      return console.warn("error: round is not loaded");
-    }
-
-    if (this.stash.onTheSpot) {
-      setTimeout( ()=>{
-        // let timers buzz across the cloud first, avoid race condition on reset
-        let update = {} as GamePlayState;
-        update.timer = null;
-        update.isTicking = false;
-        update.timerPausedAt = null;
-        update.word = null;
-        this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
-          buzz = false;
-        })
-        FishbowlHelpers.cleanupEntries(gamePlay.round, gamePlay.roundRef);
-      },1000);
-    }
-
-    if (buzz) {
-      // event fired locally when timer expires, no cloud action required
-      this.animate(this.animateTarget);
-      gamePlay.isTicking = false;
-    } 
-
+    return Promise.resolve()
+    .then( ()=>{
+      if (buzz) {
+        // event fired locally when timer expires, no cloud action required
+        return this.animate(this.animateTarget)
+      }
+    })
+    .then( ()=>{
+      if (wasOnTheSpot) {
+        // TODO: do I need an extra delay here?
+        return this.completePlayerRound();
+      }
+    });
   }
 
   onWordActionClick(action:string) {
-    if (!this.game.activeRound) return
+    if (!this.gameDict.activeRound) return
 
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),
@@ -554,7 +479,7 @@ export class GamePage implements OnInit {
   // TODO: let the game master can also trigger a wordAction
   private wordAction( gamePlay: GamePlayState, action:string=null ){
 
-
+    // TODO: clean up circular logic
     // wordAction=OK => if (!isTicking) startTimer() to begin
     // startTimer => if (!word) wordAction()
 
@@ -567,24 +492,16 @@ export class GamePage implements OnInit {
     
     let {word} = gamePlay;
     let correct = action=="OK" ? true : false;
-    let round = this.gameDict[this.game.activeRound] as GamePlayRound;
-    let nextWord = FishbowlHelpers.nextWord( round, word, correct);
+    let available = !correct;
+    let round = this.activeRound;
     let update = {} as GamePlayState;
-    if (!nextWord) {
-      // stop timer gracefully, (cloud sound)
-      this.onTimerDone( new Date(), false);
-      // complete round
-      let score = this.gameHelpers.scoreRound(this.gameId, round);
 
-      this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
-        console.log("1> ROUND COMPLETE, update=", update);
-      });
-      return
-    }
+    let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]:available} );
+    this.stash.wordsRemaining = next.remaining;
+    update.word = next.word;
     
     if (!word) {
       // load initial word, ignore action
-      update.word = nextWord;
       this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
         console.log("1> queue FIRST word, update=", update);
       });
@@ -600,31 +517,122 @@ export class GamePage implements OnInit {
         return console.warn("wordAction(): INVALID WORD, word=", word);
       }
 
-      let spotlight = FishbowlHelpers.getSpotlightPlayer(round);
+      let spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
       let teamName = spotlight.teamName;
       let playerName = spotlight.label;
       let now = Date.now();
       let log = gamePlay.log || {};
-      let lastTime = Object.keys(log ).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 ) || now;
+      let roundStartTime = gamePlay.timer.key || Date.now()
+      let lastTime = Object.keys(log ).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 ) 
+      lastTime = Math.max(lastTime, roundStartTime);
       let score:WordResult = {
         teamName, playerName, word,
         result: correct,
         time: Math.round((now-lastTime)/1000)  // in secs
       }
-
-      update.word = nextWord;
+      
       update.log = Object.assign( log, {
         [-1*now]: score,
       })
       console.log( update )
-      this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
-        console.log("1> WordResult, update=", update);
+      this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
+      .then( ()=>{
+        if (!next.word) this.completePlayerRound(true);
       });
-      return
-
-
 
     }
+
+  }
+
+  /**
+   * onTimerDone() or FishbowlHelpers.nextWord() is empty 
+   */
+  async completePlayerRound(clearTimer=false):Promise<void>{
+    let wasOnTheSpot = this.stash.onTheSpot;
+    if (clearTimer) {
+      return this.onTimerDone( null, false);
+      // stop timer gracefully, (cloud sound), 
+      // wait for animation to complete
+      // then try again recursively
+    }
+
+    if (!wasOnTheSpot) 
+      return;
+
+    let activeRound = this.activeRound;
+    let rid = this.game.activeRound;
+    let updateGamePlay = {
+      timer: null,
+      log: {},
+      isTicking: false,
+      timerPausedAt: null,
+      word: null,
+    }
+
+    // only active player pushes updates to the cloud
+    return Promise.resolve()
+    .then( ()=>{
+      return this.gameHelpers.pushGameLog(this.gamePlayWatch, activeRound)
+    })
+    .then( ()=>{
+      return this.db.list<GamePlayState>('/gamePlay').update(rid, updateGamePlay)
+    })
+    .then( ()=>{
+      console.log(" >>>> completePlayerRound() DONE")
+      let entries = Object.entries(activeRound.entries).filter( ([word,avail])=>avail===true );
+      if (entries.length==0){
+        return this.completeGameRound(activeRound);
+      }
+      // TODO: disable timer until moveSpotlight() complete
+      console.warn("DISABLE timer on playerRoundComplete()")
+      return new Promise( resolve=>{
+        const PLAYER_ROUND_DELAY = 2000;
+        setTimeout( ()=>{
+          this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound).then( ()=>{
+            // TODO: enable timer
+            console.warn("ENABLE timer after moveSpotlight");
+            resolve()
+          });
+        }, PLAYER_ROUND_DELAY);
+      })
+    });
+  }
+
+  async completeGameRound(round:GamePlayRound){
+
+    // wrap this with a setTimeout()
+
+    let isGameComplete = round.round == 3
+    let rid = this.game.activeRound;
+    let updateRound = {
+      complete: true,
+    } as GamePlayRound;
+
+    let updateGame = {
+      activeRound: null,
+    } as Game;
+    if (isGameComplete) {
+      updateGame.complete = true;
+    }
+
+    let waitFor:Promise<void>[] = [];
+    // only active player pushes updates to the cloud
+    waitFor.push(
+      this.db.list<GamePlayState>('/gamePlay').remove(rid)
+    );
+    waitFor.push(
+      this.db.object<GamePlayRound>(`/rounds/${rid}`).update( updateRound )
+    );
+    waitFor.push(
+      this.db.object<Game>(`/games/${this.gameId}`).update( updateGame )
+    )
+    Promise.all(waitFor).then( ()=>{
+      if (isGameComplete) return this.completeGame();
+    });
+  }
+
+  async completeGame(){
+    console.log("GAME COMPLETE")
   }
 
   async animate( el:any, animation="long-wobble" ){
@@ -636,6 +644,7 @@ export class GamePage implements OnInit {
       el.classList.remove("animated", "slow", animation);
       stop();
     });
+    return
   }
 
   doSettings() {

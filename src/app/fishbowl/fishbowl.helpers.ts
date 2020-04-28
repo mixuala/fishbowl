@@ -1,12 +1,13 @@
 import { SnapshotAction, AngularFireObject } from 'angularfire2/database';
 import { pipe, Observable, } from 'rxjs';
-import { map, } from 'rxjs/operators';
+import { map, tap, } from 'rxjs/operators';
 import * as dayjs from 'dayjs';
 
 import { 
   Game, GamePlayRound, RoundEnum,
   PlayerByUids, TeamRosters,
-  SpotlightPlayer 
+  SpotlightPlayer, 
+  GamePlayState
 } from './types';
 import { Helpful} from '../services/app.helpers';
 
@@ -14,6 +15,8 @@ export class FishbowlHelpers {
 
   static 
   setGameDateTime(day:number=5, hour:number=19):dayjs.Dayjs {
+    let min = dayjs().day();
+    day = day<min ? day+7 : day;
     let datetime = {
       day, // Fri=5
       hour,
@@ -49,13 +52,6 @@ export class FishbowlHelpers {
       return o;
     } ,{});
     let teams = FishbowlHelpers.assignTeams(game, teamNames);
-    let spotlight = {
-      teamIndex: -1,
-      playerIndex: teamNames.map( _=>0),
-    }
-    let timer = {
-      seconds:null
-    }
 
     return {
       uid: null,    // firebase pushId
@@ -66,43 +62,29 @@ export class FishbowlHelpers {
       orderOfPlay: teamNames,
       entries,
       players: Object.assign({}, game.players),
-      spotlight,
-      timer
     }
-  }
-
-  static
-  moveSpotlight(round:GamePlayRound, itemRef:AngularFireObject<GamePlayRound>){
-    let spotlight = Object.assign( {} , round.spotlight );
-    let teamRosters = Object.values(round.teams);
-    let limits = {
-      teamIndex: teamRosters.length,
-      playerIndex: teamRosters.map( v=>v.length)
-    }
-    // increment team first
-    spotlight.teamIndex +=1;
-    
-    if (spotlight.teamIndex >= limits.teamIndex){
-      // after last team, 
-      spotlight.teamIndex = 0;
-      // increment player on each time
-      spotlight.playerIndex = spotlight.playerIndex.map( (v,i)=>{
-        v +=1;
-        return v >= limits.playerIndex[i] ? 0 : v;
-      });
-    }
-    itemRef.update({spotlight});
   }
 
   static 
-  getSpotlightPlayer(round:GamePlayRound){
-    let {spotlight, teams, players} = round;
-    if (!spotlight) 
-      return null;
+  getSpotlightPlayer(gamePlay:GamePlayState, round:GamePlayRound):any{
+    if (!round) return {};
+    if (!gamePlay) return {};  // round is complete
+
+
+    let {teams, players} = round;
+    let {spotlight} = gamePlay;
+    if (spotlight.teamIndex==-1) {
+      // round has not yet begun
+      // for gamePlay, call: GameHelpers.loadNextRound()
+      return {};
+    }
+
     let uid = Object.values(teams)[ spotlight.teamIndex ][ spotlight.playerIndex[ spotlight.teamIndex ] ];
     let label = players[ uid ];
-    return {uid, label};
+    let [teamName, found] = Object.entries(round.teams).find( ([name, uids])=>uids.find( v=>v==uid) );
+    return {uid, label, teamName};
   }
+
 
 
   /**
@@ -118,35 +100,95 @@ export class FishbowlHelpers {
 
   }
 
+  /**
+   * updateFishbowl with gamePlay results, then pick a random word
+   * @param gamePlay 
+   * @param round 
+   * @param lastResult { [word]: available }
+   */
   static
-  nextWord( round:GamePlayRound, lastword:string=null, correct:boolean=null ):string {
-    if (lastword && correct!==null) {
-      round.entries[lastword]=correct ? false : null;   // null==pass, false=used
-    }
-    let entries = Object.entries(round.entries).filter( ([word,avail])=>avail===true ).map( ([word,avail])=>word );
+  nextWord(round:GamePlayRound, gamePlay:GamePlayState, lastResult: {[word:string]:boolean}={}): {
+      word:string,
+      remaining: number
+    } 
+  {    
+    let fishbowl = FishbowlHelpers.updateFishbowl(round, gamePlay, lastResult);
+    let entries = Object.entries(fishbowl).filter( ([word,avail])=>avail===true ).map( ([word,avail])=>word );
     let word = Helpful.shuffle(entries, 1).pop();
-    return word;
+    return {word, remaining: entries.length};
   }
   
+  /**
+   * merges gamePlay.log with round.entries and optionally last word result;
+   * @param gamePlay 
+   * @param round 
+   * @param lastResult { [word]: available }
+   */
   static
-  cleanupEntries( round:GamePlayRound, roundRef:AngularFireObject<GamePlayRound>){
-    Object.entries(round.entries).forEach( ([word,avail])=>{
-      if (avail===null)  round.entries[word]=true;
-    });
-    roundRef.update( {entries:round.entries});
+  updateFishbowl(round:GamePlayRound, gamePlay:GamePlayState, lastResult: {[word:string]:boolean}={}): {[word:string]: boolean} {
+
+    // TODO: update from gamePlayLog? not GamePlayState???
+
+
+    // let path = `/round/${rid}/entries`
+    let playerBowl = Object.values(gamePlay.log || {}).reduce( (res, o)=>{
+      let avail = !o.result;  // a correct guess means the word is out of the fishbowl
+      res[o.word] = avail;
+      return res;
+    }, {});
+    console.log(playerBowl, lastResult);
+    let fishbowl = Object.assign( {}, round.entries, playerBowl, lastResult);
+    return fishbowl as {[word:string]: boolean};
   }
 
 
+
+  static 
+  pipeSort(key:string, asc=true){
+    let order = !!asc ? 1 : -1;
+    return pipe(
+      map( (arr:any[])=>{
+        arr.sort( (a,b)=>order * a[key]-b[key] )
+        return arr
+      })
+    )
+    
+  }
 
   static
   pipeSnapshot2Data() {
     return pipe( 
-      map( (sa:SnapshotAction<any>[])=>sa.map( o=>{
-        let value = o.payload.val();
-        value.uid = o.key;
-        return value;
-      }))
+      map( (sa:SnapshotAction<any>|Array<SnapshotAction<any>>)=>{
+        let items = sa instanceof Array ? sa : [sa];
+        let res = items.map( o=>{
+          let value = o.payload.val();
+          value.uid = o.key;
+          return value;
+        });
+        return sa instanceof Array ? res : res.pop();
+      }),
     )
   }
+
+  // static
+  // pipeStyleTimerFromRound(target:HTMLElement) {
+  //   let state:string;
+  //   return pipe(
+  //     tap((round:GamePlayRound)=>{
+  //       if (!round.timer && state!="reset") {
+  //         state = "reset";
+  //         target && target.classList.remove('ticking', 'paused');
+  //       }
+  //       else if (round.timer.pause && state!="pause"){
+  //         state = "pause";
+  //         target && target.classList.add('ticking', 'paused');
+  //       }
+  //       else if (state!="ticking") {
+  //         state = "ticking";
+  //         target && target.classList.add('ticking');
+  //       }
+  //     })
+  //   )
+  // }
   
 }

@@ -41,6 +41,17 @@ ion-card-content{
     height: 5em;
   }
 
+  .game-summary {
+    .on-the-spot {
+      background-color: var(--ion-color-success);
+      // color: var(--ion-color-light);
+      border-radius: 4px;
+      ion-note {
+        color: var(--ion-color-dark);
+      }
+    }
+  }
+
   .teleprompter {
     ion-item {
       border-radius: 10px;
@@ -59,13 +70,34 @@ ion-card-content{
     ion-button {
       height: 5em;
     }
-  }
 
-  .teleprompter {
     .ion-text-wrap {
       text-overflow: unset;
     }
   }
+
+  .round-scores {
+    ion-row.condensed {
+      ion-col {
+        & > * {
+          --min-height: 36px;
+          --inner-padding-top: 0;
+          --inner-padding-bottom:0;
+          --padding-end: 16px;
+        }
+        ion-icon[slot=start] {
+          margin-inline-end: 12px;
+          margin-top: 6px;
+          margin-bottom: 6px;
+        }
+        ion-label {
+          margin-top: 6px;
+          margin-bottom: 5px;
+        }
+      }
+    }
+  }
+
 
   .timer-controls {
     margin: 20px auto 0;
@@ -117,28 +149,6 @@ ion-card-content{
     }
 
 
-
-    // .when-ticking {
-    //   display: none;
-    // }
-
-    // .is-ticking {
-    //   // &:not(.paused) .when-ticking {
-    //   .when-ticking {
-    //     display: inline;
-    //   }
-    //   .when-not-ticking{
-    //     display:none;
-    //   }
-    //   &.paused{ 
-    //     ion-button#play-timer {
-    //       --ion-color-base: var(--ion-color-warning) !important;
-    //     }
-    //     .when-not-ticking {
-    //       display: inline;
-    //     }
-    //   }
-    // }
 
 
     app-countdown-timer {
