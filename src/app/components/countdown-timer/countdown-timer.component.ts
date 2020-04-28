@@ -5,7 +5,7 @@ import { takeUntil, takeWhile, filter} from 'rxjs/operators';
 
 import * as dayjs from 'dayjs';
 
-const LATENCY_MS = 995;
+const LATENCY_MS = 900;  // add time so timer display begins at 30
 
 @Component({
   selector: 'app-countdown-timer',
@@ -59,27 +59,41 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   @Input() 
   /**
    * set duration to operation in "timer" mode
+   *  o={
+   *    seconds: number
+   *    key: number (use unixtime)
+   *  }
    *  o==null cancels timer
    *  o=={ pause:true } pauses timer, without  clearing ending time
    */
-  set duration( o: {seconds?: number, pause?:boolean}) {
-    if (o && o.hasOwnProperty('seconds')) {
-      if (o.seconds===null) {
-        this._endingTime=null;
-      }
-      else {
-        this.stash.duration = o;
-        let duration = o.seconds*1000 + LATENCY_MS;
-        this._endingTime = dayjs().add(duration, 'millisecond');
-        // console.info("timer set to duration=", duration/1000)
-      }
-    }
-    else if (o && o.pause){
-      this.stop();  // and do NOT restart ngOnChange
-    }
-    else if (!o) {
+  set duration( o: {seconds?: number, pause?:boolean, key?: number}) {
+    if (!o || o.seconds===null) {
+      // reset timer
       this._endingTime=null;
+      return;
     }
+    let {pause, key, seconds } = o;
+    if (pause){
+      this.stop();  // and do NOT restart ngOnChange
+      return;
+    }
+
+    /**
+     * ngOnChange gets called next, cannot skip. so check stash.key in startCountdown()
+     */
+    if (key) {
+      this.stash.offset = 0;
+      if (typeof key == "number"){
+        let offset = Date.now()-key;
+        if (offset < 10*1000) {
+          this.stash.offset = offset;
+        }
+      }
+    }
+
+    let duration = seconds*1000 - this.stash.offset + LATENCY_MS;
+    this._endingTime = dayjs().add(duration, 'millisecond');
+    // => onto ngOnChange()
   }
 
   @Input()
@@ -119,7 +133,9 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   @Output() onBuzz = new EventEmitter<Date | {seconds: number}>(); 
   @Input() stopAtZero:boolean = false;
 
-  stash:any = {};
+  stash:any = {
+    key: null       // id for active timer
+  };
 
   constructor() { }
 
@@ -131,13 +147,26 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     return this._endingTime && this._endingTime.diff(dayjs().add(LATENCY_MS/4,'millisecond'), units);
   }
 
-  public stop(units:dayjs.UnitType='second'):number{
+  public stop(units:dayjs.UnitType='second'):number {
     this.complete$.next(true);
     this.pauseTimer$.next(true);
-    return this.getTimeRemaining(units);
+    this.stash.key = null;
+    let time = this.getTimeRemaining(units);
+    if (time==0) {
+      // don't pause, just finish
+      this.buzzAndReset();
+    }
+    return (this.stopAtZero) ? Math.max(time,0) : time;
   }
 
-  startCountdown(): void {
+  public buzzAndReset() {
+    let result = this.stash.duration || (this._endingTime as dayjs.Dayjs).toDate();
+    this.complete$.next(true);
+    this._secondsLeft = 0;
+    this.onBuzz.emit(result);
+  }
+
+  startCountdown(o:{key?:number}={}): void {
     if (!this._endingTime) {
       this._secondsLeft = 0;
       return
@@ -146,15 +175,23 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
       const secondsLeft = this._endingTime.diff(dayjs(), 'second');
       if (secondsLeft<=0) {
         this._secondsLeft = 0;
-        return
+        this.stop();
+        return;
       }
-    }    
+    }
+    if (o.key == this.stash.key){
+      // same timer, pass
+      // console.info( "TIMER   1>>> key unchanged, skip ngOnChange")
+      return
+    }
+
 
     if (this.stash.running) {
       this.stash.running.unsubscribe();
     }
     this.complete$.next(false);
     this.pauseTimer$.next(false);
+    this.stash.key = o.key || Date.now();
     this.stash.running = this._updateInterval.pipe(
       takeUntil(this._unsubscribeSubject),
       takeWhile( _=>this.complete$.value==false),
@@ -173,9 +210,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
         if (secondsLeft <=0 ) {
           let result = this.stash.duration || (this._endingTime as dayjs.Dayjs).toDate();
           if (this.stopAtZero) {
-            this.complete$.next(true);
-            this._secondsLeft = 0;
-            this.onBuzz.emit(result);
+            this.buzzAndReset();
           }
           else if (!this.stash.buzzed)
           {
@@ -194,15 +229,16 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     Object.entries(o).forEach( (en:[string,SimpleChange])=>{
       let [k, change] = en;
       switch(k){
+        case 'end': 
         case 'duration':
-        case 'end': {
+        {
           if (change.firstChange) {  // skip firstChange from ngOnInit()
             return
           }
-          if (this._endingTime && change.currentValue.pause!=true)  {
-            this.startCountdown();
+          if (this._endingTime>0 && change.currentValue.pause!=true)  {
+            this.startCountdown(change.currentValue);
           }
-          else if (this._endingTime===null) {
+          else if (this._endingTime===null || this._endingTime===0) {
             this.complete$.next(true);
             this.pauseTimer$.next(true);
             this._secondsLeft = 0;
