@@ -65,12 +65,13 @@ export class ListPage implements OnInit {
     
     let loading = await this.presentLoading();
     
-    this.games$ = this.gameHelpers.getGames$()
+    this.games$ = this.gameHelpers.getGames$();
     
     this.games$.pipe(
       filter( ()=>this.stash.listen),
-      tap( gameList=>{
+      tap( (gameList:Game[])=>{
         console.log( "games=", gameList);
+        this._moveExpiredGamesToNextWeek(gameList)
       }),
       tap( ()=>{
         loading && loading.dismiss();
@@ -78,6 +79,22 @@ export class ListPage implements OnInit {
     ).subscribe();
   }
 
+  private _moveExpiredGamesToNextWeek(gameList){
+    let now = Date.now();
+    let updates:any[] = gameList.filter(g=>g.gameTime < now)
+      .map( g=>{
+          let later = dayjs(g.gameTime).add(7,'day').toDate().getTime()
+          return {[g.uid]: { label: g.label, gameTime: later} }
+      });
+    if (updates && updates.length) {
+      updates.forEach( (o)=>{
+        Object.entries(o).forEach( ([gid,update])=>{
+          console.warn( "DEV: update gameTimes to next week, uid=",gid, update);
+          this.db.object<Game>(`/games/${gid}`).update(update);
+        })
+      });
+    }
+  }
 
   loadPlayer$():Observable<Player> {
     return this.authService.getCurrentUser$().pipe(
