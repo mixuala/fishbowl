@@ -71,6 +71,14 @@
                 </ion-item-divider>
                 <ion-item>
                   <ion-grid>
+                    <ion-row>
+                      <ion-col>
+                        <ion-button expand="block" color="success">
+                          <ion-icon name="videocam" slot="start"></ion-icon>
+                          <a [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">Open Video Chat Room</a>
+                        </ion-button>
+                      </ion-col>
+                    </ion-row>
                     <ion-row class="hide-under-spotlight">
                       <ion-col size=6>
                         <ion-item>

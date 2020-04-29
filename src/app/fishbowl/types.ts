@@ -4,6 +4,7 @@ export interface Game {
   uid: string;
   label: string;
   gameTime: number;
+  chatRoom?: string;
   timezoneOffset: number;
   playerCount?: number;
   players?: {

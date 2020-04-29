@@ -40,6 +40,7 @@ export class EntryPage implements OnInit {
   public player: Player;
 
   public entryForm: FormGroup;
+  public gameForm: FormGroup;
   validation_messages = {
     'name':[
       { type: 'required', message: 'Please enter your name.' },
@@ -49,11 +50,16 @@ export class EntryPage implements OnInit {
       { type: 'required', message: 'Please enter a Person, Place or Thing.' },
       { type: 'pattern', message: 'Your word must be letters and numbers only.' }
     ],
+    'chatRoom': [
+      { type: 'required', message: 'Please enter the link for a video chat room' },
+      { type: 'pattern', message: 'Must be a valid web link' }
+    ],
   };  
 
 
   @ViewChild( 'playTimer', {static:false} ) playTimer:IonButton; 
-
+  
+  
   constructor(
     private activatedRoute: ActivatedRoute,
     private router: Router,
@@ -62,12 +68,21 @@ export class EntryPage implements OnInit {
     private db: AngularFireDatabase,
     private authService: AuthService,
     private gameHelpers: GameHelpers,
-  ) {
+    ) {
+      
+    const urlRegex = '^(https?://)?([\\da-z.-]+)\\.([a-z.]{2,6})[/\\w .-]\??(?:&?[^=&]*=[^=&]*)*$';
 
     let validEntry = Validators.compose([
       Validators.required,
       Validators.pattern('^[a-zA-Z0-9_.+-\\s]+$')
     ]);
+
+    this.gameForm = new FormGroup({
+      'chatRoom': new FormControl('', Validators.compose([
+        // Validators.required,
+        Validators.pattern(urlRegex),
+      ])),
+    })
 
     this.entryForm = new FormGroup({
       'name': new FormControl('', Validators.compose([
@@ -76,19 +91,31 @@ export class EntryPage implements OnInit {
       ])),
       'word_1': new FormControl('', validEntry),
       'word_2': new FormControl('', validEntry),
-      'word_3': new FormControl('', validEntry),            
+      'word_3': new FormControl('', validEntry),   
+      'game': this.gameForm,
     });
 
     if (environment.production==false){
       window['_dbg'] = window['_dbg'] || {};
       window._dbg.stash = this.stash
       window._dbg.dayjs = dayjs
+
+      
+      // window._dbg.chatRoom = this.gameForm.get('chatRoom')
+      // window._dbg.Validators = Validators
+      /* debug url pattern validation, paste to JS console
+          chatRoom = _dbg.chatRoom
+          val = _dbg.Validators
+          s = "https://us04web.zoom.us/j/8705326103?pwd=WmRxdHNkbEEzaHc0Tkd1K1V0L0VtQT09"
+          urlRegex = '^(https?://)?([\\da-z.-]+)\\.([a-z.]{2,6})[/\\w .-]\??(?:&?[^=&]*=[^=&]*)*$';
+          val.pattern(urlRegex)({value:s})
+      */
     }
 
   }
 
   async ngOnInit() {
-    
+
     let loading = await this.presentLoading();
 
     this.loadPlayer$().pipe(
@@ -156,6 +183,7 @@ export class EntryPage implements OnInit {
 
     let name = this.game.players && this.game.players[this.player.uid] || this.player.displayName || "";
     entry['name'] = name as string;
+    entry['game'] = {chatRoom: this.game.chatRoom || ""};
     this.entryForm.setValue(entry)
   }
 
@@ -178,13 +206,19 @@ export class EntryPage implements OnInit {
   }
   
   doEntry(){
+    let formData = this.entryForm.value;
     let u = this.player;
     let players = this.game.players || {};
-    players[u.uid]=this.entryForm.value.name;
+    players[u.uid]=formData.name;
     let playerCount = Object.keys(players).length;
     let entries = this.game.entries || {};
-    entries[u.uid] = Object.entries(this.entryForm.value).filter( ([k,v])=>k.startsWith('word_')).map( ([k,v])=>v as string);
-    this.gameRef.update( {players, playerCount, entries} ).then(
+    entries[u.uid] = Object.entries(formData).filter( ([k,v])=>k.startsWith('word_')).map( ([k,v])=>v as string);
+    let update = {players, playerCount, entries} as Game;
+    if (formData.game){
+      let {chatRoom} = formData.game;
+      if (chatRoom) update.chatRoom = chatRoom;
+    }
+    this.gameRef.update( update ).then(
       res=>{
         let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
         this.router.navigate(['/app/game', gameId]);

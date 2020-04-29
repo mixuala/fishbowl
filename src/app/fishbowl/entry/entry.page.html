@@ -39,9 +39,27 @@
             </ion-list>
 
 
-            <form [formGroup]="entryForm" (ngSubmit)="doEntry()">
-              <ion-list class="inputs-list" lines="full">
 
+            <form [formGroup]="entryForm" (ngSubmit)="doEntry()">
+
+
+              <div formGroupName="game">
+                <ion-item class="input-item">
+                  <ion-label position="stacked">video chat room</ion-label>
+                  <ion-input type="text" placeholder="Zoom/Meet link" formControlName="chatRoom" clearInput autocapitalize="word" inputmode="text"></ion-input>
+                </ion-item>
+                <div class="error-container">
+                  <ng-container *ngFor="let validation of validation_messages.chatRoom">
+                    <div class="error-message" *ngIf="gameForm.get('chatRoom').hasError(validation.type) && (gameForm.get('chatRoom').dirty || gameForm.get('chatRoom').touched)">
+                      <ion-icon name="information-circle-outline"></ion-icon>
+                      <span>{{ validation.message }}</span>
+                    </div>
+                  </ng-container>
+                </div>
+              </div>
+
+            
+              <ion-list class="inputs-list" lines="full">
                 <ion-item class="input-item">
                   <ion-label position="stacked">name</ion-label>
                   <ion-input type="text" placeholder="name" formControlName="name" clearInput autocapitalize="word" inputmode="text"></ion-input>
