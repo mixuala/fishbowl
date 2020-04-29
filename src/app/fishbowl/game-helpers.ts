@@ -366,6 +366,20 @@ export class GameHelpers {
   }
 
 
+  set_DayOfWeekTeams(gameDict:GameDict, gameId:string){
+    let roundUpdate = {
+      teams : {
+        "blue team": ["JJM3Ct3iPzNR8gMy5DkSZB5UdOn2","tRIagpG1P5ToB4jhxMzGghQKbNx2","enJzDKGvvoQPTONESYGN03cVYPZ2","8seIMvmHXBSvAo07scJxaeKxhFI3"],
+        "red team": ["qOMioJk9BRbgK5ViqLRePxIAt3D3","nhjC74LbBNdRBV5rkAosmu9tPrF2","aCMCLiQmcBRRUFZmH0GmWi9LF202"]
+        }
+    }
+
+    let roundIds = Object.keys(gameDict).filter( k=>!['activeRound', gameId].find( skip=>k==skip))
+    roundIds.forEach( rid=>{
+      this.db.object<GamePlayRound>(`/rounds/${rid}`).update(roundUpdate);
+    });
+  }
+
 
   
 }

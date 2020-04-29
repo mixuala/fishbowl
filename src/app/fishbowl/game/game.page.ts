@@ -763,14 +763,7 @@ export class GamePage implements OnInit {
   }
 
   check() {
-    let start = Date.now()
-    let gameWatch = this.gameHelpers.getGameWatch( this.game.uid );
-    gameWatch.gameDict$.pipe(
-      tap( o=>{
-        let et = Date.now()-start
-        console.log("emit gameDict$ ms, o=", et, o)
-      })
-    ).subscribe()
+    // this.gameHelpers.set_DayOfWeekTeams(this.gameDict, this.gameId)
   }
 
 }
