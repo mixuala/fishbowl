@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
-import { Observable, BehaviorSubject, of, combineLatest, from, empty } from 'rxjs';
-import { withLatestFrom, map, switchMap, take, concatMap, share, tap, mergeMap } from 'rxjs/operators';
+import { Observable, of, combineLatest, } from 'rxjs';
+import { withLatestFrom, map, switchMap, take, share, tap, first } from 'rxjs/operators';
 
 import * as dayjs from 'dayjs';
 
@@ -10,7 +10,7 @@ import { FishbowlHelpers } from './fishbowl.helpers';
 import { 
   Game, GamePlayRound, GameWatch, GameDict, RoundEnum,
   GamePlayWatch, GamePlayState,
-  PlayerByUids, TeamRosters, GamePlayLog, WordResult, Scoreboard, 
+  PlayerByUids, TeamRosters, GamePlayLog, WordResult, Scoreboard, GamePlayLogEntries, 
 } from './types';
 
 
@@ -57,6 +57,8 @@ export class GameHelpers {
     )
     let game$ = game_af.valueChanges();
 
+    // NOTE: only emits when rounds change
+    // DOES NOT emit when game changes
     let gameDict$:Observable<GameDict> = hasManyRounds_af.valueChanges().pipe(
       withLatestFrom( game$ ),
       map( ([rounds,g])=>{
@@ -82,7 +84,7 @@ export class GameHelpers {
     }
   }
 
-  getGamePlay$(game:Game, gameDict:GameDict):GamePlayWatch{
+  getGamePlay(game:Game, gameDict:GameDict):GamePlayWatch{
     let uid = game.activeRound;
     let gamePlay$ = of(uid).pipe(
       switchMap( uid=>{
@@ -236,12 +238,13 @@ export class GameHelpers {
 
   /**
    * update GamePlayLog with the lastest values from the player round, gamePlay.log
-   * - reset gamePlay.log in completePlayerRound()
+   * - does NOT reset gamePlay.log
    * @param watch 
    * @param round 
    */
   pushGameLog(watch:GamePlayWatch, round:GamePlayRound ) :Promise<void>{
     let {uid, gamePlay$, gameLog$} = watch;
+    let rid = uid;
     return new Promise( (resolve, reject)=>{
       combineLatest( gamePlay$, gameLog$ ).pipe(
         take(1),
@@ -250,17 +253,28 @@ export class GameHelpers {
           gameLog = gameLog || {} as GamePlayLog;
   
           // copy results to GamePlayLog  path=/gamePlayLog/[gameId]
-          let key = `round${round.round}`
-          let curVal = gameLog[key]  as {[timestampDesc: number]: WordResult};
-          let value = Object.assign( {} , gameLog[key], gamePlay.log)  as {[timestampDesc: number]: WordResult};
-          let update = {[key]: value};
-          return this.db.list<GamePlayLog>('/gameLog').update(watch.uid, update)
+          let roundKey = `round${round.round}`
+          let curVal = gameLog[roundKey] as GamePlayLogEntries;
+          let mergeLogEntries = Object.assign( {} , curVal, gamePlay.log) as GamePlayLogEntries;
+          let updateLog = {[roundKey]: mergeLogEntries};
+          return this.db.list<GamePlayLog>('/gameLog').update(rid, updateLog)
           .then( v=>{
-            console.log("1> GameHelper.pushGameLog() update=", update);
-            // update score from gameLog
-            gameLog = Object.assign(gameLog, update);
+            // merge gameLog entries into round.entries
+            let merged = FishbowlHelpers.updateFishbowl(round, mergeLogEntries);
+            let updateRound = {
+              entries: merged,
+            } as GamePlayRound;
+            return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound).then(
+              ()=>console.log("0>>> updateRound=", updateRound)
+            )
+          })
+          .then( v=>{
+            // updated in the Cloud, but not here
+            console.log("1> GameHelper.pushGameLog() update round.entries=",  round.entries);
+          })
+          .then( v=>{
             resolve();
-          });
+          })
         }),   
       ).subscribe();
     });
@@ -296,8 +310,11 @@ export class GameHelpers {
    * @param watch 
    * @param activeRound 
    */
+
+
   scoreRound$(watch:GamePlayWatch, activeRound:GamePlayRound=null, gamePlay:GamePlayState=null) : Observable<Scoreboard>{
-    let keyedByTeams = Object.keys(activeRound && activeRound.teams || {}).reduce( (o,teamName)=>(o[teamName]={}, o), {});
+    let initTeamScore = ()=>({points:0, passed:0});
+    let keyedByTeams = Object.keys(activeRound && activeRound.teams || {}).reduce( (o,teamName)=>(o[teamName]=null, o), {});
     let score:Scoreboard = {
       round1: Object.assign({}, keyedByTeams),
       round2: Object.assign({}, keyedByTeams),
@@ -308,35 +325,41 @@ export class GameHelpers {
     let playerRound = gamePlay && gamePlay.log || {};
     let activeRoundKey = activeRound ?  `round${activeRound.round}` : null;  // for current round
 
-    return of(playerRound).pipe(
-      withLatestFrom( watch.gameLog$),
-      map( ([playerRound, gameLog])=>{
+    return watch.gameLog$.pipe( 
+      first(), 
+      map( (gameLog)=>{
 
         // move this section to FishbowlHelpers.tabulateScore(gameLog, {playerRound:{}, mergeKey: string})
 
         // update score, OR just summarize GamePlayLog
-        Object.entries(gameLog).filter( ([k,_])=>k.startsWith('round')).forEach( ([key,o])=>{
+        Object.entries(gameLog).filter( ([k,_])=>k.startsWith('round')).forEach( res=>{
+          let [key, gameLogEntries]:[string, GamePlayLogEntries] = res;
+          console.log(">>> scoreRound$  ", key, "  count=",  Object.values(gameLogEntries).length)
+
           if (key==activeRoundKey) {
-            // merge playerRound (uncommitted) to db value before scoring
-            o = Object.assign({}, o, playerRound);
+            // merge playerRound (uncommitted) to gameLog[round?] before scoring
+            gameLogEntries = Object.assign({}, gameLogEntries, playerRound);
+            console.log("    >>> scoreRound$  ", key, "  count=",  Object.values(gameLogEntries).length)
           }
-          Object.values(o).forEach( (o:WordResult)=>{
+          Object.values(gameLogEntries).forEach( (o:WordResult)=>{
             let {teamName, playerName, result, time} = o;
-            score[key][teamName] = score[key][teamName] || {points:0, passed:0};
+            score[key][teamName] = score[key][teamName] || initTeamScore();
             let target = result ? 'points' : 'passed';
             score[key][teamName][target] +=1;
           });
-          // update totals
-          Object.keys(activeRound.teams).forEach( teamName=>{
-            score['total'][teamName] =  {points:0, passed:0};
-            Object.keys(score).filter( k=>k.startsWith('round')).forEach( key=>{
-              if (score[key][teamName]) {
-                score['total'][teamName]['points'] += score[key][teamName]['points'];
-                score['total'][teamName]['passed'] += score[key][teamName]['passed'];  
-              }
-            });
+        });
+
+        // update totals
+        Object.keys(activeRound.teams).forEach( teamName=>{
+          score['total'][teamName] =  initTeamScore();
+          Object.keys(score).filter( k=>k.startsWith('round')).forEach( key=>{
+            if (score[key][teamName]) {
+              score['total'][teamName]['points'] += score[key][teamName]['points'];
+              score['total'][teamName]['passed'] += score[key][teamName]['passed'];  
+            }
           });
         });
+
         return score;
       }),
     )

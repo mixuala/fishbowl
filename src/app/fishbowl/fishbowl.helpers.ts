@@ -7,7 +7,8 @@ import {
   Game, GamePlayRound, RoundEnum,
   PlayerByUids, TeamRosters,
   SpotlightPlayer, 
-  GamePlayState
+  GamePlayState,
+  GamePlayLogEntries
 } from './types';
 import { Helpful} from '../services/app.helpers';
 
@@ -101,7 +102,8 @@ export class FishbowlHelpers {
   }
 
   /**
-   * updateFishbowl with gamePlay results, then pick a random word
+   * updateFishbowl with gamePlay+gameLog results, then pick a random word
+   * - Note: lastResult is pre-update, not be in the cloud, so the gamePlay update can happen in one transaction
    * @param gamePlay 
    * @param round 
    * @param lastResult { [word]: available }
@@ -112,7 +114,7 @@ export class FishbowlHelpers {
       remaining: number
     } 
   {    
-    let fishbowl = FishbowlHelpers.updateFishbowl(round, gamePlay, lastResult);
+    let fishbowl = FishbowlHelpers.updateFishbowl(round, gamePlay.log, lastResult);
     let entries = Object.entries(fishbowl).filter( ([word,avail])=>avail===true ).map( ([word,avail])=>word );
     let word = Helpful.shuffle(entries, 1).pop();
     return {word, remaining: entries.length};
@@ -125,19 +127,23 @@ export class FishbowlHelpers {
    * @param lastResult { [word]: available }
    */
   static
-  updateFishbowl(round:GamePlayRound, gamePlay:GamePlayState, lastResult: {[word:string]:boolean}={}): {[word:string]: boolean} {
-
-    // TODO: update from gamePlayLog? not GamePlayState???
-
+  updateFishbowl(round:GamePlayRound, logEntries:GamePlayLogEntries={}, lastResult: {[word:string]:boolean}={}): {[word:string]: boolean} {
 
     // let path = `/round/${rid}/entries`
-    let playerBowl = Object.values(gamePlay.log || {}).reduce( (res, o)=>{
+    let playerBowl = Object.values(logEntries).reduce( (res, o)=>{
+      // logEntries are historical and the same word can repeat until result=true
+      // once its false, always false. 
+      if (res[o.word]===false) return res;
+
       let avail = !o.result;  // a correct guess means the word is out of the fishbowl
-      res[o.word] = avail;
+      res[o.word] = avail;     
       return res;
     }, {});
-    console.log(playerBowl, lastResult);
+
     let fishbowl = Object.assign( {}, round.entries, playerBowl, lastResult);
+    // console.log("0>>> updateFishbowl=",fishbowl);
+    // console.log("   >> fishbowl false=", Object.values(fishbowl).filter(v=>v==false).length)
+    // console.log("   >> round.entries false=", Object.values(round.entries).filter(v=>v==false).length)
     return fishbowl as {[word:string]: boolean};
   }
 

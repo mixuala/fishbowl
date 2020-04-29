@@ -16,8 +16,14 @@ export interface Game {
   rounds?: {
     [rid: string]:  number // Date.now() or RoundTypeEnum
   }
+  // TODO: rename activeRoundId
   activeRound?: string;
   complete?: boolean;
+}
+
+// TODO: refactor
+export interface FishbowlWords {
+  [word:string]: boolean
 }
 
 export interface GamePlayRound {
@@ -57,17 +63,24 @@ export interface GamePlayState {
     key?: number;
     pause?: boolean;
   };
-  log: {[timestampDesc: number]: WordResult}
+  log: GamePlayLogEntries;
   // activePlayer and game master must have access:
   isTicking: boolean;
-  word: string;   
+  word: string;
+  remaining: number;   
   timerPausedAt: number;
+  playerRoundComplete?: boolean;
+  roundComplete?: boolean;
+}
+
+export interface GamePlayLogEntries {
+  [timestampDesc: number]: WordResult
 }
 
 export interface GamePlayLog {
-  round1: {[timestampDesc: number]: WordResult}
-  round2: {[timestampDesc: number]: WordResult}
-  round3: {[timestampDesc: number]: WordResult}
+  round1: GamePlayLogEntries,
+  round2: GamePlayLogEntries,
+  round3: GamePlayLogEntries
 }
 
 export type PlayerByUids = string[];
@@ -100,8 +113,9 @@ export interface GameWatch {
   gameDict$: Observable<GameDict>,
 }
 
+// TODO: refactor, uid=>roundId
 export interface GamePlayWatch {
-  uid: string;
+  uid: string;  // activeRound.uid
   gamePlay$: Observable<GamePlayState>;
   gameLog$: Observable<GamePlayLog>;
 }

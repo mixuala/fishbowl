@@ -16,6 +16,31 @@
     <ion-row>
         <ion-col size="12" size-sm="8" offset-sm="2" offset-xl="3" size-xl="6">
           <ion-card  *ngIf="this.game">
+            <ion-card-header color="dark">      
+              <ion-card-title>
+                Game Controls for <ion-text color="tertiary">
+                  {{game.label}}
+                </ion-text>
+              </ion-card-title>
+            </ion-card-header>
+            <ion-card-content>
+              <div class="game-controls" *ngIf="stash.activeGame">
+                <ion-item>
+                  <ion-button size="small" color="primary" 
+                  [disabled]="game.rounds" (click)="loadRounds()">Load Rounds</ion-button>
+                  <ion-button size="small" color="secondary" 
+                  [disabled]="!game.rounds || !!game.activeRound" (click)="beginRound()">Begin Round</ion-button>
+                </ion-item><ion-item>
+                  <ion-button size="small" color="tertiary" 
+                  [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer()">Next Player</ion-button>
+                  <ion-button size="small" color="tertiary" 
+                  [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer(false)">Skip Player</ion-button>
+                </ion-item>
+              </div>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card  *ngIf="this.game">
             <ion-card-header color="tertiary">      
               <ion-card-title>
                 {{game.label}}
@@ -40,30 +65,13 @@
                 </div>
               </div>
 
-              <div class="game-controls" *ngIf="stash.activeGame">
-                <ion-item-divider class="ion-margin-top">
-                  <ion-note>game controls</ion-note>
-                </ion-item-divider>
-                <ion-item>
-                  <ion-button size="small" color="primary" 
-                  [disabled]="game.rounds" (click)="loadRounds()">Load Rounds</ion-button>
-                  <ion-button size="small" color="secondary" 
-                  [disabled]="!game.rounds || !!game.activeRound" (click)="beginRound()">Begin Round</ion-button>
-                </ion-item><ion-item>
-                  <ion-button size="small" color="tertiary" 
-                  [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer()">Next Player</ion-button>
-                  <ion-button size="small" color="tertiary" 
-                  [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer(false)">Skip Player</ion-button>
-                </ion-item>
-              </div>
-
               <div class="game-summary" *ngIf="stash.activeGame">
-                <ion-item-divider class="ion-margin-top XXXhide-under-spotlight">
+                <ion-item-divider class="ion-margin-top">
                   <ion-note>game summary</ion-note>
                 </ion-item-divider>
                 <ion-item>
                   <ion-grid>
-                    <ion-row class="XXXhide-under-spotlight">
+                    <ion-row class="hide-under-spotlight">
                       <ion-col size=6>
                         <ion-item>
                           <ion-label><ion-note>round</ion-note></ion-label>
@@ -214,9 +222,9 @@
                     <ion-icon name="settings-outline"></ion-icon>
                   </ion-button>   
                 </ion-item>
-                <ion-item>
+                <!-- <ion-item>
                   <ion-button (click)="check()">DEV </ion-button>
-                </ion-item>
+                </ion-item> -->
               </div>              
 
             </ion-list>
