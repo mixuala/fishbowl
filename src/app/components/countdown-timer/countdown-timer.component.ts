@@ -179,7 +179,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
         return;
       }
     }
-    if (o.key == this.stash.key){
+    if (!!o.key && o.key == this.stash.key){
       // same timer, pass
       // console.info( "TIMER   1>>> key unchanged, skip ngOnChange")
       return
@@ -229,7 +229,10 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     Object.entries(o).forEach( (en:[string,SimpleChange])=>{
       let [k, change] = en;
       switch(k){
-        case 'end': 
+        case 'end': {
+          this.startCountdown(this._endingTime);
+          break;
+        }
         case 'duration':
         {
           if (change.firstChange) {  // skip firstChange from ngOnInit()
@@ -244,6 +247,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
             this._secondsLeft = 0;
             // console.log("countdownTimer stopped with value=null");
           }
+          break;
         }
       }
     });
