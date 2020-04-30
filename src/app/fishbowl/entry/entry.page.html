@@ -28,7 +28,7 @@
             <ion-card-content>
             <ion-list class="ion-no-padding">
 
-              <div class="game-time ion-text-center" *ngIf="stash.active==false">
+              <div class="game-time ion-text-center" *ngIf="stash.activeGame==false">
                 <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
                 <ion-text  color="dark">
                   Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 

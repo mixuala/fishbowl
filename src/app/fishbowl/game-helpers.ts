@@ -54,7 +54,7 @@ ionViewWillEnter():
     - set: gameDict, activeRound, game
     - set: gamePlayWatch if game.activeRound
       - [activeRoundId, gamePlayByRoundId$, gameLogByRoundId$]
-  - set: stash.active <= game.gameTime
+  - set: stash.activeGame <= game.gameTime
   - set: player {name, teamId, teamName}
   => gamePlay$:  
     - set: wordsRemaining
@@ -272,9 +272,9 @@ export class GameHelpers {
     let fields = changes.length ? [].concat(...changes) : null;
     let update = Helpful.cleanProperties(gamePlay, fields);
     return this.db.list<GamePlayState>('/gamePlay').update(watch.uid, update)
-    // .then( v=>{
-    //   console.log("1> GameHelper.pushGamePlayState() update=", update)
-    // });
+    .then( v=>{
+      console.log("1> GameHelper.pushGamePlayState() update=", update)
+    });
   }
 
 
@@ -363,7 +363,7 @@ export class GameHelpers {
             //   console.log( "updated gameLog[roundKey]=", v[roundKey]);
             // })
             let logPath = `/gameLog/${rid}/${roundKey}`;
-            return this.db.object<GamePlayLog>(logPath).update(gamePlay.log)
+            return this.db.object<GamePlayLog>(logPath).update(mergeLogEntries)
           })
           .then( v=>{
             // merge gameLog entries into round.entries
@@ -411,7 +411,7 @@ export class GameHelpers {
     return watch.gameLog$.pipe( 
       first(), 
       map( (gameLog)=>{
-
+        if (!gameLog) return score;
         // move this section to FishbowlHelpers.tabulateScore(gameLog, {playerRound:{}, mergeKey: string})
 
         // update score, OR just summarize GamePlayLog

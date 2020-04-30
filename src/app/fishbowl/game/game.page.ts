@@ -108,7 +108,7 @@ export class GamePage implements OnInit {
   
   public stash:any = {
     // GameWatch changes
-    timerDuration: 10,
+    timerDuration: 30,
     audioVolumeIcon: null,
     activeGame: false,    // activeGame can be true between game.activeRound
     // activePlayer only
@@ -281,9 +281,7 @@ export class GamePage implements OnInit {
         takeWhile( (d)=>!!d[this.gameId]),
         tap( d=>{
           game = d[this.gameId] as Game;
-          this.stash.active = game.gameTime < Date.now();
-          // DEV: for testing
-          this.stash.activeGame = true;          
+          this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
         }),
         tap( d=>{
           // NOTE: this can be moved elsewhere, run once at beginRound
@@ -316,6 +314,7 @@ export class GamePage implements OnInit {
         }),
         tap( (gamePlay)=>{
           let round = this.gameDict.activeRound;
+          this.stash.timerDuration = gamePlay.timerDuration || this.stash.timerDuration;
           this.gameHelpers.scoreRound$(this.gamePlayWatch, this.activeRound, gamePlay ).pipe(
             take(1),
             tap( score=>{
@@ -366,6 +365,18 @@ export class GamePage implements OnInit {
     ["click","buzz","ok","pass","dq", "pause"].forEach( k=>this.audio.preload(k));
   }
 
+  onTimerRangeChange(range: CustomEvent) {
+    this.stash.timerDuration = range.detail.value;
+    let update = {timerDuration: this.stash.timerDuration} as GamePlayState;
+    this.gamePlayWatch.gamePlay$.pipe(
+      take(1),
+      tap( gamePlay=>{
+        if (gamePlay.isTicking==false)
+          this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
+      })
+    ).subscribe()
+  }
+
   onTimerClick(duration=null){
     if (!this.gameDict.activeRound) return
 
@@ -392,7 +403,10 @@ export class GamePage implements OnInit {
     // role guard
     let isOnTheSpot = this.stash.onTheSpot;
     if (!isOnTheSpot) return; 
-    if (gamePlay.playerRoundComplete) return;
+    if (gamePlay.playerRoundComplete) {
+      // BUG: this is not getting reset properly
+      // return;
+    }
 
     // load round
     let rid = this.game.activeRound;
@@ -544,7 +558,7 @@ export class GamePage implements OnInit {
     let update = {} as GamePlayState;
 
     let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]:available} );
-    if (next.remaining==0) {
+    if (!next.word) {
       return this.completePlayerRound(true, true);
     }
     Object.assign( update, next);
@@ -593,7 +607,7 @@ export class GamePage implements OnInit {
       console.log( "wordAction, gamePlay=", update )
       this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
       .then( ()=>{
-        if (next.remaining==0) this.completePlayerRound(true, true);
+        if (!next.word) this.completePlayerRound(true, true);
       });
 
     }
@@ -622,29 +636,37 @@ export class GamePage implements OnInit {
     let activeRound = this.activeRound;
     let rid = this.game.activeRound;
     return Promise.resolve().then( ()=>{
-      /**
-       * TODO: flash/toast playerRound complete
-       * - in doGamePlayUx(): 
-       *      - watch for gamePlay$ =>gamePlay.playerRoundComplete 
-       *      - show words 
-       * - then continue on timer or game Master click
-       */
-      let playerRoundComplete = true;
-      let update = { playerRoundComplete, roundComplete }
-      return this.db.list<GamePlayState>('/gamePlay').update(rid, update)
+
+      return this.nextPlayerRound();
+
     })
-    .then( ()=>{
-      console.log(" >>>> completePlayerRound() DONE");
-    })
-    .then( ()=>{
-      const PLAYER_ROUND_INTERSITITIAL_DELAY =  5000
-      return interval(PLAYER_ROUND_INTERSITITIAL_DELAY).pipe(
-        first(),
-        map( ()=>{
-          this.nextPlayerRound();
-        })
-      ).toPromise();
-    });
+    // .then( ()=>{
+
+    //   // not working 
+    
+    //   /**
+    //    * TODO: flash/toast playerRound complete
+    //    * - in doGamePlayUx(): 
+    //    *      - watch for gamePlay$ =>gamePlay.playerRoundComplete 
+    //    *      - show words 
+    //    * - then continue on timer or game Master click
+    //    */
+    //   let playerRoundComplete = true;
+    //   let update = { playerRoundComplete, roundComplete }
+    //   return this.db.list<GamePlayState>('/gamePlay').update(rid, update)
+    // })
+    // .then( ()=>{
+    //   console.log(" >>>> completePlayerRound() DONE");
+    // })
+    // .then( ()=>{
+    //   const PLAYER_ROUND_INTERSITITIAL_DELAY =  3000;
+    //   return interval(PLAYER_ROUND_INTERSITITIAL_DELAY).pipe(
+    //     first(),
+    //     map( ()=>{
+    //       this.nextPlayerRound();
+    //     })
+    //   ).toPromise();
+    // });
   }
 
   /**

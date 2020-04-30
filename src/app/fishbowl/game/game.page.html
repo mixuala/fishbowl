@@ -23,19 +23,34 @@
               </ion-card-title>
             </ion-card-header>
             <ion-card-content>
-              <div class="game-controls" *ngIf="stash.activeGame">
+              <ion-list class="game-controls" *ngIf="stash.activeGame">
                 <ion-item>
                   <ion-button size="small" color="primary" 
                   [disabled]="game.rounds" (click)="loadRounds()">Load Rounds</ion-button>
                   <ion-button size="small" color="secondary" 
-                  [disabled]="!game.rounds || !!game.activeRound" (click)="beginRound()">Begin Round</ion-button>
-                </ion-item><ion-item>
+                  [disabled]="!game.rounds || !!game.activeRound" (click)="beginGameRound()">Begin Round</ion-button>
+                </ion-item>
+                <ion-item>
                   <ion-button size="small" color="tertiary" 
                   [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer()">Next Player</ion-button>
                   <ion-button size="small" color="tertiary" 
                   [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer(false)">Skip Player</ion-button>
                 </ion-item>
-              </div>
+                <ion-item lines="none">
+                  <!-- <ion-label position="stacked"></ion-label> -->
+                  <ion-note>Timer</ion-note>
+                  <ion-badge color="secondary">{{stash.timerDuration}}s</ion-badge>
+                  <ion-range class="range-control" 
+                      slot="end"
+
+                      [value]="stash.timerDuration"
+                      min="5" max="60" step="5"  color="secondary" 
+                      (ionChange)="onTimerRangeChange($event)">
+                      <ion-label slot="start">5</ion-label>
+                      <ion-label slot="end">60</ion-label>
+                    </ion-range>
+                </ion-item>
+              </ion-list>
             </ion-card-content>
           </ion-card>
 

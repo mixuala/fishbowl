@@ -157,6 +157,49 @@ ion-card-content{
     }
 
 
+    .game-controls {
+      .range-list {
+        background-color: var(--ion-color-lightest);
+    
+        .range-item {
+          --ion-grid-column-padding: 0px;
+    
+          padding-top: var(--page-margin);
+          padding-inline-start: var(--page-margin);
+          padding-inline-end: var(--page-margin);
+          // box-shadow at the top
+          box-shadow: inset 0 6px 3px -8px  var(--ion-color-darkest);
+    
+          .range-header {
+            display: flex;
+            justify-content: space-between;
+            padding-bottom: calc(var(--page-margin) / 2);
+    
+            .range-value {
+              font-size: 12px;
+              font-weight: 600;
+              letter-spacing: 0.2px;
+              color: var(--ion-color-medium);
+            }
+    
+            .range-label {
+              font-size: 14px;
+              font-weight: 500;
+              letter-spacing: 0.2px;
+              color: var(--ion-color-medium);
+            }
+          }
+    
+          .range-control {
+            // override the pin color
+            --ion-text-color: var(--ion-color-medium);
+    
+            padding-top: 0px;
+            padding-bottom: 0px;
+          }
+        }
+      }      
+    }
 
 
     app-countdown-timer {
