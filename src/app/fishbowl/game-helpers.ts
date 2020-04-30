@@ -14,6 +14,100 @@ import {
 } from './types';
 
 
+/* Firebase dbRef cheat sheet:
+
+  games = this.db.list<Game>(`/games`);
+  gamesByStartTime = this.db.list<Game>('games', 
+      ref=>ref.orderByChild('gameTime').startAt( d.getTime() )
+    )
+
+  gameById = this.db.object<Game>(`/games/${gameId}`)
+  roundById = this.db.object<GamePlayRound>(`/rounds/${rid}`)
+  roundsByGameId = this.db.list<GamePlayRound>('/rounds',
+      ref=>ref.orderByChild('gameId').equalTo(gameId)
+    )
+
+  gamePlayByRoundId = this.db.object<GamePlayState>(`/gamePlay/${uid}`)
+  gameLogByRoundId = this.db.object<GamePlayLog>(`/gameLog/${uid}`)
+
+*/
+
+/**
+ *    Lifecycle Notes
+ * 
+
+   TODO: add lifecycle events:
+    - onGameWillBegin()
+    - onGameRoundWillBegin()
+    - onPlayerRoundWillBegin()
+    - onPlayerRoundDidBegin()
+      - onGameRoundDidBegin()
+      - onGameDidBegin()
+
+    - onPlayerRoundDidEnd()
+    - onGameRoundDidEnd()
+    - onGameDidEnd()
+  
+ionViewWillEnter():
+=> gameDict$:
+  => loadGame$: [roundsByGameId, gameById] emit=>
+    - set: gameDict, activeRound, game
+    - set: gamePlayWatch if game.activeRound
+      - [activeRoundId, gamePlayByRoundId$, gameLogByRoundId$]
+  - set: stash.active <= game.gameTime
+  - set: player {name, teamId, teamName}
+  => gamePlay$:  
+    - set: wordsRemaining
+    - set: spotlight
+    - set: stash.onTheSpot ( implicit ROLE assignment )
+    - set: tabulate scoreboard from gameLog, gamePlay.log
+  => pairwise(gamePlay$)
+    - doGamePlayUX()
+
+wordAction(): (Role=onTheSpot)
+=> gamePlay$
+  - if !playerRound, call onPlayerRoundWillBegin()  (move to parent)
+    => start timer
+      - push gamePlay( { word, timer, isTicking } )      => UX
+  - FishbowlHelpers.nextWord()
+  - if wordsRemaining==0, 
+    => call onPlayerRoundDidEnd()
+  - if first word, (move to onPlayerRoundWillBegin) 
+    - set spotlight
+    => push gamePlay({word, remaining})  => UX
+  - (next word)
+    => push gamePlay( {log, word, })     => UX, update score, game-summary
+
+onPlayerRoundWillBegin(): [TODO]
+  - nextPlayerRound()
+  - (wait for onTheSpot to startTimer, don't show first word until timer begins)
+
+onPlayerRoundDidEnd(): 
+  - completePlayerRound()
+    - clear Timer
+  - (Role=onTheSpot)
+    - push gamePlay({ playerRoundComplete })     => UX
+    => nextPlayerRound(), (move to onPlayerRoundWillBegin())
+
+onGameRoundDidEnd():
+- completePlayerRound() // deprecate, separate from onPlayerRoundDidEnd()
+- completeGameRound()
+
+completeGameRound()
+  - move to onGameRoundDidEnd()
+
+TODO: 
+  - push all items that trigger UX changes into gamePlay
+  - all UX actions triggered from cloud, e.g. sounds, animations, class manipulations, score, words remaining, timer 
+    - move this.animate() from onTimerDone() => doGamePlayUX()
+    - move scoreboard results into gamePlay, tabulate scores BEFORE push
+  - flash intersitials at the end of playerRound, round, game
+  - move nextPlayerRound() to onPlayerRoundWillBegin()
+
+
+
+ */
+
 @Injectable({
   providedIn: 'root'
 })
@@ -53,6 +147,7 @@ export class GameHelpers {
     // games$.subscribe( (v)=>console.log("games$:", v));
 
     let hasManyRounds$ = hasManyRounds_af.valueChanges().pipe(
+      // or use Helpful.sortByIds() on uids
       FishbowlHelpers.pipeSort('round'),
     )
     let game$ = game_af.valueChanges();
@@ -282,31 +377,7 @@ export class GameHelpers {
   }
 
   /**
-   * from ionViewWillEnter(): 
-   * 
-   * every wordAction() emits a new gamePlayState
-   * - triggers getSpotlightPlayer (TODO: only changes at the end of player round, move)
-   * - triggers gameHelpers.scoreRound$()
-   *    - pushGameLog()
-   *    - tabulate score
-   * - triggers doGamePlayUx()
-   * 
-   * SHOULD BE:
-   * wordAction() => gamePlayState
-   * x => scoreRound$( gameLog, gamePlay.log ) [do NOT push to gameLog during playerRound]
-   * x => trigger doGamePlayUx()
-   * 
-   * onTimerDone => completePlayerRound()
-   * - pushGameLog(), activeRound.log=null
-   * - scoreRound$()
-   * - moveSpotlight()
-   * 
-   * completeRound()
-   * - activeRound.complete = true
-   * - gameDict.activeRound=null
-   * - pushRound()
-   * ???: how/when do we begin the next round()?
-   * => gameHelpers.getActiveRound()
+   * scoreRound, called from ionViewWillEnter: gamePlay$
    * 
    * @param watch 
    * @param activeRound 

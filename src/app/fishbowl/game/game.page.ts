@@ -550,6 +550,7 @@ export class GamePage implements OnInit {
     Object.assign( update, next);
     
     if (!gamePlay.word) {
+      // move to onPlayerRoundWillBegin()
       // load initial word, ignore action
       this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
         console.log("1> queue FIRST word, update=", update);
@@ -569,14 +570,17 @@ export class GamePage implements OnInit {
         return console.warn("wordAction(): INVALID WORD, word=", word);
       }
 
+      // add spotlight to WordResult for proper scoring
       let spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
       let teamName = spotlight.teamName;
       let playerName = spotlight.label;
+
       let now = Date.now();
       let log:GamePlayLogEntries = gamePlay.log || {};
       let roundStartTime = gamePlay.timer.key || Date.now()
       let lastTime = Object.keys(log ).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 ) 
       lastTime = Math.max(lastTime, roundStartTime);
+      // TODO: get teamName, playerName from gamePlay
       let score:WordResult = {
         teamName, playerName, word,
         result: correct,
@@ -642,20 +646,6 @@ export class GamePage implements OnInit {
       ).toPromise();
     });
   }
-  /**
-   * 
-   TODO: add lifecycle events:
-    - onGameWillBegin()
-    - onGameRoundWillBegin()
-    - onPlayerRoundWillBegin()
-    - onPlayerRoundDidBegin()
-      - onGameRoundDidBegin()
-      - onGameDidBegin()
-
-    - onPlayerRoundDidEnd()
-    - onGameRoundDidEnd()
-    - onGameDidEnd()
-  */ 
 
   /**
    * queue next PlayerRound AFTER completePlayerRound() or 
