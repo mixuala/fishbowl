@@ -68,6 +68,10 @@ export class GamePage implements OnInit {
 
   private doGamePlayUx( res:[GamePlayState, GamePlayState] ){
     let [prev, cur] = res;
+    if (!cur) {
+      console.warn( "show UX for event=completeGameRound")
+      return;
+    }
     if (cur.isTicking && !prev.isTicking) {
       this.audio.play("click");
       console.info( "*** detect timer Start, sound=click");
@@ -236,9 +240,20 @@ export class GamePage implements OnInit {
   async beginGameRound(round:RoundEnum=RoundEnum.Taboo):Promise<GamePlayRound>{
     if (!this.game) return
 
+
     // find activeRound or initialize/begin next round
     let activeRound = await this.gameHelpers.loadNextRound(this.gameDict, this.gameId)
     if (activeRound) {
+
+      // DEV
+      if ("reset round" && true){
+        // DEV: manual reset of words in round
+        let rid = this.game.activeRound;
+        let entries = activeRound.entries;
+        Object.keys(entries).forEach( k=>entries[k]=true )
+        await this.db.object<GamePlayRound>(`/rounds/${rid}`).update( {entries})
+      }
+
       this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound);
     }
     else {
@@ -303,18 +318,35 @@ export class GamePage implements OnInit {
            */
         }),
         tap( gamePlay=>{
-          if (!this.activeRound) return
-          round = this.activeRound;
           this.stash.wordsRemaining = gamePlay && gamePlay.remaining;
+          if (!this.activeRound) {
+            return
+          }
+          round = this.activeRound;
           this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
           // true if this player is under the spotlight
           // TODO: use roles here
           this.stash.onTheSpot = (this.spotlight.uid === this.player.uid);
+          this.stash.timerDuration = gamePlay && gamePlay.timerDuration || this.stash.timerDuration;
         }),
         tap( (gamePlay)=>{
-          let round = this.gameDict.activeRound;
-          this.stash.timerDuration = gamePlay.timerDuration || this.stash.timerDuration;
-          this.gameHelpers.scoreRound$(this.gamePlayWatch, this.activeRound, gamePlay ).pipe(
+          // score round
+          // required
+          let teamNames = Object.values(this.game.teamNames);
+          
+          let round = this.activeRound || null;
+          let merge = {
+            roundKey: round && `round${round.round}` || null,
+            log: gamePlay && gamePlay.log || null,
+          }
+
+          if (gamePlay && gamePlay.log && !round) throw new Error( "ERROR: gamePlay.log should be undefined betwee, rounds, e.g. when activeRound=null")
+
+          this.gameHelpers.scoreRound$(
+            this.gamePlayWatch, 
+            teamNames, 
+            merge
+          ).pipe(
             take(1),
             tap( score=>{
               this.scoreboard = score;
@@ -370,7 +402,7 @@ export class GamePage implements OnInit {
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),
       tap( gamePlay=>{
-        if (gamePlay.isTicking==false)
+        if (!gamePlay || gamePlay.isTicking==false)
           this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
       })
     ).subscribe()
@@ -425,18 +457,16 @@ export class GamePage implements OnInit {
 
       }
       else {
-        // serve next word
-        if ("reset round" && false){
-          // DEV: manual reset of words in round
-          let entries = round.entries;
-          Object.keys(entries).forEach( k=>entries[k]=true )
-        }
-        
-        // load word for gamePlay
+        // serve next word        
         // TODO: LET this.wordAction start timer, not the other way around
         if (!gamePlay.word) {
           let next = FishbowlHelpers.nextWord(round, gamePlay);
-          Object.assign( update, next);
+          update.word = next.word || null;
+          update.remaining = next.remaining;
+          if (update.remaining==0){
+            // end of round
+            return this.completeGameRound(this.activeRound);
+          }
         }
       }
 
@@ -565,8 +595,6 @@ export class GamePage implements OnInit {
         console.log("1> queue FIRST word, update=", update);
       });
 
-      // what UX action?
-      // CHECK that score is accurate
       return
 
 
@@ -634,9 +662,15 @@ export class GamePage implements OnInit {
     if (!wasOnTheSpot) 
       return;
 
+    // only active player pushes updates to the cloud
     let activeRound = this.activeRound;
     let rid = this.game.activeRound;
-    return Promise.resolve().then( ()=>{
+    return Promise.resolve()
+    .then( ()=>{
+      // gameLog must be updated with LAST gamePlay.log BEFORE round is complete
+      return this.gameHelpers.pushGameLog(this.gamePlayWatch, activeRound)
+    })
+    .then( ()=>{
 
       return this.nextPlayerRound();
 
@@ -689,10 +723,6 @@ export class GamePage implements OnInit {
     // only active player pushes updates to the cloud
     return Promise.resolve()
     .then( ()=>{
-      // gameLog must be updated with LAST gamePlay.log BEFORE resetting gamePlay
-      return this.gameHelpers.pushGameLog(this.gamePlayWatch, activeRound)
-    })
-    .then( ()=>{
       // reset gamePlay.log
       let updateGamePlay = {
         timer: null,
@@ -710,11 +740,18 @@ export class GamePage implements OnInit {
     })
     .then( ()=>{
       // move spotlight, or complete Round
-      let entries = Object.entries(activeRound.entries).filter( ([word,avail])=>avail===true );
-      if (entries.length==0){
-        return this.completeGameRound(activeRound);
-      }
-      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound)
+      //  ???: activeRound.entries is STALE, pushGameLog() updates to the cloud! 
+
+      this.db.object<GamePlayRound>(`/rounds/${rid}`).valueChanges().pipe(
+        take(1),
+        map( activeRound=>{
+          let entries = Object.entries(activeRound.entries).filter( ([word,avail])=>avail===true );
+          if (entries.length==0){
+            return this.completeGameRound(activeRound);
+          }
+          return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound)
+        })
+      ).subscribe();
     });
   }
 
@@ -774,7 +811,6 @@ export class GamePage implements OnInit {
 
   async animate( el:any, animation="long-wobble" ){
     el = Helpful.findHtmlElement(el);
-    console.log( "TTT  1 > animate, el=", el)
     el.classList.add("animated", "slow", animation)
     let stop = await this.audio.play("buzz");
     el.addEventListener('animationend', ()=>{ 

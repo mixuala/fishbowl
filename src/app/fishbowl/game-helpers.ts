@@ -27,9 +27,13 @@ import {
       ref=>ref.orderByChild('gameId').equalTo(gameId)
     )
 
-  gamePlayByRoundId = this.db.object<GamePlayState>(`/gamePlay/${uid}`)
-  gameLogByRoundId = this.db.object<GamePlayLog>(`/gameLog/${uid}`)
+  activeRound$ = this.gameWatch.gameDict$.pipe()
 
+  gamePlayByRoundId = this.db.object<GamePlayState>(`/gamePlay/${uid}`)
+  gameLogByRoundId = this.db.object<GamePlayLog>(`/gameLogs/${uid}`)
+  gamelogsByGameId = this.db.list<GamePlayRound>('/gameLogs',
+      ref=>ref.orderByChild('gameId').equalTo(gameId)
+    )
 */
 
 /**
@@ -182,12 +186,13 @@ export class GameHelpers {
   }
 
   getGamePlay(game:Game, gameDict:GameDict):GamePlayWatch{
-    let uid = game.activeRound;
-    let gamePlay$ = of(uid).pipe(
-      switchMap( uid=>{
-        if (uid) 
-        // GamePlayRound hasOne GamePlayWatch, use SAME uid
-          return this.db.object<GamePlayState>(`/gamePlay/${uid}`).valueChanges()
+    let gameId = game.uid || gameDict.activeRound.gameId;
+    let rid = game.activeRound;
+    let gamePlay$ = of(rid).pipe(
+      switchMap( rid=>{
+        if (rid) 
+        // GamePlayRound hasOne GamePlayWatch, use SAME rid
+          return this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges()
           .pipe( 
             // TODO: sort gamePlay.log desc
             share() 
@@ -196,11 +201,11 @@ export class GameHelpers {
           return of({} as GamePlayState )
       })
     );
-    let gameLog$ = of(uid).pipe(
-      switchMap( uid=>{
-        if (uid) 
-        // GamePlayRound hasOne GamePlayLog, use SAME uid
-          return this.db.object<GamePlayLog>(`/gameLog/${uid}`).valueChanges()
+    let gameLog$ = of(gameId).pipe(
+      switchMap( gameId=>{
+        if (gameId) 
+        // GamePlayRound hasOne GamePlayLog, use SAME gameId
+          return this.db.object<GamePlayLog>(`/gameLogs/${gameId}`).valueChanges()
           .pipe( 
             // TODO: sort gamePlayLog.values desc
             share() 
@@ -209,7 +214,7 @@ export class GameHelpers {
           return of({} as GamePlayLog )
       })
     );    
-    return {uid, gamePlay$, gameLog$}
+    return { uid:rid, gamePlay$, gameLog$}
   }
 
   loadNextRound(gameDict:GameDict, gameId: string, ):Promise<GamePlayRound>{
@@ -235,6 +240,7 @@ export class GameHelpers {
         startTimeDesc: -Date.now(),
         complete: false
       } as GamePlayRound;
+
       waitFor.push( this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound) );
 
       game.activeRound = rid;
@@ -342,6 +348,7 @@ export class GameHelpers {
    */
   pushGameLog(watch:GamePlayWatch, round:GamePlayRound ) :Promise<void>{
     let {uid, gamePlay$, gameLog$} = watch;
+    let gameId = round.gameId;
     let rid = uid;
     return new Promise( (resolve, reject)=>{
       combineLatest( gamePlay$, gameLog$ ).pipe(
@@ -358,13 +365,8 @@ export class GameHelpers {
           // updateLog = Helpful.sortObjectByKey( updateLog, -1 ); // DESC
           return Promise.resolve()
           .then( ()=>{
-            // OK
-            // watch.gameLog$.pipe(  
-            //   take(1),
-            // ).subscribe( v=>{
-            //   console.log( "updated gameLog[roundKey]=", v[roundKey]);
-            // })
-            let logPath = `/gameLog/${rid}/${roundKey}`;
+            // TODO: refactor /gameLogs => /gameLogss
+            let logPath = `/gameLogs/${gameId}/${roundKey}`;
             return this.db.object<GamePlayLog>(logPath).update(mergeLogEntries)
           })
           .then( v=>{
@@ -378,7 +380,7 @@ export class GameHelpers {
             )
           })
           .then( v=>{
-            // updated in the Cloud, but not here
+            // update in the Cloud, but not here
             console.log("1> GameHelper.pushGameLog() update round.entries=",  round.entries);
           })
           .then( v=>{
@@ -397,22 +399,16 @@ export class GameHelpers {
    */
 
 
-  scoreRound$(watch:GamePlayWatch, activeRound:GamePlayRound=null, gamePlay:GamePlayState=null) : Observable<Scoreboard>{
+  scoreRound$(watch:GamePlayWatch, teamNames:string[], merge:{roundKey: string, log: GamePlayLogEntries} = null) : Observable<Scoreboard>{
     
     let initTeamScore = ()=>({points:0, passed:0});
-    let keyedByTeams = Object.keys(activeRound && activeRound.teams || {}).reduce( (o,teamName)=>(o[teamName]=null, o), {});
+    let keyedByTeams = teamNames.reduce( (o,teamName)=>(o[teamName]=null, o), {});
     let score:Scoreboard = {
       round1: Object.assign({}, keyedByTeams),
       round2: Object.assign({}, keyedByTeams),
       round3: Object.assign({}, keyedByTeams),
       total: Object.assign({}, keyedByTeams), 
     }
-    let teamNames = activeRound && activeRound.teams && Object.keys(activeRound.teams) || null;
-    // TODO: between rounds, we have to get the teamNames from game.teamNames
-    if (!teamNames) return of(score);
-
-    let playerRound = gamePlay && gamePlay.log || {};
-    let activeRoundKey = activeRound ?  `round${activeRound.round}` : null;  // for current round
 
     return watch.gameLog$.pipe( 
       first(), 
@@ -423,12 +419,12 @@ export class GameHelpers {
         // update score, OR just summarize GamePlayLog
         Object.entries(gameLog).filter( ([k,_])=>k.startsWith('round')).forEach( res=>{
           let [key, gameLogEntries]:[string, GamePlayLogEntries] = res;
-          console.log(">>> scoreRound$  ", key, "  count=",  Object.values(gameLogEntries).length)
+          // console.log(">>> scoreRound$  ", key, "  count=",  Object.values(gameLogEntries).length)
 
-          if (key==activeRoundKey) {
+          if (merge && merge.roundKey==key) {
             // merge playerRound (uncommitted) to gameLog[round?] before scoring
-            gameLogEntries = Object.assign({}, gameLogEntries, playerRound);
-            console.log("    >>> scoreRound$  ", key, "  count=",  Object.values(gameLogEntries).length)
+            gameLogEntries = Object.assign({}, gameLogEntries, merge && merge.log);
+            // console.log("    >>> scoreRound$  ", key, "  count=",  Object.values(gameLogEntries).length)
           }
           Object.values(gameLogEntries).forEach( (o:WordResult)=>{
             let {teamName, playerName, result, time} = o;
@@ -439,7 +435,7 @@ export class GameHelpers {
         });
 
         // update totals
-        Object.keys(activeRound.teams).forEach( teamName=>{
+        Object.values(teamNames).forEach( teamName=>{
           score['total'][teamName] =  initTeamScore();
           Object.keys(score).filter( k=>k.startsWith('round')).forEach( key=>{
             if (score[key][teamName]) {

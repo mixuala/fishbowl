@@ -4,6 +4,7 @@ export interface Game {
   uid: string;
   label: string;
   gameTime: number;
+  activeGame?: boolean;
   chatRoom?: string;
   timezoneOffset: number;
   playerCount?: number;
@@ -70,6 +71,7 @@ export interface GamePlayState {
   isTicking: boolean;
   word: string;
   remaining: number;   
+  timerDuration?: number;
   timerPausedAt: number;
   playerRoundComplete?: boolean;
   roundComplete?: boolean;
