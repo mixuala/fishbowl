@@ -160,6 +160,8 @@ export class GameHelpers {
         let uidLookup:GameDict = {
           [gameId]: g
         };
+        if (!g.rounds) return uidLookup;
+
         let gamePlay$: Observable<GamePlayState>;
         Object.entries(g.rounds).forEach( ([k,v])=>{
           let round = rounds.find( r=>r.round==v)
@@ -396,6 +398,7 @@ export class GameHelpers {
 
 
   scoreRound$(watch:GamePlayWatch, activeRound:GamePlayRound=null, gamePlay:GamePlayState=null) : Observable<Scoreboard>{
+    
     let initTeamScore = ()=>({points:0, passed:0});
     let keyedByTeams = Object.keys(activeRound && activeRound.teams || {}).reduce( (o,teamName)=>(o[teamName]=null, o), {});
     let score:Scoreboard = {
@@ -404,6 +407,9 @@ export class GameHelpers {
       round3: Object.assign({}, keyedByTeams),
       total: Object.assign({}, keyedByTeams), 
     }
+    let teamNames = activeRound && activeRound.teams && Object.keys(activeRound.teams) || null;
+    // TODO: between rounds, we have to get the teamNames from game.teamNames
+    if (!teamNames) return of(score);
 
     let playerRound = gamePlay && gamePlay.log || {};
     let activeRoundKey = activeRound ?  `round${activeRound.round}` : null;  // for current round

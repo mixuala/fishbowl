@@ -200,10 +200,8 @@ export class GamePage implements OnInit {
     if (!this.game) return false;
 
     //TODO: need a form to add teamNames
+
     let existingRoundEnums = Object.values(this.game.rounds || {});
-    if (existingRoundEnums.find( v=>v>1000) && !force) {
-      return false; // game has already begun, round value is unixtime/timestamp
-    }
 
     let rounds = [RoundEnum.Taboo, RoundEnum.OneWord, RoundEnum.Charades]
       .filter( e=>existingRoundEnums.find( ex=>ex==e )==null )
@@ -226,7 +224,8 @@ export class GamePage implements OnInit {
 
     // update Game, use AngularFire ref
     // insert rounds in gameplay order
-    let result = this.gameRef.update({
+    const gameRef = this.db.object<Game>(`/games/${this.gameId}`);
+    let result = gameRef.update({
       teamNames, // DEV
       rounds: rounds.reduce( (o,v)=>(o[v.uid]=v.round, o), {})
     });
@@ -499,7 +498,6 @@ export class GamePage implements OnInit {
       return;
 
     let wasOnTheSpot = this.stash.onTheSpot;
-    console.log( "TTT  0 > timer done")
     return Promise.resolve()
     .then( ()=>{
       if (buzz) {
@@ -558,12 +556,9 @@ export class GamePage implements OnInit {
     let update = {} as GamePlayState;
 
     let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]:available} );
-    if (!next.word) {
-      return this.completePlayerRound(true, true);
-    }
-    Object.assign( update, next);
-    
-    if (!gamePlay.word) {
+    update.word = next.word || null;
+    update.remaining = next.remaining;
+    if (next.remaining && !gamePlay.word) {
       // move to onPlayerRoundWillBegin()
       // load initial word, ignore action
       this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
@@ -577,14 +572,14 @@ export class GamePage implements OnInit {
 
 
     }
-    else {
-      // apply action to word, then get next word
+    else if (gamePlay.word) {
+      // apply score the word, based on action=[OK,PASS] then get next word
       let entries = round.entries;
       if (entries.hasOwnProperty(word)==false) {
         return console.warn("wordAction(): INVALID WORD, word=", word);
       }
 
-      // add spotlight to WordResult for proper scoring
+      // get spotlight for WordResult to credit point for the proper team
       let spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
       let teamName = spotlight.teamName;
       let playerName = spotlight.label;
@@ -594,7 +589,7 @@ export class GamePage implements OnInit {
       let roundStartTime = gamePlay.timer.key || Date.now()
       let lastTime = Object.keys(log ).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 ) 
       lastTime = Math.max(lastTime, roundStartTime);
-      // TODO: get teamName, playerName from gamePlay
+
       let score:WordResult = {
         teamName, playerName, word,
         result: correct,
@@ -605,11 +600,17 @@ export class GamePage implements OnInit {
         [-1*now]: score,
       });
       console.log( "wordAction, gamePlay=", update )
-      this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
+      return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
       .then( ()=>{
-        if (!next.word) this.completePlayerRound(true, true);
+        if (next.remaining==0) this.completePlayerRound(true, true);
       });
 
+    }
+
+    if (next.remaining==0 && this.activeRound) {
+      this.completePlayerRound(true, true);
+      // => this.nextPlayerRound();
+      //    => this.completeGameRound()
     }
 
   }
@@ -688,6 +689,7 @@ export class GamePage implements OnInit {
     // only active player pushes updates to the cloud
     return Promise.resolve()
     .then( ()=>{
+      // gameLog must be updated with LAST gamePlay.log BEFORE resetting gamePlay
       return this.gameHelpers.pushGameLog(this.gamePlayWatch, activeRound)
     })
     .then( ()=>{
@@ -788,7 +790,7 @@ export class GamePage implements OnInit {
   }
 
   check() {
-    // this.gameHelpers.set_DayOfWeekTeams(this.gameDict, this.gameId)
+    this.gameHelpers.set_DayOfWeekTeams(this.gameDict, this.gameId)
   }
 
 }
