@@ -408,6 +408,16 @@ export class GamePage implements OnInit {
     ).subscribe()
   }
 
+  beginPlayerRoundClick(){
+    this.gamePlayWatch.gamePlay$.pipe(
+      take(1),
+      tap( gamePlay=>{
+        // onTimerClick() while timer isTicking => pause
+        if (!gamePlay.isTicking) this.startTimer(gamePlay);
+      })
+    ).subscribe();
+  }
+
   onTimerClick(duration=null){
     if (!this.gameDict.activeRound) return
 

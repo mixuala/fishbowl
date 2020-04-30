@@ -171,7 +171,7 @@
                   <p><ion-note>word</ion-note></p>
 
                   <ion-item color="medium" expand="block" 
-                  (click)="wordAction(gamePlay.word, 'OK')"
+                  (click)="beginPlayerRoundClick()"
                   >
                     <ion-label class="ion-text-wrap ion-text-center">
                       {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[ready]')}}
@@ -270,9 +270,9 @@
                     </ion-row>
                   </ion-grid>
                 </div>
-                <!-- <ion-item>
+                <ion-item>
                   <ion-button (click)="check()">DEV </ion-button>
-                </ion-item> -->
+                </ion-item>
               </div>              
 
             </ion-list>
