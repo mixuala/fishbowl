@@ -5,7 +5,7 @@ import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularf
 import * as dayjs from 'dayjs';
 
 import { Observable, Subject, of, from, interval } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile,  pairwise, first } from 'rxjs/operators';
+import { map, tap, switchMap, take, takeWhile,  pairwise, first, withLatestFrom } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -177,12 +177,14 @@ export class GamePage implements OnInit {
           name: u.displayName,
           gamesPlayed: 0,
           isAnonymous: u.isAnonymous,
+          teamId: null,
+          teamName: null,
         }
         return p;
       }),
       tap( p=>{
         this.player = p;
-      })
+      }),
     );
   }
 
@@ -279,12 +281,23 @@ export class GamePage implements OnInit {
         takeWhile( (d)=>!!d[this.gameId]),
         tap( d=>{
           game = d[this.gameId] as Game;
-          let name = game.players && game.players[this.player.uid];
-          this.player.displayName = name;
-
           this.stash.active = game.gameTime < Date.now();
-          // DEV
+          // DEV: for testing
           this.stash.activeGame = true;          
+        }),
+        tap( d=>{
+          // NOTE: this can be moved elsewhere, run once at beginRound
+          let name = game.players && game.players[this.player.uid];
+          let playerTeam = {displayName: name};
+          if (this.activeRound ) {
+            Object.entries(this.activeRound.teams).find( ([teamName, players], i)=>{
+              if (players.find( uid=>uid==this.player.uid)) {
+                Object.assign(playerTeam, {teamId: i, teamName});
+                return true;
+              }
+            });
+          }
+          if (!!name) this.player = Object.assign({}, this.player, playerTeam)
         }),
         switchMap( (d)=>{
           return this.gamePlayWatch.gamePlay$;

@@ -56,8 +56,9 @@ export interface WordResult {
 
 export interface GamePlayState {
   spotlight:{
-    teamIndex: number;   
+    teamIndex: number;
     playerIndex: number[];
+    teamName?: string;
   }
   timer: {
     seconds?: number;

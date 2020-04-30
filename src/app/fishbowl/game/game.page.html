@@ -10,9 +10,8 @@
 </ion-header>
 
 <ion-content>
-
   <!-- grid mode -->
-  <ion-grid no-padding>
+  <ion-grid no-padding class="team-round" [class.spotlight]="player?.teamName==spotlight?.teamName">
     <ion-row>
         <ion-col size="12" size-sm="8" offset-sm="2" offset-xl="3" size-xl="6">
           <ion-card  *ngIf="this.game">
@@ -222,14 +221,40 @@
 
               <div class="user-controls">
                 <ion-item-divider class="ion-margin-top">
-                  <ion-note>player</ion-note>
+                  <ion-note>player profile</ion-note>
                 </ion-item-divider>
-                <ion-item>
-                  <ion-label>{{player?.displayName}}</ion-label>
-                  <ion-button slot="end" fill="outline" [disabled]="stash.activeGame" (click)="doSettings()">
-                    <ion-icon name="settings-outline"></ion-icon>
-                  </ion-button>   
-                </ion-item>
+                <div>
+                  <ion-grid class="ion-no-padding">
+                    <ion-row  class="ion-no-padding">
+
+                      <ion-col size=5>
+                        <ion-item  class="ion-text-wrap">
+                          <ion-label>
+                            <ion-note>player</ion-note> 
+                          </ion-label>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{player.displayName}}</ion-badge>
+                        </ion-item>
+                      </ion-col>
+                      <ion-col size=5>
+                        <ion-item class="ion-text-wrap">
+                          <ion-label>
+                            <ion-note>team</ion-note> 
+                          </ion-label>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{player.teamName}}</ion-badge>
+                        </ion-item>
+                      </ion-col>
+                      <ion-col size=2>
+                        <ion-item class="ion-no-padding">
+                          <ion-button color="dark" [disabled]="stash.activeGame && 0" 
+                          (click)="doSettings()">
+                            <ion-icon name="settings"> </ion-icon>
+                          </ion-button>                           
+                        </ion-item>
+                      </ion-col>
+
+                    </ion-row>
+                  </ion-grid>
+                </div>
                 <!-- <ion-item>
                   <ion-button (click)="check()">DEV </ion-button>
                 </ion-item> -->

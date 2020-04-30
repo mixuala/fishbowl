@@ -29,9 +29,11 @@ app-countdown-timer {
   --countdown-unit-color: var(--ion-color-light);
 }
 
-.game-time {
-  padding: 20px 0;
+
+.team-round.spotlight {
+  background-color: rgba(var(--ion-color-success-rgb), 0.5);
 }
+
 ion-card-content{
   ion-item {
     --padding-start: 0;
@@ -39,6 +41,12 @@ ion-card-content{
 
   .spotlight {
     height: 5em;
+  }
+
+  .game-countdown {
+    .game-time {
+      padding: 20px 0;
+    }
   }
 
   .game-summary {

@@ -10,7 +10,8 @@ export interface Player {
   uid: string;
   name: string;
   displayName?: string;
-  teamId?: string;
+  teamId?: string; 
+  teamName?: string;
   gamesPlayed: number;
   isAnonymous: boolean;
 }

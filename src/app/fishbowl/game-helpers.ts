@@ -218,6 +218,7 @@ export class GameHelpers {
             spotlight.playerIndex[ i ] += 1;
             if (spotlight.playerIndex[ i ] >= limits.playerIndex[ i ]) spotlight.playerIndex[ i ] = 0;
           }
+          spotlight.teamName =  Object.keys(round.teams)[spotlight.teamIndex];
 
           let update = {
             spotlight,
