@@ -352,8 +352,19 @@ export class GameHelpers {
           let roundKey = `round${round.round}`
           let curVal = gameLog[roundKey] as GamePlayLogEntries;
           let mergeLogEntries = Object.assign( {} , curVal, gamePlay.log) as GamePlayLogEntries;
-          let updateLog = {[roundKey]: mergeLogEntries};
-          return this.db.list<GamePlayLog>('/gameLog').update(rid, updateLog)
+          // let updateLog = {[roundKey]: mergeLogEntries};
+          // updateLog = Helpful.sortObjectByKey( updateLog, -1 ); // DESC
+          return Promise.resolve()
+          .then( ()=>{
+            // OK
+            // watch.gameLog$.pipe(  
+            //   take(1),
+            // ).subscribe( v=>{
+            //   console.log( "updated gameLog[roundKey]=", v[roundKey]);
+            // })
+            let logPath = `/gameLog/${rid}/${roundKey}`;
+            return this.db.object<GamePlayLog>(logPath).update(gamePlay.log)
+          })
           .then( v=>{
             // merge gameLog entries into round.entries
             let merged = FishbowlHelpers.updateFishbowl(round, mergeLogEntries);
