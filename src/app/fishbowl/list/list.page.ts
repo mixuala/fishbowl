@@ -127,6 +127,10 @@ export class ListPage implements OnInit {
           gamesPlayed: 0,
           isAnonymous: u.isAnonymous,
         }
+        // DEV Hack
+        if (u.email=="sunday@test.com") {
+          p['isAdmin'] = true;
+        }
         return p;
       })
     );
@@ -172,7 +176,7 @@ export class ListPage implements OnInit {
     });
   }
 
-  createGame(label:string, day:number=7){
+  createGame(label:string="Super Sunday", day:number=7){
     let createGame = true;
     if (createGame){
       let date = FishbowlHelpers.setGameDateTime(day,19).toDate();

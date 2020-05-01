@@ -43,7 +43,7 @@
             <form [formGroup]="entryForm" (ngSubmit)="doEntry()">
 
 
-              <div formGroupName="game">
+              <div formGroupName="game" *ngIf="game?.moderators && game.moderators[player?.uid]">
                 <ion-item class="input-item">
                   <ion-label position="stacked">video chat room</ion-label>
                   <ion-textarea type="url" inputmode="url" auto-grow="true"

@@ -45,7 +45,7 @@
           </ion-card>
         </ion-col>
         <ion-col size="12" size-sm="6" size-xl="4">
-          <ion-card>
+          <ion-card *ngIf="player.isAdmin">
             <ion-card-header color="primary">
               <ion-card-title>
                 Game Setup
@@ -62,8 +62,8 @@
                 </ion-item-divider>
                 <ion-item>
                   <ion-button size="small" color="primary" 
-                  [disabled]="games.length>2" 
-                  (click)="create3Games()">Create Games</ion-button>
+                  [disabled]="true" 
+                  (click)="createGame()">Create Games</ion-button>
                 </ion-item>
               </div>
             </ion-card-content>
