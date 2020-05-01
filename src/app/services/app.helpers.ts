@@ -228,8 +228,17 @@ export class Helpful {
     return K.reduce((o, k) => (O&&O.hasOwnProperty(k)?o[k]=O[k]:0, o), {});
   }
 
+  public static sortObjectByKey(O:any, sortKeys:number=0):any{
+    let keys = Object.keys(0);
+    if (sortKeys!==0){
+      keys.sort();
+      if (sortKeys<0) keys.reverse();
+    }
+    return keys.reduce( (o,k)=>(o[k]=O[k],o),{});
+  }
+
   // e.g. sortByids( {[id]: any}, ids)
-  public static sortByIds(O:{[id:string]:any}[], ids:string[], key?:string|string[], strict=false){
+  public static sortByKeys(O:{[id:string]:any}[], ids:string[], key?:string|string[], strict=false){
     const dict = Helpful.indexByKey(O, key || 'id');
     if (strict) 
       return ids.map( k=>dict[k] || null ).filter(o=>!!o);
