@@ -52,8 +52,8 @@ export class LoginPage implements OnInit {
 
     if (environment.production==false) {
       this.loginForm.setValue({
-        email: 'test@test.com',
-        password: ''
+        email: 'someone@test.com',
+        password: 'corona'
       });
     }
 
