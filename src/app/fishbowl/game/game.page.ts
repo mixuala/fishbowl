@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LoadingController, } from '@ionic/angular';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
+import { Storage } from  '@ionic/storage';
 import * as dayjs from 'dayjs';
 
 import { Observable, Subject, of, from, interval } from 'rxjs';
@@ -137,13 +138,14 @@ export class GamePage implements OnInit {
   @ViewChild( 'countdownTimer', {static:false} ) countdownTimer:CountdownTimerComponent;
 
   constructor(
-    private  activatedRoute: ActivatedRoute,
-    private  router: Router,
+    private activatedRoute: ActivatedRoute,
+    private router: Router,
     private loadingController: LoadingController,
     private audio: AudioService,
     private db: AngularFireDatabase,
     private authService: AuthService,
     private gameHelpers: GameHelpers,
+    private storage:  Storage,
   ) {
 
     if (environment.production==false){
@@ -156,7 +158,8 @@ export class GamePage implements OnInit {
 
   async ngOnInit() {
     console.info("0>>> ***** ngOnInit(): load ******")
-    this.toggleVolumeIcon(1, false);
+    this.storage.get('volume').then( v=>this.toggleVolumeIcon(v||0, false));
+    
     let loading = await this.presentLoading();
     // # set initial volume
     this.loadPlayer$().pipe(
@@ -387,9 +390,10 @@ export class GamePage implements OnInit {
       volume += 1;
     }
     if (volume<0 || volume > 3) volume = 0;
-
-    this.stash.audioVolumeIcon = this.audioVolumeIcons[volume];
-    this.audio.setVolume(volume, playSound);
+    this.storage.set('volume', volume).then( ()=>{
+      this.stash.audioVolumeIcon = this.audioVolumeIcons[volume];
+      this.audio.setVolume(volume, playSound);
+    })
   }
 
   preloadAudio(){
