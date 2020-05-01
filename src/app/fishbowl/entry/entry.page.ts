@@ -52,7 +52,7 @@ export class EntryPage implements OnInit {
     ],
     'chatRoom': [
       { type: 'required', message: 'Please enter the link for a video chat room' },
-      { type: 'pattern', message: 'Must be a valid web link' }
+      { type: 'pattern', message: 'Must be a valid `https` web link' }
     ],
   };  
 
@@ -70,7 +70,8 @@ export class EntryPage implements OnInit {
     private gameHelpers: GameHelpers,
     ) {
       
-    const urlRegex = '^(https?://)?([\\da-z.-]+)\\.([a-z.]{2,6})[/\\w .-]\??(?:&?[^=&]*=[^=&]*)*$';
+    // const urlRegex = '^(https?://)?([\\da-z.-]+)\\.([a-z.]{2,6})[/\\w .-]??(?:&\?[^=&]*=[^=&]*)$';
+    const urlRegex = '^(https://)?([\\da-z.-]+)\\.([a-z.]{2,6})[/\\w .-]??.*$';
 
     let validEntry = Validators.compose([
       Validators.required,
@@ -101,13 +102,15 @@ export class EntryPage implements OnInit {
       window._dbg.dayjs = dayjs
 
       
-      // window._dbg.chatRoom = this.gameForm.get('chatRoom')
-      // window._dbg.Validators = Validators
+      window._dbg.chatRoom = this.gameForm.get('chatRoom')
+      window._dbg.Validators = Validators
       /* debug url pattern validation, paste to JS console
           chatRoom = _dbg.chatRoom
           val = _dbg.Validators
           s = "https://us04web.zoom.us/j/8705326103?pwd=WmRxdHNkbEEzaHc0Tkd1K1V0L0VtQT09"
+          t = "https://us04web.zoom.us/j/8705326103"
           urlRegex = '^(https?://)?([\\da-z.-]+)\\.([a-z.]{2,6})[/\\w .-]\??(?:&?[^=&]*=[^=&]*)*$';
+          urlRegex = '^(https?://)?([\\da-z.-]+)\\.([a-z.]{2,6})[/\\w .-]??.*$';
           val.pattern(urlRegex)({value:s})
       */
     }
