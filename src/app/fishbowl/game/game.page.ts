@@ -337,6 +337,7 @@ export class GamePage implements OnInit {
         }),
         tap( (gamePlay)=>{
           // score round
+          if (!this.game.rounds && !this.game.teamNames) return;
           // required
           let teamNames = Object.values(this.game.teamNames);
           
