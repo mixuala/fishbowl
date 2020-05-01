@@ -19,10 +19,11 @@
     </ion-row> -->
     <ion-row>
         <ion-col size="12" size-sm="6" size-xl="4" *ngFor="let game of games, let i=index">
-          <ion-card>
+          <ion-card class="game" [class.XXXspotlight]="game.activeGame">
             <ion-card-header color="tertiary">
               <ion-card-title>
                 {{game.label}}
+                <ion-badge  *ngIf="game.activeGame" color="success" class="is-live ion-float-right">live</ion-badge>
               </ion-card-title>
               <ion-card-subtitle>
                 Fishbowl

@@ -33,3 +33,10 @@ app-countdown-timer {
   padding: 20px 0;
 }
 
+ion-card.game {
+  &.spotlight {
+    ion-card-content{
+      background-color: rgba(var(--ion-color-success-rgb), 0.5);
+    }
+  }
+}
