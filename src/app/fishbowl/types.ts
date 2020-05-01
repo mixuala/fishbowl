@@ -11,6 +11,9 @@ export interface Game {
   players?: {
     [uid:string]: string;
   }
+  moderators?: {
+    [uid:string]: boolean;
+  }
   entries?: {
     [uid:string]: string[]
   }

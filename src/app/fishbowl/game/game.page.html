@@ -15,7 +15,7 @@
   <ion-grid no-padding class="team-round" [class.spotlight]="player?.teamName==spotlight?.teamName">
     <ion-row>
         <ion-col size="12" size-sm="8" offset-sm="2" offset-xl="3" size-xl="6">
-          <ion-card  *ngIf="game">
+          <ion-card  *ngIf="game?.moderators && game.moderators[player?.uid]">
             <ion-card-header color="dark">      
               <ion-card-title>
                 Game Controls for <ion-text color="tertiary">
@@ -55,7 +55,7 @@
             </ion-card-content>
           </ion-card>
 
-          <ion-card  *ngIf="this.game">
+          <ion-card  *ngIf="game">
             <ion-card-header color="tertiary">      
               <ion-card-title>
                 {{game.label}}

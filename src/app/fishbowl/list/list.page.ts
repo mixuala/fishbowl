@@ -64,11 +64,23 @@ export class ListPage implements OnInit {
     ).subscribe();
     
     let loading = await this.presentLoading();
-    
     this.games$ = this.gameHelpers.getGames$();
+
+    let invite = this.activatedRoute.snapshot.queryParamMap.get('invite');
+    if (invite) {
+      this.games$ = this.games$.pipe(
+        map( (games, i)=>{
+          return games.filter( g=>g.uid==invite)
+        }),
+      )
+    }
     
     this.games$.pipe(
       filter( ()=>this.stash.listen),
+      map( (games, i)=>{
+        if (!invite) return games;
+        return games.filter( g=>g.uid==invite)
+      }),
       tap( (gameList:Game[])=>{
         console.log( "games=", gameList);
         this._moveExpiredGamesToNextWeek(gameList)
