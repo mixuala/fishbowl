@@ -13,14 +13,23 @@
         <ion-col size="12" size-sm="8" offset-sm="2" offset-xl="3" size-xl="6">
           
           
-  <h2 class="auth-title">
-    Discover Fishbowl
-    <br />
-    <ion-note>The shelter-in-place game for all ages</ion-note>
-  </h2>
+          <ion-item color="tertiary">
+            <!-- <ion-icon slot="start" size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
+            <ion-avatar slot="start" size="large" >
+              <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
+            </ion-avatar>
+            <ion-label class="ion-text-wrap">
+              <h1 class="auth-title">
+                Fishbowl
+              </h1>
+              <p>
+                <ion-note>The shelter-in-place game for all ages</ion-note>
+              </p>
+            </ion-label>
+          </ion-item>   
 
 
-  <ion-button class="play-as-guest" color="tertiary" expand="block" 
+  <ion-button class="play-as-guest" size="large" fill="outline" color="tertiary" expand="block" 
     [routerLink]="['/app/list']" routerDirection="root"> 
     Play as Guest 
   </ion-button>
@@ -90,8 +99,8 @@
 
     <ion-button #submitBtn class="signup-btn" type="submit" expand="block" [disabled]="!signupForm.valid">Sign Up</ion-button>
     <ion-row class="other-auth-options-row">
-      <ion-button class="login-btn" fill="clear" [routerLink]="['/auth/login']">
-        Already have an account?
+      <ion-button class="login-btn" color="secondary" fill="outline" [routerLink]="['/auth/login']">
+        Login
       </ion-button>
     </ion-row>
   </form>

@@ -1,14 +1,14 @@
 {
-  "name": "Ionic5FullApp",
+  "name": "Fishbowl",
   "description": "The most advanced and complete Mobile & PWA Ionic starter app template",
-  "version": "2.0.0",
-  "author": "IonicThemes",
+  "version": "0.1",
+  "author": "github:mixuala",
   "contributors": [
     "Dayana <dayana@startapplabs.com>",
     "Agustín <agustin@startapplabs.com>"
   ],
-  "homepage": "https://ionicthemes.com/",
-  "private": true,
+  "homepage": "https://fishbowl-the-game.web.app",
+  "private": false,
   "scripts": {
     "ng": "ng",
     "start": "ng serve",

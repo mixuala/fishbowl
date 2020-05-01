@@ -3,3 +3,7 @@ ion-tab-button {
   --color: var(--ion-color-medium-shade);
   --color-selected: var(--ion-color-dark);
 }
+
+ion-tab-button.fish {
+  --color-selected: var(--fishbowl-icon-orange)
+}
