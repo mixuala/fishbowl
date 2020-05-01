@@ -217,26 +217,29 @@ export class GamePage implements OnInit {
       gameRound.uid = this.db.createPushId();
       return gameRound;
     });
-    // DEV: init if missing
-    let teamNames = this.game.teamNames || Object.keys(rounds[0].teams);
-    let rounds_DbRef = this.db.database.ref().child('/rounds');
-
-    // insert Rounds
-    let updateBatch = rounds.reduce( (o, v)=>{
-      let path = `/${v.uid}`
-      o[path] = v
-      return o
-    }, {});
-    await rounds_DbRef.update(updateBatch);  // firebase directly
 
     // update Game, use AngularFire ref
     // insert rounds in gameplay order
     const gameRef = this.db.object<Game>(`/games/${this.gameId}`);
+    let byUids = rounds.reduce( (o,v)=>(o[v.uid]=v.round, o), {})
+    byUids = Object.assign(this.game.rounds || {}, byUids)  // merge with existing rounds
+    let teamNames = this.game.teamNames || Object.keys(rounds[0].teams);
     let result = gameRef.update({
       teamNames, // DEV
-      rounds: rounds.reduce( (o,v)=>(o[v.uid]=v.round, o), {})
+      rounds: byUids
+    })
+    .then( ()=>{
+      // update rounds AFTER update game, 
+      // gameWatch.gameDict$ emits on update
+      let rounds_DbRef = this.db.database.ref().child('/rounds');
+      // insert Rounds
+      let updateBatch = rounds.reduce( (o, v)=>{
+        let path = `/${v.uid}`
+        o[path] = v
+        return o
+      }, {});
+      return rounds_DbRef.update(updateBatch);  // firebase directly
     });
-    // console.log("FFF> update Game, result=", result);
     return true;
   }
 
