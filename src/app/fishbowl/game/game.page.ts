@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LoadingController, } from '@ionic/angular';
+import { LoadingController, ModalController, } from '@ionic/angular';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import { Storage } from  '@ionic/storage';
 import * as dayjs from 'dayjs';
@@ -13,6 +13,7 @@ import { AuthService } from '../../services/auth-service.service';
 import { Player, } from '../../user/role';
 import { AudioService } from '../../services/audio.service';
 import { CountdownTimerComponent } from '../../components/countdown-timer/countdown-timer.component';
+import { HelpComponent } from '../../components/help/help.component';
 import { Helpful } from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers';
 import { GameHelpers } from '../game-helpers';
@@ -141,6 +142,7 @@ export class GamePage implements OnInit {
     private activatedRoute: ActivatedRoute,
     private router: Router,
     private loadingController: LoadingController,
+    private modalCtrl: ModalController,
     private audio: AudioService,
     private db: AngularFireDatabase,
     private authService: AuthService,
@@ -287,6 +289,8 @@ export class GamePage implements OnInit {
   
   // called AFTER ngOnInit, before page transition begins
   ionViewWillEnter() {
+    const dontWait = HelpComponent.presentModal(this.modalCtrl, {template:'intro'});
+
     this.gameId = this.activatedRoute.snapshot.paramMap.get('uid');
     if (this.gameDict && this.gameDict[this.gameId]) {
       // continue with current game

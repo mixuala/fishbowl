@@ -115,3 +115,12 @@ html.ios {
 html.md {
   --app-header-height: 56px;
 }
+
+
+:root .help-modal {
+  --background: var(--ion-background-color, transparent);
+  .modal-wrapper {
+    --height: 100%;
+    --width:100%;
+  }
+}

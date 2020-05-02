@@ -1,0 +1,27 @@
+
+// TODO: set in variables.css
+:root .help-modal {
+  --background: var(--ion-background-color, transparent);
+  .modal-wrapper {
+    --height: 100%;
+    --width:100%;
+  }
+}
+//  end TODO
+
+
+ion-grid.center-grid {
+
+  background-color: rgba(0,0,0,0.3);
+
+  margin: 0px;
+  &, & > ion-row {
+    height: 100%;
+  }
+  .content {
+    background-color: rgba(0,0,0,0.8);
+    p, h1 {
+      margin-bottom: 0.8em;
+    }
+  }
+}

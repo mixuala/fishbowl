@@ -1,0 +1,36 @@
+<ion-grid class="center-grid" tappable (click)="dismiss($event, this)">
+  <ion-row class="ion-justify-content-center ion-align-items-center">
+    <ion-col size="10" size-sm="7" size-xl="5">
+    <ng-container [ngSwitch]="template">
+
+      <ion-card class="content" padding *ngSwitchCase="'intro'">
+        <ion-item color="tertiary">
+          <!-- <ion-icon slot="start" size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
+          <ion-avatar slot="start" size="large" >
+            <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
+          </ion-avatar>
+          <ion-label class="ion-text-wrap">
+            <h1 class="auth-title">
+              Welcome to Fishbowl
+            </h1>
+          </ion-label>
+        </ion-item>   
+        <ion-item lines="none" color="clear">
+          <ion-label text-wrap color="light">
+            <p>
+            This is a <i>side-car</i> app for the parlor game known as "Fishbowl". The app is designed to 
+            work together with a video meeting site, like <b>Zoom</b> or <b>Google Meet</b>,
+            to let you play with your friends while <i>sheltering-in-place</i>.
+            </p>
+          </ion-label>
+        </ion-item>
+      </ion-card>
+
+      <ion-card class="content" padding *ngSwitchCase="'next'">
+
+      </ion-card>
+
+    </ng-container>
+  </ion-col>
+  </ion-row>
+</ion-grid>
