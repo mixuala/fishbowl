@@ -68,28 +68,116 @@ export class GamePage implements OnInit {
     );
   }
 
+  private doShowInterstitials(
+    res:[GamePlayState, GamePlayState],
+    player: Player,
+    game: Game,
+    round: GamePlayRound,
+    scoreboard: Scoreboard,
+    wordsRemaining: number,
+  ) {
+
+    const TIME={
+      BUZZER_ANIMATION_COMPLETE: 2000,
+      PLAYER_ROUND_DISMISS: 10000,
+      GAME_ROUND_DISMISS: 10000,
+
+    }
+
+    let [prev, cur] = res;
+    if (!cur) return;
+
+    let changed = Object.keys(cur).filter( k=>cur[k]!=prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
+
+    let dontWait = Promise.resolve()
+    .then( ()=>{
+      if (changed.playerRoundComplete && cur.playerRoundComplete) {
+
+        // guard: playerRoundComplete=true
+        if (!round) throw new Error("round should not be empty when playerRoundComplete==true")
+
+        let gamePlayCopy = Object.assign({}, cur);
+        gamePlayCopy.log = Object.assign({}, cur.log);
+        let gameSummary = {
+          player: Helpful.pick(player, 'displayName', 'teamName'),
+          game: Helpful.pick(game, 'playerCount', 'teamNames'),
+          round: Helpful.pick(round, 'round', 'startTimeDesc', ),
+          scoreboard,
+          wordsRemaining,
+        }
+
+
+        // flash player round complete interstitial
+        let interstitial = {
+          template: "player-round-complete", 
+          once:false,
+          duration: TIME.PLAYER_ROUND_DISMISS,
+          gamePlay: gamePlayCopy,
+          gameSummary,
+          onDidDismiss: (v)=>{
+            console.info('player-round complete dismissed')
+          }
+        }
+        return Helpful.waitFor(TIME.BUZZER_ANIMATION_COMPLETE)
+        .then( ()=>{
+          return HelpComponent.presentModal(this.modalCtrl, interstitial)
+        });
+      }
+    })
+    .then( ()=>{
+      if (changed.roundComplete && cur.roundComplete) {
+
+        // guard: roundComplete=true
+        // NOTE: playerRoundComplete==true when roundComplete=true
+        let gameSummary = {
+          teamNames: game.teamNames,
+          roundNumber: round.round,
+          scoreboard,
+        }
+   
+        return this.gamePlayWatch.gameLog$.pipe(
+          take(1),
+        ).toPromise()
+        .then( gameLog=>{
+          let interstitial = {
+            template: "round-complete", 
+            once:false,
+            duration: TIME.GAME_ROUND_DISMISS,
+            gameSummary,
+            onDidDismiss: (v)=>{
+              console.info('round-complete dismissed')
+              return true;
+            }
+          }
+          return HelpComponent.presentModal(this.modalCtrl, interstitial);        
+        });
+      }
+    });
+  }
+
   private doGamePlayUx( res:[GamePlayState, GamePlayState] ){
     let [prev, cur] = res;
-    if (!cur) {
-      console.warn( "show UX for event=completeGameRound")
-      return;
-    }
-    if (cur.isTicking && !prev.isTicking) {
+    if (!cur) return;
+    
+    let changed = Object.keys(cur).filter( k=>cur[k]!=prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
+
+    // in order of priority
+    if (changed.isTicking && cur.isTicking) {
       this.audio.play("click");
       console.info( "*** detect timer Start, sound=click");
       return;
     }
-    if (prev.timerPausedAt!=cur.timerPausedAt) {
+    if (changed.timerPausedAt) {
       let sound = cur.timerPausedAt ? "pause" : "click";
       this.audio.play(sound);
       console.info( "*** detect timer PAUSE, sound=", sound);
       return;
     }
     if ( 
-      (cur.log && !prev.log) || 
+      // use immutable gamePlay.log
+      (changed.log) || 
       ((cur.log && prev.log)  && Object.keys(cur.log).length > Object.keys(prev.log).length)
     ) {
-
       let lastKey = Object.keys(cur.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
       let sound = cur.log[-lastKey].result ? 'ok' : 'pass';
       this.audio.play(sound);
@@ -98,12 +186,7 @@ export class GamePage implements OnInit {
     }
 
 
-    if (cur.roundComplete && !prev.roundComplete) {
-      // flash round complete interstitial
-    }
-    else if (cur.playerRoundComplete && !prev.playerRoundComplete) {
-      // flash player round complete interstitial
-    }
+
 
   }
   /**
@@ -289,7 +372,7 @@ export class GamePage implements OnInit {
   
   // called AFTER ngOnInit, before page transition begins
   ionViewWillEnter() {
-    const dontWait = HelpComponent.presentModal(this.modalCtrl, {template:'intro'});
+    // const dontWait = HelpComponent.presentModal(this.modalCtrl, {template:'intro', once:false});
 
     this.gameId = this.activatedRoute.snapshot.paramMap.get('uid');
     if (this.gameDict && this.gameDict[this.gameId]) {
@@ -367,6 +450,11 @@ export class GamePage implements OnInit {
         pairwise(),
         tap( (res)=>{
           this.doGamePlayUx(res);
+          this.doShowInterstitials(
+            res,
+            this.player, this.game, 
+            this.activeRound, this.scoreboard, this.stash.wordsRemaining
+          )
         })
       ).subscribe(null,null,
         ()=>console.info(" 10>>> ***** ionViewWillEnter(): subscriber COMPLETE ******")
@@ -607,22 +695,26 @@ export class GamePage implements OnInit {
     let round = this.activeRound;
     let update = {} as GamePlayState;
 
-    let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]:available} );
-    update.word = next.word || null;
-    update.remaining = next.remaining;
-    if (next.remaining && !gamePlay.word) {
-      // move to onPlayerRoundWillBegin()
-      // load initial word, ignore action
-      this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
-        console.log("1> queue FIRST word, update=", update);
+    if (!gamePlay.word) {
+      // TODO: move to onPlayerRoundWillBegin()
+      // load initial word
+      let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]:available} );
+      update.word = next.word || null;
+      update.remaining = next.remaining;
+      return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
+      .then( ()=>{
+        if (next.remaining==0 && this.activeRound) {
+          return this.completePlayerRound(true, true);
+        }
       });
-
-      return
-
-
-
     }
-    else if (gamePlay.word) {
+    
+    
+    if (gamePlay.word) {
+      let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]:available} );
+      update.word = next.word || null;
+      update.remaining = next.remaining;
+
       // apply score the word, based on action=[OK,PASS] then get next word
       let entries = round.entries;
       if (entries.hasOwnProperty(word)==false) {
@@ -652,15 +744,11 @@ export class GamePage implements OnInit {
       console.log( "wordAction, gamePlay=", update )
       return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
       .then( ()=>{
-        if (next.remaining==0) this.completePlayerRound(true, true);
+        if (next.remaining==0) {
+          // gamePlay pushed the last word of round
+          this.completePlayerRound(true, true);
+        }
       });
-
-    }
-
-    if (next.remaining==0 && this.activeRound) {
-      this.completePlayerRound(true, true);
-      // => this.nextPlayerRound();
-      //    => this.completeGameRound()
     }
 
   }
@@ -689,41 +777,35 @@ export class GamePage implements OnInit {
     let rid = this.game.activeRound;
     return Promise.resolve()
     .then( ()=>{
-      // gameLog must be updated with LAST gamePlay.log BEFORE round is complete
+      // event: playerRoundWillComplete
+      console.info("\t>>>> playerRoundWillComplete()")
+    })
+    .then( ()=>{
+      let update = { playerRoundComplete:true, roundComplete }
+      return this.db.list<GamePlayState>('/gamePlay').update(rid, update)
+      // NOTE: Handle UX response in doShowInterstitials()
+    })
+    .then( ()=>{
+      // wait for interstitial to grab closure data before 
+      return Helpful.waitFor(2000)
+    })
+    .then( ()=>{
+      // merge gamePlay.log => gameLog
       return this.gameHelpers.pushGameLog(this.gamePlayWatch, activeRound)
     })
     .then( ()=>{
-
-      return this.nextPlayerRound();
-
+      // event: playerRoundDidComplete
+      console.info("\t>>>> playerRoundDidComplete()");
+      // NOTE: Handle UX response in doShowInterstitials()
     })
-    // .then( ()=>{
-
-    //   // not working 
-    
-    //   /**
-    //    * TODO: flash/toast playerRound complete
-    //    * - in doGamePlayUx(): 
-    //    *      - watch for gamePlay$ =>gamePlay.playerRoundComplete 
-    //    *      - show words 
-    //    * - then continue on timer or game Master click
-    //    */
-    //   let playerRoundComplete = true;
-    //   let update = { playerRoundComplete, roundComplete }
-    //   return this.db.list<GamePlayState>('/gamePlay').update(rid, update)
-    // })
-    // .then( ()=>{
-    //   console.log(" >>>> completePlayerRound() DONE");
-    // })
-    // .then( ()=>{
-    //   const PLAYER_ROUND_INTERSITITIAL_DELAY =  3000;
-    //   return interval(PLAYER_ROUND_INTERSITITIAL_DELAY).pipe(
-    //     first(),
-    //     map( ()=>{
-    //       this.nextPlayerRound();
-    //     })
-    //   ).toPromise();
-    // });
+    .then( ()=>{      
+      let update = { playerRoundComplete:false }
+      return this.db.list<GamePlayState>('/gamePlay').update(rid, update)      
+    })    
+    .then( ()=>{
+      if (!roundComplete)
+        return this.nextPlayerRound();
+    });
   }
 
   /**

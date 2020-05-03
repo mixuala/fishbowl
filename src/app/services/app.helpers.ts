@@ -2,8 +2,8 @@ import { ChangeDetectorRef, Injectable } from '@angular/core';
 import { Plugins, AppState, DeviceInfo,  } from '@capacitor/core';
 import { MenuController, Platform } from '@ionic/angular';
 
-import { Observable, Subject, BehaviorSubject, ReplaySubject, } from 'rxjs';
-import { } from 'rxjs/operators';
+import { Observable, Subject, BehaviorSubject, ReplaySubject, interval, } from 'rxjs';
+import { first } from 'rxjs/operators';
 
 const { App, Device, SplashScreen, Storage } = Plugins;
 
@@ -277,6 +277,10 @@ export class Helpful {
       o = child;
     }
     return o;
+  }
+
+  public static waitFor(ms:number):Promise<number>{
+    return interval(ms).pipe(first()).toPromise();
   }
 
 }

@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
-
+import { PipesModule } from '../pipes/pipes.module';
 import { ShellModule } from '../shell/shell.module';
 
 import { CheckboxWrapperComponent } from './checkbox-wrapper/checkbox-wrapper.component';
@@ -17,7 +17,8 @@ import { HelpComponent } from './help/help.component';
     CommonModule,
     FormsModule,
     ShellModule,
-    IonicModule
+    IonicModule,
+    PipesModule,
   ],
   declarations: [
     CheckboxWrapperComponent,

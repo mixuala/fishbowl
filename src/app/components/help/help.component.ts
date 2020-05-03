@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 import { environment } from '../../../environments/environment';
+import { interval, Subject } from 'rxjs';
+import { takeUntil, tap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-help',
@@ -17,12 +19,12 @@ export class HelpComponent implements OnInit {
    * @param options
    */
   public static dismissed:any = {}; // check before modal.present()
-  static async presentModal(modalCtrl:ModalController, options:any={}):Promise<any>{
+  static async presentModal(modalCtrl:ModalController, options:any={}):Promise<HTMLIonModalElement>{
     if (environment.production==false){
       // cancel when DEV
       // return Promise.resolve();
     }
-    if (HelpComponent.dismissed[options.template]) return Promise.resolve();
+    if (HelpComponent.dismissed[options.template]) return Promise.resolve(null);
 
     const defaults:any = {
       once: true,
@@ -31,6 +33,7 @@ export class HelpComponent implements OnInit {
       // showBackdrop: true,
     };
     options = Object.assign( defaults, options);
+    let done$ = new Subject<boolean>();
     return modalCtrl.create({
       component: HelpComponent,
       componentProps: options,
@@ -38,9 +41,16 @@ export class HelpComponent implements OnInit {
     .then( async (modal) => {
       modal.classList.add('help-modal');  
       modal.style.zIndex = '99999';       // force z-index
+      if (options.duration) {
+        interval(options.duration).pipe(
+          takeUntil(done$),
+          tap(()=>modal.dismiss())
+        ).subscribe();
+      }
       await modal.present();
       await modal.onWillDismiss()
       .then( async (resp)=>{
+        done$.next(true);
         options.onWillDismiss && options.onWillDismiss(resp); 
       })
       await modal.onDidDismiss()
