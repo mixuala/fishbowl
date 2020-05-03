@@ -34,7 +34,7 @@
                 <ion-item>
                   <ion-button size="small" color="tertiary" 
                   [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer()">Next Player</ion-button>
-                  <ion-button size="small" color="tertiary" 
+                  <ion-button size="small" color="tertiary" slot="end"
                   [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer(false)">Skip Player</ion-button>
                 </ion-item>
                 <ion-item lines="none">

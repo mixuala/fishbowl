@@ -68,20 +68,18 @@ export class GamePage implements OnInit {
     );
   }
 
-  private doShowInterstitials(
+  private doInterstitials(
     res:[GamePlayState, GamePlayState],
     player: Player,
     game: Game,
     round: GamePlayRound,
     scoreboard: Scoreboard,
-    wordsRemaining: number,
   ) {
 
     const TIME={
       BUZZER_ANIMATION_COMPLETE: 2000,
       PLAYER_ROUND_DISMISS: 10000,
       GAME_ROUND_DISMISS: 10000,
-
     }
 
     let [prev, cur] = res;
@@ -90,6 +88,7 @@ export class GamePage implements OnInit {
     let changed = Object.keys(cur).filter( k=>cur[k]!=prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
 
     let dontWait = Promise.resolve()
+
     .then( ()=>{
       if (changed.playerRoundComplete && cur.playerRoundComplete) {
 
@@ -103,7 +102,6 @@ export class GamePage implements OnInit {
           game: Helpful.pick(game, 'playerCount', 'teamNames'),
           round: Helpful.pick(round, 'round', 'startTimeDesc', ),
           scoreboard,
-          wordsRemaining,
         }
 
 
@@ -114,6 +112,7 @@ export class GamePage implements OnInit {
           duration: TIME.PLAYER_ROUND_DISMISS,
           gamePlay: gamePlayCopy,
           gameSummary,
+
           onDidDismiss: (v)=>{
             console.info('player-round complete dismissed')
           }
@@ -125,31 +124,45 @@ export class GamePage implements OnInit {
       }
     })
     .then( ()=>{
-      if (changed.roundComplete && cur.roundComplete) {
+      if (changed.gameRoundComplete && cur.gameRoundComplete) {
 
         // guard: roundComplete=true
-        // NOTE: playerRoundComplete==true when roundComplete=true
+        // NOTE: playerRoundComplete==true when gameRoundComplete=true
+        let teamNames = game.teamNames;
+        let winnersByRound = Object.keys(scoreboard).reduce( (o, round)=>{ 
+          let team0 = scoreboard[round][teamNames[0]];
+          let team1 = scoreboard[round][teamNames[1]];
+          if (team0 && team1){
+            if (team0.point > (team1.point || 0)) o[round]=teamNames[0];
+            if (team1.point > (team0.point || 0)) o[round]=teamNames[1];
+          } 
+          else o[round]==null;
+          return o;
+        }, {});
+
         let gameSummary = {
           teamNames: game.teamNames,
           roundNumber: round.round,
           scoreboard,
         }
-   
+        console.log(winnersByRound,gameSummary)
+    
         return this.gamePlayWatch.gameLog$.pipe(
           take(1),
         ).toPromise()
         .then( gameLog=>{
           let interstitial = {
-            template: "round-complete", 
+            template: "game-round-complete", 
             once:false,
             duration: TIME.GAME_ROUND_DISMISS,
             gameSummary,
+            winnersByRound,
             onDidDismiss: (v)=>{
               console.info('round-complete dismissed')
               return true;
             }
           }
-          return HelpComponent.presentModal(this.modalCtrl, interstitial);        
+          return HelpComponent.presentModal(this.modalCtrl, interstitial);            
         });
       }
     });
@@ -173,16 +186,17 @@ export class GamePage implements OnInit {
       console.info( "*** detect timer PAUSE, sound=", sound);
       return;
     }
-    if ( 
-      // use immutable gamePlay.log
-      (changed.log) || 
-      ((cur.log && prev.log)  && Object.keys(cur.log).length > Object.keys(prev.log).length)
-    ) {
-      let lastKey = Object.keys(cur.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
-      let sound = cur.log[-lastKey].result ? 'ok' : 'pass';
-      this.audio.play(sound);
-      console.info( "*** detect timer WORD action="), sound;
-      return;
+    if (changed.log) {
+      let curEntries = cur.log && Object.keys(cur.log).length || 0;
+      let prevEntries = prev.log && Object.keys(prev.log).length || 0;
+      console.log(`gamePlay entries: ${curEntries} > ${prevEntries} `)
+      if (curEntries > prevEntries) {
+        let lastKey = Object.keys(cur.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
+        let sound = cur.log[-lastKey].result ? 'ok' : 'pass';
+        this.audio.play(sound);
+        console.info( "*** detect timer WORD action=", sound);
+        return;
+      }
     }
 
 
@@ -444,16 +458,17 @@ export class GamePage implements OnInit {
             take(1),
             tap( score=>{
               this.scoreboard = score;
+              // console.log("scoreboard:", score)
             })
           ).subscribe();
         }),
         pairwise(),
-        tap( (res)=>{
-          this.doGamePlayUx(res);
-          this.doShowInterstitials(
-            res,
+        tap( (gamePlayChange)=>{
+          this.doGamePlayUx(gamePlayChange);
+          this.doInterstitials(
+            gamePlayChange,
             this.player, this.game, 
-            this.activeRound, this.scoreboard, this.stash.wordsRemaining
+            this.activeRound, this.scoreboard
           )
         })
       ).subscribe(null,null,
@@ -671,7 +686,7 @@ export class GamePage implements OnInit {
     ).subscribe();
   }
 
-  // TODO: let the game master can also trigger a wordAction
+  // TODO: let the game master also trigger a wordAction
   private wordAction( gamePlay: GamePlayState, action:string=null ){
     // role guard
     let isOnTheSpot = this.stash.onTheSpot;
@@ -703,7 +718,7 @@ export class GamePage implements OnInit {
       update.remaining = next.remaining;
       return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
       .then( ()=>{
-        if (next.remaining==0 && this.activeRound) {
+        if (next.remaining===0 && this.activeRound) {
           return this.completePlayerRound(true, true);
         }
       });
@@ -744,7 +759,7 @@ export class GamePage implements OnInit {
       console.log( "wordAction, gamePlay=", update )
       return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
       .then( ()=>{
-        if (next.remaining==0) {
+        if (next.remaining===0 && this.activeRound) {
           // gamePlay pushed the last word of round
           this.completePlayerRound(true, true);
         }
@@ -772,16 +787,27 @@ export class GamePage implements OnInit {
     if (!wasOnTheSpot) 
       return;
 
+
+
     // only active player pushes updates to the cloud
     let activeRound = this.activeRound;
     let rid = this.game.activeRound;
+
+    let playerRoundComplete = true;
+    let gameRoundComplete = roundComplete;
+    let gameComplete = roundComplete && activeRound.round==3;
+
     return Promise.resolve()
     .then( ()=>{
       // event: playerRoundWillComplete
       console.info("\t>>>> playerRoundWillComplete()")
     })
     .then( ()=>{
-      let update = { playerRoundComplete:true, roundComplete }
+      // push complete game status to doInterstitials()
+      let update = { 
+        playerRoundComplete, gameRoundComplete, gameComplete,
+        timer: null,
+      }
       return this.db.list<GamePlayState>('/gamePlay').update(rid, update)
       // NOTE: Handle UX response in doShowInterstitials()
     })
@@ -814,8 +840,6 @@ export class GamePage implements OnInit {
   private nextPlayerRound():Promise<void>{
     let isOnTheSpot = this.stash.onTheSpot;
     if (!isOnTheSpot) {
-      // DEV: test this 
-      console.warn( "has spotlight already changed? should happen below in moveSpotlight() "  )
       throw new Error( " spotlight changed before ready")
     }
 
@@ -870,14 +894,6 @@ export class GamePage implements OnInit {
       this.db.list<GamePlayState>('/gamePlay').remove(rid)
     );
 
-
-    /**
-     * TODO: - in doGamePlayUx():
-     * - watch for round.complete==true
-     * - flash/toast Round complete
-     * - show round score
-     * - then continue on timer or game Master click
-     */    
     let updateRound = {
       complete: true,
     } as GamePlayRound;
@@ -895,15 +911,6 @@ export class GamePage implements OnInit {
       this.db.object<Game>(`/games/${this.gameId}`).update( updateGame )
     )
     Promise.all(waitFor)
-    // .then( ()=>{
-    //   const GAME_ROUND_INTERSITITIAL_DELAY =  10000
-    //   return interval(GAME_ROUND_INTERSITITIAL_DELAY).pipe(
-    //     first(),
-    //     map( ()=>{
-    //       // this.completeGame();
-    //     })
-    //   ).toPromise();
-    // })
     .then( ()=>{
       if (isGameComplete) return this.completeGame();
     });

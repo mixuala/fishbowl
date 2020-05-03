@@ -281,7 +281,7 @@ export class GameHelpers {
     let update = Helpful.cleanProperties(gamePlay, fields);
     return this.db.list<GamePlayState>('/gamePlay').update(watch.uid, update)
     .then( v=>{
-      console.log("1> GameHelper.pushGamePlayState() update=", update)
+      // console.log("1> GameHelper.pushGamePlayState() update=", update)
     });
   }
 

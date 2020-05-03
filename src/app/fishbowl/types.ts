@@ -77,7 +77,8 @@ export interface GamePlayState {
   timerDuration?: number;
   timerPausedAt: number;
   playerRoundComplete?: boolean;
-  roundComplete?: boolean;
+  gameRoundComplete?: boolean;
+  gameComplete?: boolean;
 }
 
 export interface GamePlayLogEntries {

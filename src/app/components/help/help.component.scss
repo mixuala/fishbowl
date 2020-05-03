@@ -40,8 +40,42 @@ ion-grid.center-grid {
           color: var(--ion-color-dark);
         }
       }
+
+    }
+
+
+
+
+    .game-summary {
+      .header {
+        margin: 16px 0;
+        ion-item {
+          --padding-start: 0;
+          --padding-end: 0;
+        }
+      }
+      .round1, .round2, .round3 {
+        margin-bottom: 4px;
+      }
+      .total {
+        margin: 16px 0;
+        padding-top: 16px;
+        padding-bottom: 16px;
+        ion-col > * {
+          font-size: 1.4em;
+        }
+      }
     }
 
 
   }
+
+  .player-round-complete {
+    .round-scores {
+      .team-name {
+        border-radius: 4px;
+      }
+    }   
+  }
+
 }
