@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LoadingController, } from '@ionic/angular';
+import { LoadingController, ModalController, } from '@ionic/angular';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
@@ -9,6 +9,7 @@ import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
+import { HelpComponent } from '../../components/help/help.component';
 import { Player } from '../../user/role';
 import { Helpful } from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers'
@@ -39,6 +40,7 @@ export class ListPage implements OnInit {
     private  activatedRoute: ActivatedRoute,
     private  router: Router,
     private loadingController: LoadingController,
+    private modalCtrl: ModalController,
     private db: AngularFireDatabase,
     private authService: AuthService,
     private gameHelpers: GameHelpers,
@@ -55,6 +57,10 @@ export class ListPage implements OnInit {
 
 
   async ngOnInit() {
+    // let dontWait = HelpComponent.presentModal(this.modalCtrl, {
+    //   template:'intro',
+    // });
+
     this.loadPlayer$().pipe(
       take(1),
       tap( (p)=>{ 

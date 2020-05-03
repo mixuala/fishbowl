@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ModalController } from '@ionic/angular';
+import { Storage } from  '@ionic/storage';
 import { environment } from '../../../environments/environment';
 import { interval, Subject } from 'rxjs';
 import { takeUntil, tap } from 'rxjs/operators';
@@ -11,21 +12,20 @@ import { takeUntil, tap } from 'rxjs/operators';
 })
 export class HelpComponent implements OnInit {
 
-  public template: string;
-  
+  public static STORAGE_KEY = 'help-dismissed';
   /**
    * launch as Modal
    * @param modalCtrl 
    * @param options
    */
   public static dismissed:any = {}; // check before modal.present()
-  static async presentModal(modalCtrl:ModalController, options:any={}):Promise<HTMLIonModalElement>{
+
+  public static  
+  async presentModal(modalCtrl:ModalController, options:any={}):Promise<HTMLIonModalElement>{
     if (environment.production==false){
       // cancel when DEV
       // return Promise.resolve();
     }
-    if (HelpComponent.dismissed[options.template]) return Promise.resolve(null);
-
     const defaults:any = {
       once: true,
       // backdropDismiss: true,
@@ -33,10 +33,27 @@ export class HelpComponent implements OnInit {
       // showBackdrop: true,
     };
     options = Object.assign( defaults, options);
-    let done$ = new Subject<boolean>();
-    return modalCtrl.create({
-      component: HelpComponent,
-      componentProps: options,
+    let done$ = new Subject<boolean>();      
+
+    return Promise.resolve()
+    .then( ()=>{
+
+    /**
+     * BUG: static method does not wait for instance to load 
+     *      this.storage.get(HelpComponent.STORAGE_KEY)
+     * 
+     */
+
+      // let ready = await 
+      if (HelpComponent.dismissed[options.template]) {
+        return Promise.reject('skip');
+      }
+    })
+    .then( ()=>{
+      return modalCtrl.create({
+        component: HelpComponent,
+        componentProps: options,
+      });
     })
     .then( async (modal) => {
       modal.classList.add('help-modal');  
@@ -57,23 +74,39 @@ export class HelpComponent implements OnInit {
       .then( async (resp)=>{
         options.onDidDismiss && options.onDidDismiss(resp);
         let {template} = modal.componentProps;
-        if (!!options.once) {
-          HelpComponent.dismissed[template] = true;
-        }
       })
       return modal;
+    })
+    .catch( err=>{
+      if (err=='skip') {
+        return Promise.resolve(null)
+      }
+      return Promise.reject(err);
     });
   }  
 
 
+  public template: string;
+  
   constructor(
-    private modalCtrl: ModalController,
-  ) { }  
+    private storage:  Storage,
+  ) { 
+    // load dismissed
+    this.storage.get(HelpComponent.STORAGE_KEY)
+    .then( dismissed=>{
+      Object.assign(HelpComponent.dismissed, dismissed);
+    })
+  }  
 
-  ngOnInit() {
+  async ngOnInit() {
   }
 
   dismiss(ev:MouseEvent, instance){
-    instance.modal.dismiss();
+    let self = instance;
+    if (!!self.once) {
+      HelpComponent.dismissed[self.template] = true;
+      self.storage.set(HelpComponent.STORAGE_KEY, HelpComponent.dismissed)
+    }    
+    self.modal.dismiss();
   }
 }
