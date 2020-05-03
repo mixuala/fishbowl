@@ -16,7 +16,7 @@ import { FishbowlHelpers } from '../fishbowl.helpers'
 import { GameHelpers } from '../game-helpers';
 import { 
   Game, GameWatch, GameDict, RoundEnum,
-  PlayerByUids, TeamRosters,  
+  PlayerListByUids, TeamRosters,  
 } from '../types';
 
 declare let window;

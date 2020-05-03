@@ -1,5 +1,11 @@
 import { Observable } from 'rxjs';
 
+export type PlayerListByUids = string[];
+
+export type PlayerByUids = {
+  [uid:string]: string
+}
+
 export interface Game {
   uid: string;
   label: string;
@@ -8,9 +14,8 @@ export interface Game {
   chatRoom?: string;
   timezoneOffset: number;
   playerCount?: number;
-  players?: {
-    [uid:string]: string;
-  }
+  players?: PlayerByUids;
+  checkIn?: PlayerByUids;
   moderators?: {
     [uid:string]: boolean;
   }

@@ -10,7 +10,7 @@ import { FishbowlHelpers } from './fishbowl.helpers';
 import { 
   Game, GamePlayRound, GameWatch, GameDict, RoundEnum,
   GamePlayWatch, GamePlayState,
-  PlayerByUids, TeamRosters, GamePlayLog, WordResult, Scoreboard, GamePlayLogEntries, 
+  PlayerListByUids, TeamRosters, GamePlayLog, WordResult, Scoreboard, GamePlayLogEntries, 
 } from './types';
 
 

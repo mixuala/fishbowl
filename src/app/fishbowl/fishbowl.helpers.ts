@@ -5,7 +5,7 @@ import * as dayjs from 'dayjs';
 
 import { 
   Game, GamePlayRound, RoundEnum,
-  PlayerByUids, TeamRosters,
+  PlayerListByUids, TeamRosters,
   SpotlightPlayer, 
   GamePlayState,
   GamePlayLogEntries
@@ -36,7 +36,7 @@ export class FishbowlHelpers {
     let shuffledPlayers = Helpful.shuffle(Object.keys(game.players));
     let teamCount = teamNames.length;
 
-    let teams = teamNames.reduce( (o,v)=>(o[v]=[] as PlayerByUids, o), {} );
+    let teams = teamNames.reduce( (o,v)=>(o[v]=[] as PlayerListByUids, o), {} );
     shuffledPlayers.forEach( (uid,i)=>{
       let teamIndex = i % teamCount;
       teams[ teamNames[teamIndex] ].push(uid);
