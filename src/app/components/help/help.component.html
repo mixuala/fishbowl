@@ -37,7 +37,7 @@
             Player Round Complete
           </ion-card-title>
         </ion-card-header>
-        <ion-card-content class="ion-no-padding">
+        <ion-card-content class="ion-padding-vertical">
           <div class="round-scores">
             <ion-item-divider class="ion-margin-top">
               <ion-note>player round summary</ion-note>
@@ -186,6 +186,48 @@
           </ion-item>
         </ion-card-content>
       </ion-card>
+
+
+
+
+
+
+      <ion-card class="content check-in" padding *ngSwitchCase="'check-in'">
+        <ion-item color="tertiary">
+          <!-- <ion-icon slot="start" size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
+          <ion-avatar slot="start" size="large" >
+            <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
+          </ion-avatar>
+          <ion-label class="ion-text-wrap ion-text-bottom">
+            <h1 class="auth-title">
+              Welcome to Fishbowl
+            </h1>
+          </ion-label>
+        </ion-item>   
+
+        <ion-card-content class="ion-padding-vertical">
+
+          <h1>The game is about the begin...</h1>
+
+          <div class="ion-text-center">
+            <div class="hero">
+              <ion-note class="ion-text-left" color="tertiary">player</ion-note>
+              <p class="player-name"><ion-text color="light">
+                {{playerName}}
+              </ion-text></p>
+            </div>
+            <div class="ion-text-center">
+              <ion-button color="tertiary" expand="block" size="large" (click)="playerReady('OK')"> Are you ready?</ion-button>
+            </div>
+          </div>  
+
+
+
+        </ion-card-content>        
+      </ion-card>
+
+
+
 
     </ng-container>
   </ion-col>

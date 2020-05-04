@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
-import { Observable, of, combineLatest, } from 'rxjs';
+import { Observable, of, combineLatest, ReplaySubject, } from 'rxjs';
 import { withLatestFrom, map, switchMap, take, share, tap, first } from 'rxjs/operators';
 
 import * as dayjs from 'dayjs';
@@ -31,6 +31,7 @@ import {
   activeRound$ = this.gameWatch.gameDict$.pipe()
 
   gamePlayByRoundId = this.db.object<GamePlayState>(`/gamePlay/${uid}`)
+  this.db.list<GamePlayState>('/gamePlay').update(rid, gamePlayState)
   gameLogByRoundId = this.db.object<GamePlayLog>(`/gameLogs/${uid}`)
   gamelogsByGameId = this.db.list<GamePlayRound>('/gameLogs',
       ref=>ref.orderByChild('gameId').equalTo(gameId)
@@ -155,7 +156,9 @@ export class GameHelpers {
       // or use Helpful.sortByIds() on uids
       FishbowlHelpers.pipeSort('round'),
     )
-    let game$ = game_af.valueChanges();
+    // let game$ = game_af.valueChanges();
+    let game$ = new ReplaySubject<Game>(1);
+    game_af.valueChanges().subscribe(game$);  // "hot" observable
 
     // NOTE: only emits when rounds change
     // DOES NOT emit when game changes
@@ -188,7 +191,7 @@ export class GameHelpers {
 
   getGamePlay(game:Game, gameDict:GameDict):GamePlayWatch{
     let gameId = game.uid || gameDict.activeRound.gameId;
-    let rid = game.activeRound;
+    let rid = game.activeRound || gameId;
     let gamePlay$ = of(rid).pipe(
       switchMap( rid=>{
         if (rid) 
@@ -274,13 +277,14 @@ export class GameHelpers {
   }
 
   initGamePlayState(rid: string, teamCount:number, lastGamePlay:GamePlayState):Promise<void>{
-    let spotlight = lastGamePlay.spotlight || {
+    let spotlight = lastGamePlay && lastGamePlay.spotlight || {
       teamIndex: -1,  
       playerIndex: new Array(teamCount).fill(0),
     };
-    let timerDuration = lastGamePlay.timerDuration || null;
+    let timerDuration = lastGamePlay && lastGamePlay.timerDuration || null;
 
     let gamePlayState = {
+      // gameId,
       spotlight,
       timer: null,
       log: {},
@@ -295,13 +299,25 @@ export class GameHelpers {
     });
   }
 
-  pushGamePlayState(watch:GamePlayWatch, gamePlay:GamePlayState, ...changes):Promise<void>{
+  pushGamePlayState(watch:GamePlayWatch, gamePlay:Partial<GamePlayState>, ...changes):Promise<void>{
     // push to cloud
     let fields = changes.length ? [].concat(...changes) : null;
     let update = Helpful.cleanProperties(gamePlay, fields);
     return this.db.list<GamePlayState>('/gamePlay').update(watch.uid, update)
     .then( v=>{
-      // console.log("1> GameHelper.pushGamePlayState() update=", update)
+      console.log("1> GameHelper.pushGamePlayState() update=", update)
+    });
+  }
+
+  requestCheckIn(gameId:string){
+    let gamePlayState:GameAdminState = {
+      gameId,
+      doCheckIn: true,
+      checkInComplete: false,
+      gameComplete: false,
+    }
+    this.db.list<GameAdminState>('/gamePlay').update(gameId, gamePlayState).then( ()=>{
+      console.info( "GameAdminState created, testing doCheckIn()", )
     });
   }
 
@@ -493,6 +509,10 @@ export class GameHelpers {
     });
   }
 
+  pushCheckIn( gameId: string, checkIn:PlayerByUids): Promise<void>{
+    let update = checkIn;
+    return this.db.object<Game>(`/games/${gameId}/checkIn`).update( update )
+  }
 
 
 

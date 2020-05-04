@@ -27,7 +27,9 @@
               <ion-list class="game-controls" *ngIf="stash.activeGame">
                 <ion-item>
                   <ion-button size="small" color="primary" 
-                  [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="loadRounds()">Load Rounds</ion-button>
+                  [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="doCheckInClick()">Check-In</ion-button>
+                  <ion-button size="small" color="primary" 
+                  [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="loadRoundClick()">Load Rounds</ion-button>
                   <ion-button size="small" color="secondary" 
                   [disabled]="!game.rounds || !!game.activeRound" (click)="beginGameRoundClick()">Begin Round</ion-button>
                 </ion-item>
@@ -50,6 +52,19 @@
                       <ion-label slot="start">5</ion-label>
                       <ion-label slot="end">60</ion-label>
                     </ion-range>
+                </ion-item>
+              </ion-list>
+              <ion-list *ngIf="game.checkIn">
+                <ion-list-header>
+                  Player Check-In
+                </ion-list-header>
+                <ion-item *ngFor="let p of game.players | keyvalue">
+                  <ion-icon slot="start" 
+                  [color]="(game.checkIn && game.checkIn[p.key]) && 'success'"
+                  [name]="(game.checkIn && game.checkIn[p.key]) ? 'checkbox' : 'close-circle-outline'"></ion-icon>
+                  <ion-label>{{p.value}}</ion-label>
+                  <ion-button slot="end" color="danger" *ngIf="(game.checkIn && !game.checkIn[p.key])"
+                  (click)="hidePlayerClick(p.key)">hide</ion-button>
                 </ion-item>
               </ion-list>
               <ion-item>

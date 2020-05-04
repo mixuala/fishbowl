@@ -60,7 +60,24 @@ export interface WordResult {
   time?: number;
 }
 
-export interface GamePlayState {
+/**
+ * HACK: push GameAdminState to `/gamePlay`
+ * - manage Game.activeGame==true BEFORE loadRounds()
+ * - triggers cloudAction for all users
+ * - monitor changes in Game.doInterstitials()
+ */
+export interface GameAdminState {
+  // key: Game.uid
+  // checkIn is NOT connected to an active round
+  gameId: string;         // backref for cleanup
+  doCheckIn?: boolean;
+  checkInComplete?: boolean;
+  // admin states 
+  gameComplete?: boolean;
+}
+
+export interface GamePlayState extends GameAdminState {
+  // key: GamePlayRound.uid
   spotlight:{
     teamIndex: number;
     playerIndex: number[];

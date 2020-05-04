@@ -6,7 +6,7 @@ import { Storage } from  '@ionic/storage';
 import * as dayjs from 'dayjs';
 
 import { Observable, Subject, BehaviorSubject, of, from, timer, } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile,  pairwise, first, filter, } from 'rxjs/operators';
+import { map, tap, switchMap, take, takeWhile, pairwise, first, filter, startWith, } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -58,19 +58,42 @@ export class GamePage implements OnInit {
   // from ionViewWillEnter
   public loadGame$(gameId):Observable<GameDict>{
     this.gameWatch = this.gameHelpers.getGameWatch( gameId );
+
     return this.gameWatch.gameDict$.pipe(
+      // takeUntil(this.done$),
       tap( d=>{
         this.gameDict = d;
         this.activeRound = d.activeRound; 
-        this.game = this.gameDict[this.gameId] as Game;
-        // this.activeRoundId = this.game.activeRound;
-        this.gamePlayWatch = this.gameHelpers.getGamePlay(this.game, this.gameDict); 
+      }),
+      tap( d=>{
+        this.gameWatch.game$.pipe(
+          // takeUntil(this.done$),
+          tap( g=>{
+            this.game = g;
+            // console.log(g);
+          }),          
+          startWith(null),
+          pairwise(),
+          tap( ([prev,cur])=>{
+            // console.log("  >>>> game$ emits game=",cur)
+            if (
+              prev===null ||
+              prev.activeRound!=cur.activeRound
+            ) {
+              // NOTE: this must trigger whenever game.activeRound changes
+              // this should also emit GameAdminState
+              this.gamePlayWatch = this.gameHelpers.getGamePlay(this.game, this.gameDict); 
+            }
+          }),
+        ).subscribe();
       }),
     );
   }
 
   private doInterstitials(
-    res:[GamePlayState, GamePlayState],
+    // res:[GamePlayState, GamePlayState],
+    changed: Partial<GamePlayState>,
+    cur: GamePlayState,
     player: Player,
     game: Game,
     round: GamePlayRound,
@@ -83,13 +106,7 @@ export class GamePage implements OnInit {
       GAME_ROUND_DISMISS: 10000,
     }
 
-    let [prev, cur] = res;
-    if (!cur) return;
-
-    let changed = Object.keys(cur).filter( k=>cur[k]!=prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
-
     let dontWait = Promise.resolve()
-
     .then( ()=>{
       if (changed.playerRoundComplete && cur.playerRoundComplete) {
 
@@ -166,15 +183,25 @@ export class GamePage implements OnInit {
           return HelpComponent.presentModal(this.modalCtrl, interstitial);            
         });
       }
+    })
+    .then( ()=>{
+      if (changed.checkInComplete && cur.checkInComplete) {
+      }
+    })
+    .then( ()=>{
+      if (changed.doCheckIn && cur.doCheckIn) {
+        if (!game.checkIn || !game.checkIn[this.player.uid]){
+          this.showCheckInInterstitial();
+        }
+      }
     });
   }
 
-  private doGamePlayUx( res:[GamePlayState, GamePlayState] ){
-    let [prev, cur] = res;
-    if (!cur) return;
-    
-    let changed = Object.keys(cur).filter( k=>cur[k]!=prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
-
+  private doGamePlayUx( 
+    changed: Partial<GamePlayState>,
+    cur: GamePlayState,
+  ){
+ 
     // in order of priority
     if (changed.isTicking && cur.isTicking) {
       this.audio.play("click");
@@ -189,20 +216,13 @@ export class GamePage implements OnInit {
     }
     if (changed.log) {
       let curEntries = cur.log && Object.keys(cur.log).length || 0;
-      let prevEntries = prev.log && Object.keys(prev.log).length || 0;
-      console.log(`gamePlay entries: ${curEntries} > ${prevEntries} `)
-      if (curEntries > prevEntries) {
-        let lastKey = Object.keys(cur.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
-        let sound = cur.log[-lastKey].result ? 'ok' : 'pass';
-        this.audio.play(sound);
-        console.info( "*** detect timer WORD action=", sound);
-        return;
-      }
+      // [OK]: TEST detect new word action when we don't look at prevEntries
+      let lastKey = Object.keys(cur.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
+      let sound = cur.log[-lastKey].result ? 'ok' : 'pass';
+      this.audio.play(sound);
+      // console.info( "*** doGamePlayUx(): detect timer WORD action by change in gamePlay.log", sound);
+      return;
     }
-
-
-
-
   }
   /**
    * end GameWatch
@@ -306,10 +326,60 @@ export class GamePage implements OnInit {
    * GameMaster components
    */
 
+  doCheckInClick() {
+    this.requestCheckIn(this.gameId);
+  }
+  loadRoundClick(){
+    this.loadGameRounds();
+  }
+  beginGameRoundClick(){
+    this.beginNextGameRound();
+  }
   // retest
   // TODO: move the gameHelpers
   async loadRounds(force=false):Promise<boolean>{
+
+  /**
+   * triggered by moderator
+   */
+  requestCheckIn(gameId:string){
+    let isModerator = Object.keys(this.game.moderators).find( uid=>this.player.uid);
+    if (!isModerator) return;
+
+    this.gameHelpers.requestCheckIn(this.gameId);
+  }
+
+  /**
+   * cloud action, trigger on gamePlay.doCheckIn==true, GameAdminState
+   */ 
+  showCheckInInterstitial() {
+    this.player$.pipe(
+      filter( p=>!!p.displayName),
+      take(1),
+      tap( player=>{
+        let dontWait = HelpComponent.presentModal(this.modalCtrl, {
+          template:'check-in',
+          once:false,
+          playerName: player.displayName,
+          backdropDismiss: false,
+          swipeToClose: true,
+          playerReady: ()=>{
+            this.modalCtrl.dismiss("ok");
+            let checkIn = {[player.uid]: player.displayName};
+            console.log( "player checked in: ", checkIn)
+            this.gameHelpers.pushCheckIn(this.gameId, checkIn);
+          },
+          dismiss: (v)=>{ return false;}
+        });
+      })
+    ).subscribe();
+  }
+
+
+  async loadGameRounds(force=false):Promise<boolean>{
     if (!this.game) return false;
+    let isModerator = Object.keys(this.game.moderators).find( uid=>this.player.uid);
+    if (!isModerator) return;
 
     //TODO: need a form to add teamNames
 
@@ -348,9 +418,6 @@ export class GamePage implements OnInit {
     return true;
   }
 
-  beginGameRoundClick(){
-    this.beginNextGameRound();
-  }
 
   /**
    * begin gameRound, get game.activeRound and set startTime and moveSpotlight() to first player
@@ -360,6 +427,8 @@ export class GamePage implements OnInit {
    */
   async beginNextGameRound():Promise<GamePlayRound>{
     if (!this.game) return
+    let isModerator = Object.keys(this.game.moderators).find( uid=>this.player.uid);
+    if (!isModerator) return;
 
     // find activeRound or initialize/begin next round
     let {rid, activeRound} = await this.gameHelpers.loadNextRound(
@@ -469,11 +538,19 @@ export class GamePage implements OnInit {
             })
           ).subscribe();
         }),
+        startWith(null),
         pairwise(),
         tap( (gamePlayChange)=>{
-          this.doGamePlayUx(gamePlayChange);
+          console.log( `===>>> loadGame() gamePlay`, gamePlayChange)
+          let [prev, cur] = gamePlayChange;
+          if (cur===null) 
+            return
+
+          let isFirst = prev===null
+          let changed = isFirst ? cur : Object.keys(cur).filter( k=>cur[k]!=prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
+          this.doGamePlayUx(changed, cur);
           this.doInterstitials(
-            gamePlayChange,
+            changed, cur,
             this.player, this.game, 
             this.activeRound, this.scoreboard
           )
