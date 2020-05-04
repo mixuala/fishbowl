@@ -8,9 +8,10 @@ import * as dayjs from 'dayjs';
 import { Helpful } from '../services/app.helpers';
 import { FishbowlHelpers } from './fishbowl.helpers';
 import { 
-  Game, GamePlayRound, GameWatch, GameDict, RoundEnum,
-  GamePlayWatch, GamePlayState,
-  PlayerListByUids, TeamRosters, GamePlayLog, WordResult, Scoreboard, GamePlayLogEntries, 
+  Game, GameWatch, GameDict, GameAdminState, RoundEnum,
+  GamePlayWatch, GamePlayState, GamePlayRound, GamePlayLogEntries, GamePlayLog,
+  SpotlightPlayer, WordResult, Scoreboard,
+  PlayerListByUids, PlayerByUids, TeamRosters, 
 } from './types';
 
 

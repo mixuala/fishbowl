@@ -48,10 +48,7 @@ export interface GamePlayRound {
     // Object.entries(GamePlayRound.entries).filter( ([k,v])=>!!v ), then sample 1
     [word:string]: boolean,
   }
-  players: {
-    // player id:name
-    [uid:string]: string;
-  },
+  players: PlayerByUids;
   complete?: boolean;
 
 }
@@ -96,10 +93,9 @@ export interface GamePlayLog {
   round3: GamePlayLogEntries
 }
 
-export type PlayerByUids = string[];
 
 export interface TeamRosters {
-  [teamName:string]: PlayerByUids
+  [teamName:string]: PlayerListByUids
 }
 
 export interface SpotlightPlayer {

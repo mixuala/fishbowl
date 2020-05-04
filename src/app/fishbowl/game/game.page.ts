@@ -21,7 +21,7 @@ import {
   Game, GameWatch, GameDict, GameAdminState, RoundEnum,
   GamePlayWatch, GamePlayState, GamePlayRound, GamePlayLogEntries, GamePlayLog,
   SpotlightPlayer, WordResult, Scoreboard,
-  PlayerListByUids, TeamRosters, 
+  PlayerListByUids, PlayerByUids, TeamRosters, 
 } from '../types';
 
 
