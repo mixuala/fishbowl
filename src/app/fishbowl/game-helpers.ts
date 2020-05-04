@@ -218,11 +218,32 @@ export class GameHelpers {
     return { uid:rid, gamePlay$, gameLog$}
   }
 
-  loadNextRound(gameDict:GameDict, gameId: string, ):Promise<GamePlayRound>{
-    if (gameDict.activeRound) return Promise.resolve(gameDict.activeRound);
+  /**
+   * set game.activeRound to the next round, begin with `round1`
+   * - called AFTER doCheckIn
+   * - team assignments are now visible, allow player/moderator changes
+   * - call beginGameRound() to begin game play
+   * - activeRound != round has begun
+   * @param gameDict 
+   * @param gameId 
+   */
+  async loadNextRound(gameDict:GameDict, gameId: string, gamePlay$:Observable<GamePlayState> ):Promise<{rid:string, activeRound:GamePlayRound}>{
+    let game = gameDict[gameId] as Game;
+    let rid = game.activeRound;
+    let activeRound = gameDict.activeRound;
+    if (activeRound && !activeRound.complete) {
+      return Promise.resolve({rid, activeRound});
+    }
+
+    // get last gamePlay, copy spotlight
+    if (activeRound && activeRound.round==3) {
+      // gameOver, all rounds complete
+      return Promise.resolve(null);
+    }
+
+    let lastGamePlay = rid && await gamePlay$.toPromise();
 
     // find next round and make active
-    let game = gameDict[gameId] as Game;
     let sortedByRoundNumber = Object.entries(game.rounds).sort( (a,b)=>a[1]-b[1] );
     let found = sortedByRoundNumber.find( ([rid,roundNumber])=>{
       // find the next round that is not complete
@@ -231,46 +252,44 @@ export class GameHelpers {
     if (found) {
       // beginRound()
       let waitFor:Promise<void>[] = [];
-      let [rid, _] = found;
+      rid = found[0];
       let updateGame = { 
         activeRound: rid 
       } as Game;
       waitFor.push( this.db.object<Game>(`/games/${gameId}`).update(updateGame) );
 
-      let updateRound = { 
-        startTimeDesc: -Date.now(),
-        complete: false
-      } as GamePlayRound;
+      // // updateRound in gameHelpers.beginRound(rid)
 
-      waitFor.push( this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound) );
-
-      game.activeRound = rid;
-      waitFor.push( this.initGamePlayState(game) );
+      let round = gameDict[rid] as GamePlayRound;
+      waitFor.push( this.initGamePlayState(rid, Object.keys(round.teams).length, lastGamePlay) );
 
       return Promise.all( waitFor ).then( ()=>{
         gameDict.activeRound = gameDict[rid] as GamePlayRound;
         // update cloud
-        return gameDict.activeRound;
+        return {activeRound: gameDict.activeRound, rid}
       })
-
     }
+    // else all rounds complete
     return Promise.resolve(null);
   }
 
-  initGamePlayState(game:Game):Promise<void>{
+  initGamePlayState(rid: string, teamCount:number, lastGamePlay:GamePlayState):Promise<void>{
+    let spotlight = lastGamePlay.spotlight || {
+      teamIndex: -1,  
+      playerIndex: new Array(teamCount).fill(0),
+    };
+    let timerDuration = lastGamePlay.timerDuration || null;
+
     let gamePlayState = {
-      spotlight: {
-        teamIndex: -1,  
-        playerIndex: game.teamNames.map( v=>0 ),
-      },
+      spotlight,
       timer: null,
       log: {},
-      isTicking: false,
-      timerPausedAt: null,
+      timerDuration,
       word: null,
+      remaining: null,
+      isTicking: false,
     }
-    let uid = game.activeRound;
-    return this.db.list<GamePlayState>('/gamePlay').update(uid, gamePlayState)
+    return this.db.list<GamePlayState>('/gamePlay').update(rid, gamePlayState)
     .then( v=>{
       console.log("GameHelper.createGamePlayState() GamePlayState=", gamePlayState)
     });
@@ -286,7 +305,15 @@ export class GameHelpers {
     });
   }
 
-
+  beginRound(rid: string){
+    // updateRound in beginGameRound()
+    let updateRound = { 
+      startTimeDesc: -Date.now(),
+      complete: false
+    } as GamePlayRound;
+    return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound);   
+  }
+      
   moveSpotlight(watch:GamePlayWatch, round:GamePlayRound, nextTeam=true ) :Promise<void>{
     let {uid, gamePlay$} = watch;
     return new Promise( (resolve, reject)=>{

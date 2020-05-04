@@ -348,19 +348,29 @@ export class GamePage implements OnInit {
     return true;
   }
 
-  async beginGameRound(round:RoundEnum=RoundEnum.Taboo):Promise<GamePlayRound>{
+  beginGameRoundClick(){
+    this.beginNextGameRound();
+  }
+
+  /**
+   * begin gameRound, get game.activeRound and set startTime and moveSpotlight() to first player
+   * NOTE: 
+   *  - call GameHelpers.loadNextRound() called after loadRounds()
+   * @param round 
+   */
+  async beginNextGameRound():Promise<GamePlayRound>{
     if (!this.game) return
 
-
     // find activeRound or initialize/begin next round
-    let activeRound = await this.gameHelpers.loadNextRound(this.gameDict, this.gameId)
+    let {rid, activeRound} = await this.gameHelpers.loadNextRound(
+      this.gameDict, this.gameId, this.gamePlayWatch.gamePlay$
+    )
     if (activeRound) {
-
       // DEV
       if ("reset round" && true){
-        this.gameHelpers.DEV_resetRoundEntries(this.game.activeRound, activeRound);
+        this.gameHelpers.DEV_resetRoundEntries(rid, activeRound);
       }
-
+      this.gameHelpers.beginRound(rid)
       this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound);
     }
     else {
