@@ -96,6 +96,7 @@ export interface GamePlayState extends GameAdminState {
   isTicking: boolean;
   // admin states
   timerPausedAt?: number;
+  playerRoundBegin?: boolean;
   playerRoundComplete?: boolean;
   gameRoundComplete?: boolean;
 }

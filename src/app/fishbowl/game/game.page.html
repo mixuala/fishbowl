@@ -237,13 +237,13 @@
                   </ion-item>
                   <ion-grid class="ion-no-padding"><ion-row>
                     <ion-col size=5>
-                      <ion-button color="danger" expand="block"
-                      (click)="onWordActionClick('PASS')"
+                      <ion-button color="danger" expand="block" 
+                      (click)="onWordActionClick('PASS')" [disabled]="!gamePlay.playerRoundBegin"
                       >PASS</ion-button>
                     </ion-col>
                     <ion-col size=7>
                       <ion-button color="success" expand="block"
-                      (click)="onWordActionClick('OK')"
+                      (click)="onWordActionClick('OK')" [disabled]="!gamePlay.playerRoundBegin"
                       >OK</ion-button>
                     </ion-col>
                   </ion-row></ion-grid>
@@ -278,8 +278,9 @@
                     [class.is-ticking]="gamePlay?.isTicking"
                     [class.pause]="gamePlay?.timerPausedAt"
                     >
-                    <span class="when-not-ticking">{{gamePlay?.timerPausedAt || stash.timerDuration}}s</span>
-                    <ion-spinner class="when-ticking" name="circles" color="dark"></ion-spinner>
+                    <span class="when-not-ticking">{{gamePlay?.timerPausedAt || gamePlay.timerDuration || initialTimerDuration}}s</span>
+                    <!-- <ion-spinner class="when-ticking" name="circles" color="dark"></ion-spinner> -->
+                    <ion-icon name="pause" color="dark" *ngIf="gamePlay?.isTicking && !gamePlay?.timerPausedAt"></ion-icon>
                   </ion-button>
                   <ion-button color="light" (click)="toggleVolumeIcon()">
                     <ion-icon [name]="stash.audioVolumeIcon" >
