@@ -5,8 +5,8 @@ import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularf
 import { Storage } from  '@ionic/storage';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, of, from, interval } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile,  pairwise, first, withLatestFrom } from 'rxjs/operators';
+import { Observable, Subject, BehaviorSubject, of, from, timer, } from 'rxjs';
+import { map, tap, switchMap, take, takeWhile,  pairwise, first, filter, } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -230,6 +230,7 @@ export class GamePage implements OnInit {
   public game$:Observable<Game>;
   public gameRef:AngularFireObject<Game>;
   private player: Player;
+  private player$ = new BehaviorSubject<Player>(null);
   public spotlight:SpotlightPlayer;
 
 
@@ -274,23 +275,27 @@ export class GamePage implements OnInit {
 
   loadPlayer$():Observable<Player> {
     return this.authService.getCurrentUser$().pipe(
+      // takeUntil(this.done$),
       switchMap( u=>{
         if (!!u) return of(u);
         return from(this.authService.doAnonymousSignIn());
       }),
-      map( u=>{
+      switchMap( u=>{
         let p:Player = {
           uid: u.uid,
-          name: u.displayName,
+          name: u.displayName, // deprecate
+          displayName: u.displayName,
           gamesPlayed: 0,
           isAnonymous: u.isAnonymous,
           teamId: null,
           teamName: null,
         }
-        return p;
+        this.player$.next(p);
+        return this.player$.asObservable()
       }),
       tap( p=>{
         this.player = p;
+        console.log("  >>> player ready, name=", this.player)
       }),
     );
   }
@@ -400,20 +405,17 @@ export class GamePage implements OnInit {
         tap( d=>{
           game = d[this.gameId] as Game;
           this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
+          round = d[game.activeRound] as GamePlayRound;
         }),
         tap( d=>{
-          // NOTE: this can be moved elsewhere, run once at beginRound
-          let name = game.players && game.players[this.player.uid];
-          let playerTeam = {displayName: name};
-          if (this.activeRound ) {
-            Object.entries(this.activeRound.teams).find( ([teamName, players], i)=>{
-              if (players.find( uid=>uid==this.player.uid)) {
-                Object.assign(playerTeam, {teamId: i, teamName});
-                return true;
-              }
-            });
-          }
-          if (!!name) this.player = Object.assign({}, this.player, playerTeam)
+          if (!!this.player.displayName) 
+            return
+
+          let playerSettings = FishbowlHelpers.getPlayerSettings(this.player.uid, game, round)
+          let player = Object.assign({}, this.player, playerSettings)
+          // NOTE: this is where the player.displayName is set!!!
+          this.player$.next( player );
+          this.player = player;   // TODO: is this required for downstream processing?
         }),
         switchMap( (d)=>{
           return this.gamePlayWatch.gamePlay$;
@@ -423,15 +425,13 @@ export class GamePage implements OnInit {
         }),
         tap( gamePlay=>{
           this.stash.wordsRemaining = gamePlay && gamePlay.remaining;
-          if (!this.activeRound) {
+          if (!round)
             return
-          }
-          round = this.activeRound;
+
           this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
           // true if this player is under the spotlight
           // TODO: use roles here
           this.stash.onTheSpot = (this.spotlight.uid === this.player.uid);
-          this.stash.timerDuration = gamePlay && gamePlay.timerDuration || this.stash.timerDuration;
         }),
         tap( (gamePlay)=>{
           // score round

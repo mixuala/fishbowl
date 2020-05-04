@@ -66,6 +66,30 @@ export class FishbowlHelpers {
     }
   }
 
+  static
+  getPlayerSettings(pid:string, game:Game, round:GamePlayRound):{
+    displayName:string, teamName?:string, teamId?:string
+  } {
+    // get Player {displayName, teamName?, teamId? } from game
+    // get Player.displayName from game.Players
+    let displayName = game.players && game.players[pid];
+    if (!displayName) return null;
+
+    
+    let playerTeam = {displayName};
+    // team assignment AFTER loadRounds() but BEFORE beginGameRound
+    if (round) {
+      // but team assignments happen in AFTER doCheckIn and loadRounds()
+      Object.entries(round.teams).find( ([teamName, players], i)=>{
+        if (players.find( uid=>uid==pid)) {
+          Object.assign(playerTeam, {teamId: i, teamName});
+          return true;
+        }
+      });
+    }
+    return playerTeam
+  }
+
   static 
   getSpotlightPlayer(gamePlay:GamePlayState, round:GamePlayRound):any{
     if (!round) return {};
