@@ -352,11 +352,7 @@ export class GamePage implements OnInit {
 
       // DEV
       if ("reset round" && true){
-        // DEV: manual reset of words in round
-        let rid = this.game.activeRound;
-        let entries = activeRound.entries;
-        Object.keys(entries).forEach( k=>entries[k]=true )
-        await this.db.object<GamePlayRound>(`/rounds/${rid}`).update( {entries})
+        this.gameHelpers.DEV_resetRoundEntries(this.game.activeRound, activeRound);
       }
 
       this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound);

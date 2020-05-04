@@ -466,5 +466,22 @@ export class GameHelpers {
   }
 
 
-  
+
+
+  /**
+   * moderator/admin methods
+   */
+
+
+  /***
+   * DEV methods
+   */
+  async DEV_resetRoundEntries(rid:string, round:GamePlayRound){
+    let roundKey = `round${round.round}`;
+    console.warn("DEV: beginGameRound() resetting round entries to true, round",rid, roundKey);
+    let entries = Object.assign({}, round.entries);
+    Object.keys(entries).forEach( k=>entries[k]=true )
+    await this.db.object<GamePlayRound>(`/rounds/${rid}`).update( {entries})
+    await this.db.object<GamePlayLog>(`/gameLogs/${rid}/${roundKey}`).set(null);
+  }
 }
