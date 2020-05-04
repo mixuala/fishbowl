@@ -40,11 +40,11 @@
                 <ion-item lines="none">
                   <!-- <ion-label position="stacked"></ion-label> -->
                   <ion-note class="range-label">Timer</ion-note>
-                  <ion-badge class="range-value" color="secondary">{{stash.timerDuration}}s</ion-badge>
+                  <ion-badge class="range-value" color="secondary">{{initialTimerDuration}}s</ion-badge>
                   <ion-range class="range-control" 
                       slot="end"
 
-                      [value]="stash.timerDuration"
+                      [value]="initialTimerDuration"
                       min="5" max="60" step="5"  color="secondary" 
                       (ionChange)="onTimerRangeChange($event)">
                       <ion-label slot="start">5</ion-label>

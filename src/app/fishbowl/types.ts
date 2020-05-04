@@ -76,14 +76,14 @@ export interface GamePlayState {
   };
   log: GamePlayLogEntries;
   // activePlayer and game master must have access:
-  isTicking: boolean;
+  timerDuration: number;
   word: string;
   remaining: number;   
-  timerDuration?: number;
-  timerPausedAt: number;
+  isTicking: boolean;
+  // admin states
+  timerPausedAt?: number;
   playerRoundComplete?: boolean;
   gameRoundComplete?: boolean;
-  gameComplete?: boolean;
 }
 
 export interface GamePlayLogEntries {

@@ -18,11 +18,12 @@ import { Helpful } from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers';
 import { GameHelpers } from '../game-helpers';
 import { 
-  Game, GamePlayRound, GameWatch, GameDict, RoundEnum,
-  GamePlayWatch, GamePlayState,
-  SpotlightPlayer,
-  PlayerListByUids, TeamRosters, WordResult, Scoreboard, GamePlayLogEntries, 
+  Game, GameWatch, GameDict, GameAdminState, RoundEnum,
+  GamePlayWatch, GamePlayState, GamePlayRound, GamePlayLogEntries, GamePlayLog,
+  SpotlightPlayer, WordResult, Scoreboard,
+  PlayerListByUids, TeamRosters, 
 } from '../types';
+
 
 
 declare let window;
@@ -208,10 +209,10 @@ export class GamePage implements OnInit {
    */
 
   public audioVolumeIcons = ["volume-mute","volume-low","volume-medium","volume-high"];
+  public initialTimerDuration = 45;
   
   public stash:any = {
     // GameWatch changes
-    timerDuration: 30,
     audioVolumeIcon: null,
     activeGame: false,    // activeGame can be true between game.activeRound
     // activePlayer only
@@ -508,8 +509,7 @@ export class GamePage implements OnInit {
   }
 
   onTimerRangeChange(range: CustomEvent) {
-    this.stash.timerDuration = range.detail.value;
-    let update = {timerDuration: this.stash.timerDuration} as GamePlayState;
+    let update = {timerDuration: range.detail.value} as GamePlayState;
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),
       tap( gamePlay=>{
@@ -557,7 +557,8 @@ export class GamePage implements OnInit {
     if (!isOnTheSpot) return; 
     if (gamePlay.playerRoundComplete) {
       // BUG: this is not getting reset properly
-      // return;
+      let msg = "startTimer called with playerRoundComplete"
+      throw new Error(msg);
     }
 
     // load round
@@ -565,7 +566,7 @@ export class GamePage implements OnInit {
     let round = this.gameDict.activeRound;
     
     if (this.stash.onTheSpot) {
-      let timeOnClock = duration || this.stash.timerDuration;
+      let timeOnClock = duration || gamePlay.timerDuration || this.initialTimerDuration;
       
       let update = {} as GamePlayState;
       if (gamePlay.timerPausedAt) {
@@ -683,16 +684,16 @@ export class GamePage implements OnInit {
   }
 
   // TODO: let the game master also trigger a wordAction
-  private wordAction( gamePlay: GamePlayState, action:string=null ){
+  private wordAction( gamePlay: GamePlayState, action:string ){
     // role guard
     let isOnTheSpot = this.stash.onTheSpot;
     if (!isOnTheSpot) return;
 
-
-    // TODO: clean up circular logic
-    // wordAction=OK => if (!isTicking) startTimer() to begin
-    // startTimer => if (!word) wordAction()
-
+    /**
+     * NOTES: round begins with beginPlayerRoundClick() => startTimer() => nextWord()
+     *  - player/moderator button click in template => wordAction() 
+     *  - do NOT start timer from wordAction
+     */
 
     if (!gamePlay.isTicking || action==null) {
       // start player round
@@ -739,7 +740,7 @@ export class GamePage implements OnInit {
 
       let now = Date.now();
       let log:GamePlayLogEntries = gamePlay.log || {};
-      let roundStartTime = gamePlay.timer.key || Date.now()
+      let roundStartTime = Date.now() - gamePlay.timerDuration * 1000;
       let lastTime = Object.keys(log ).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 ) 
       lastTime = Math.max(lastTime, roundStartTime);
 
