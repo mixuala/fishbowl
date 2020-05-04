@@ -532,4 +532,42 @@ export class GameHelpers {
     await this.db.object<GamePlayRound>(`/rounds/${rid}`).update( {entries})
     await this.db.object<GamePlayLog>(`/gameLogs/${rid}/${roundKey}`).set(null);
   }
+
+  DEV_resetGame(game:Game, gameDict:GameDict, onlyUnplayed=true){
+    let sortedByRoundNumber = Object.entries(game.rounds).sort( (a,b)=>a[1]-b[1] );
+    let unplayed = sortedByRoundNumber.filter( ([rid,roundNumber])=>{
+      // find the next round that is not complete
+      return !(gameDict[rid] as GamePlayRound).complete;
+    }).reduce( (o,v)=>(o[v[0]]=v[1],o),{});
+    return Promise.resolve()
+    .then( ()=>{
+      let removeIds = Object.keys(gameDict).filter( k=>k!='activeRound')
+      if (onlyUnplayed) {
+        let unplayedKeys = Object.keys(unplayed);
+        removeIds = removeIds.filter( id=>!(unplayedKeys.find(rid=>rid==id)));
+      }
+      let resetGame = {
+        complete: false,
+        activeRound: null,
+        checkIn: null,
+        rounds: onlyUnplayed ? unplayed : null,
+      }
+      let resetRound = {
+        startTimeDesc: null,
+        entries: null,
+        complete: false,
+        players: null,
+      }
+      removeIds.forEach( uid=>{
+        if (uid==game.uid)
+          this.db.object<Game>(`/games/${uid}`).update(resetGame)
+        else {
+          // this.db.object<GamePlayRound>(`/rounds/${uid}`).update(resetRound)
+          this.db.object<GamePlayRound>(`/rounds/${uid}`).remove()
+        }
+        this.db.object<GamePlayState>(`/gameLogs/${uid}`).remove();
+        this.db.object<GamePlayLog>(`/gameLogs/${uid}`).remove();
+      })
+    })
+  }
 }

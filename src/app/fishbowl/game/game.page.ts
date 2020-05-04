@@ -338,9 +338,27 @@ export class GamePage implements OnInit {
   beginGameRoundClick(){
     this.beginNextGameRound();
   }
-  // retest
-  // TODO: move the gameHelpers
-  async loadRounds(force=false):Promise<boolean>{
+  resetGameClick(ev){
+    let hard = ev.ctrlKey;
+    this.doGameReset(hard)
+  }
+
+
+  doGameReset(hard=false){
+    let isModerator = Object.keys(this.game.moderators).find( uid=>this.player.uid);
+    if (!isModerator) return;
+
+    Promise.resolve()
+    .then( ()=>{
+      let game = this.game;
+      if (!game['isDev']) {
+        let msg = `Are you sure you want to reset game: ${game.label}`;
+        let resp = window.confirm(msg)
+        if (!resp) return;
+      }
+      return this.gameHelpers.DEV_resetGame(game, this.gameDict, !hard)
+    });
+  }
 
   /**
    * triggered by moderator
