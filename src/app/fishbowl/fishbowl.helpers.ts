@@ -78,7 +78,8 @@ export class FishbowlHelpers {
     
     let playerTeam = {displayName};
     // team assignment AFTER loadRounds() but BEFORE beginGameRound
-    if (round) {
+    // be careful of state BETWEEN rounds
+    if (round && round.teams) {
       // but team assignments happen in AFTER doCheckIn and loadRounds()
       Object.entries(round.teams).find( ([teamName, players], i)=>{
         if (players.find( uid=>uid==pid)) {

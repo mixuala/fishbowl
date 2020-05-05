@@ -5,7 +5,7 @@ import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularf
 import { Storage } from  '@ionic/storage';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, BehaviorSubject, of, from, timer, interval, } from 'rxjs';
+import { Observable, Subject, BehaviorSubject, of, from, timer, interval, zip, } from 'rxjs';
 import { map, tap, switchMap, take, takeWhile, pairwise, first, filter, startWith, withLatestFrom, } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
@@ -193,7 +193,7 @@ export class GamePage implements OnInit {
     })
     .then( ()=>{
       if (changed.doCheckIn && cur.doCheckIn) {
-        if (!game.checkIn || !game.checkIn[this.player.uid]){
+        if (!game.checkIn || !game.checkIn[this.playerId]){
           this.showCheckInInterstitial();
         }
       }
@@ -227,6 +227,17 @@ export class GamePage implements OnInit {
       return;
     }
   }
+
+  private doGamePlayExtras( 
+    changed: Partial<GamePlayState>,
+    cur: GamePlayState,
+  ){
+
+    if (changed.doPlayerUpdate) {
+      this.setGamePlayer();
+    }
+
+  }
   /**
    * end GameWatch
    */
@@ -252,6 +263,7 @@ export class GamePage implements OnInit {
   public upcomingGames$: Observable<Game[]>;
   public game$:Observable<Game>;
   public gameRef:AngularFireObject<Game>;
+  public playerId: string;
   private player: Player;
   private player$ = new BehaviorSubject<Player>(null);
   public spotlight:SpotlightPlayer;
@@ -287,7 +299,6 @@ export class GamePage implements OnInit {
     let loading = await this.presentLoading();
     // # set initial volume
     this.loadPlayer$().pipe(
-      tap( (p)=>{ this.player = p }),
       tap( ()=>{
         loading && loading.dismiss();
       }),
@@ -295,7 +306,9 @@ export class GamePage implements OnInit {
 
   }
 
-
+  /**
+   * player$ is set from AuthService.getCurrentUser$() and doGamePlayExtras() => setGamePlayer()
+   */
   loadPlayer$():Observable<Player> {
     return this.authService.getCurrentUser$().pipe(
       // takeUntil(this.done$),
@@ -304,6 +317,8 @@ export class GamePage implements OnInit {
         return from(this.authService.doAnonymousSignIn());
       }),
       switchMap( u=>{
+        this.playerId = u.uid;      // only change here
+
         let p:Player = {
           uid: u.uid,
           name: u.displayName, // deprecate
@@ -314,7 +329,8 @@ export class GamePage implements OnInit {
           teamName: null,
         }
         this.player$.next(p);
-        return this.player$.asObservable()
+        console.log("  >>> loadPlayer$(): this.player$.next()")
+        return this.player$.asObservable();
       }),
       tap( p=>{
         this.player = p;
@@ -349,7 +365,7 @@ export class GamePage implements OnInit {
 
 
   doGameReset(hard=false){
-    let isModerator = Object.keys(this.game.moderators).find( uid=>this.player.uid);
+    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
     if (!isModerator) return;
 
     Promise.resolve()
@@ -368,7 +384,7 @@ export class GamePage implements OnInit {
    * triggered by moderator
    */
   requestCheckIn(gameId:string){
-    let isModerator = Object.keys(this.game.moderators).find( uid=>this.player.uid);
+    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
     if (!isModerator) return;
 
     this.gameHelpers.requestCheckIn(this.gameId);
@@ -403,8 +419,8 @@ export class GamePage implements OnInit {
 
   async loadGameRounds(force=false):Promise<boolean>{
     if (!this.game) return false;
-    let isModerator = Object.keys(this.game.moderators).find( uid=>this.player.uid);
-    if (!isModerator) return;
+    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
+    if (!isModerator) return false;
 
     //TODO: need a form to add teamNames
 
@@ -424,23 +440,41 @@ export class GamePage implements OnInit {
     let byUids = rounds.reduce( (o,v)=>(o[v.uid]=v.round, o), {})
     byUids = Object.assign(this.game.rounds || {}, byUids)  // merge with existing rounds
     let teamNames = this.game.teamNames || Object.keys(rounds[0].teams);
-    let result = gameRef.update({
-      teamNames, // DEV
-      rounds: byUids
-    })
-    .then( ()=>{
-      // update rounds AFTER update game, 
-      // gameWatch.gameDict$ emits on update
-      let rounds_DbRef = this.db.database.ref().child('/rounds');
-      // insert Rounds
-      let updateBatch = rounds.reduce( (o, v)=>{
-        let path = `/${v.uid}`
-        o[path] = v
-        return o
-      }, {});
-      return rounds_DbRef.update(updateBatch);  // firebase directly
-    });
-    return true;
+
+    let waitFor:Promise<any>[] = [];
+
+    waitFor.push (
+      // Game
+      gameRef.update({
+        teamNames, // DEV, add edit page for game to set/edit teams
+        rounds: byUids,
+      })
+    )
+
+
+    // NOTE: gameWatch.gameDict$ emits on update
+    let rounds_DbRef = this.db.database.ref().child('/rounds');
+    let updateBatch = rounds.reduce( (o, v)=>{
+      let path = `/${v.uid}`
+      o[path] = v
+      return o
+    }, {});
+    waitFor.push (
+      // insert all GamePlayRounds
+      rounds_DbRef.update(updateBatch)
+    )
+
+
+    // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
+    let update = {
+      gameId: this.gameId,
+      doPlayerUpdate: true,           // handle in doGamePlayExtras()
+    } as Partial<GameAdminState>
+    waitFor.push (
+      // GamePlayAdminState
+      this.gameHelpers.pushGamePlayState( {uid: this.gameId} as GamePlayWatch, update)
+    )
+    return Promise.all(waitFor).then( ()=>true);
   }
 
 
@@ -452,7 +486,7 @@ export class GamePage implements OnInit {
    */
   async beginNextGameRound():Promise<GamePlayRound>{
     if (!this.game) return
-    let isModerator = Object.keys(this.game.moderators).find( uid=>this.player.uid);
+    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
     if (!isModerator) return;
 
     // find activeRound or initialize/begin next round
@@ -476,18 +510,16 @@ export class GamePage implements OnInit {
       }
       return res;
     })
-    .then( async (res)=>{
-      // ???: move to another method and trigger from buttonClick?
+    .then( (res)=>{
       let {rid, activeRound} = res;
-      await this.gameHelpers.beginRound(rid)
-      if (activeRound.round==1){
-        await this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound, {
-          nextTeam: true,
-          defaultDuration: this.initialTimerDuration
-        });
-      }
-      return activeRound;
-    })
+      // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
+      let update = {
+        gameId: this.gameId,
+        doPlayerUpdate: true,           // handle in doGamePlayExtras()
+      } as Partial<GamePlayState>
+      this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update);
+      return res;
+    }) 
     .catch( err=>{
       if (err=="skip") return Promise.resolve(null)
       return Promise.reject(err)
@@ -533,16 +565,6 @@ export class GamePage implements OnInit {
           this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
           round = d[game.activeRound] as GamePlayRound;
         }),
-        tap( d=>{
-          if (!!this.player.displayName) 
-            return
-
-          let playerSettings = FishbowlHelpers.getPlayerSettings(this.player.uid, game, round)
-          let player = Object.assign({}, this.player, playerSettings)
-          // NOTE: this is where the player.displayName is set!!!
-          this.player$.next( player );
-          this.player = player;   // TODO: is this required for downstream processing?
-        }),
         switchMap( (d)=>{
           return this.gamePlayWatch.gamePlay$;
           /**
@@ -557,7 +579,7 @@ export class GamePage implements OnInit {
           this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
           // true if this player is under the spotlight
           // TODO: use roles here
-          this.stash.onTheSpot = (this.spotlight.uid === this.player.uid);
+          this.stash.onTheSpot = (this.spotlight.uid === this.playerId);
         }),
         tap( (gamePlay)=>{
           // score round
@@ -590,14 +612,15 @@ export class GamePage implements OnInit {
         startWith(null),
         pairwise(),
         tap( (gamePlayChange)=>{
-          console.log( `===>>> loadGame() gamePlay`, gamePlayChange)
           let [prev, cur] = gamePlayChange;
           if (cur===null) 
-            return
-
+          return
+          
           let isFirst = prev===null
-          let changed = isFirst ? cur : Object.keys(cur).filter( k=>cur[k]!=prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
+          let changed = isFirst ? cur : Object.keys(cur).filter( k=>cur[k]!==prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
+          console.log( `===>>> loadGame() gamePlay changed=` , changed)
           this.doGamePlayUx(changed, cur);
+          this.doGamePlayExtras(changed, cur);
           this.doInterstitials(
             changed, cur,
             this.player, this.game, 
@@ -608,6 +631,36 @@ export class GamePage implements OnInit {
         ()=>console.info(" 10>>> ***** ionViewWillEnter(): subscriber COMPLETE ******")
       );
     }
+  }
+
+
+  /**
+   * break main UI/UX Subscribers into smaller functional units
+   */
+  setGamePlayer() {
+    // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
+    // merge {game.displayName }
+    let _getNextRound = (game:Game, rounds: GamePlayRound[]): GamePlayRound => {
+      let sortedRids = Object.entries(game.rounds).sort( (a,b)=>a[1]-b[1] ).map( v=>v[0]);
+      let i = Math.max(0, sortedRids.findIndex( v=>v==game.activeRound ) )
+      return rounds && rounds[i];
+    }
+    zip(
+      this.gameWatch.game$,
+      this.gameWatch.hasManyRounds$
+    ).pipe(
+      take(1),
+      tap( ([game, rounds])=>{
+        let round = _getNextRound(game, rounds);
+        let playerSettings = FishbowlHelpers.getPlayerSettings(this.playerId, game, round);
+        let player = this.player$.value;
+        Object.entries(playerSettings).forEach( ([k,v])=>{
+          // HACK: do NOT overwrite with null
+          if (!!v) player[k] = v;
+        })
+        this.player$.next( Object.assign({}, player) );    
+      }),
+    ).subscribe();
   }
 
 

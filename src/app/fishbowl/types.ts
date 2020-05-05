@@ -70,6 +70,8 @@ export interface GameAdminState {
   // key: Game.uid
   // checkIn is NOT connected to an active round
   gameId: string;         // backref for cleanup
+  // UX state variables
+  doPlayerUpdate?: boolean; 
   doCheckIn?: boolean;
   checkInComplete?: boolean;
   // admin states 
