@@ -622,6 +622,7 @@ export class GamePage implements OnInit {
   }
 
   onTimerRangeChange(range: CustomEvent) {
+    this.initialTimerDuration = range.detail.value;
     let update = {timerDuration: range.detail.value} as GamePlayState;
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),
@@ -681,7 +682,10 @@ export class GamePage implements OnInit {
     if (this.stash.onTheSpot) {
       let timeOnClock = duration || gamePlay.timerDuration || this.initialTimerDuration;
       
-      let update = {} as GamePlayState;
+      let update = {
+        timerDuration: timeOnClock
+      } as Partial<GamePlayState>;
+
       if (gamePlay.timerPausedAt) {
         // clear pause, then restart
         // word has already been served
@@ -689,13 +693,14 @@ export class GamePage implements OnInit {
         update.timerPausedAt = null;
       }
       else {
-        // serve next word        
         if (!gamePlay.word) {
+          // serve FIRST word of round
           let next = FishbowlHelpers.nextWord(round, gamePlay);
           update.word = next.word || null;
           update.remaining = next.remaining;
           if (update.remaining==0){
-            // end of round
+            // end of round, already?
+            console.warn("ERROR: how can you start the timer with next.remaining==0??")
             return this.completeGameRound(this.activeRound);
           }
 
@@ -734,7 +739,9 @@ export class GamePage implements OnInit {
 
     let update = {} as GamePlayState;
     let timeRemaining = this.countdownTimer.stop();
-    if (!timeRemaining) this.onTimerDone();
+    if (!timeRemaining) {
+      return;
+    }
 
     update.timerPausedAt = timeRemaining;
     update.isTicking = false;
@@ -753,11 +760,25 @@ export class GamePage implements OnInit {
     }
   }
 
+  /**
+   * launch the timed sequence
+   * o timerWillComplete()
+   * - push gamePlayState: isTicking=false
+   *    o timerDidComplete()
+   *    - start OVERTIME delay for accepting wordAction
+   *      o timerDidComplete with OVERTIME
+   *      - completePlayerRound() if playerRoundBegin==true (still)
+   *    
+   * 
+   * 
+   * @param t Date or unixtime of completion
+   * @param buzz animate & buzz timer on the local device, default true, false=silent 
+   *    when trigged externally, e.g. gameRoundComplete when player gets last word
+   */
   async onTimerDone(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
     const ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS = 5000;
     if (!this.gameDict.activeRound) 
       return;
-
 
     let wasOnTheSpot = this.stash.onTheSpot;
     return Promise.resolve()
@@ -768,47 +789,70 @@ export class GamePage implements OnInit {
       }
     })
     .then( ()=>{
-      if (!wasOnTheSpot) 
-        return 
+      let silent = !buzz
+      if (!wasOnTheSpot || silent) {
+        return Promise.reject("skip")
 
-      return Promise.resolve(true)
-      .then( ()=>{
-        if (buzz) {
-          // stop timer isTicking, but add delay before disabling wordAction buttons
-          let update = { 
-            isTicking: false, 
-            playerRoundBegin: true,
-          };
-          console.info("\t>>>> timerWillComplete()")
-          return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
-          .then( ()=>{
-            console.info("\t>>>> timerDidComplete()")
-            // delay disabling wordAction buttons
-            // but, last wordAction() will trigger completePlayerRound()
-            return interval(ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS).pipe(
-              withLatestFrom(this.gamePlayWatch.gamePlay$),
-              take(1),
-              map( ([_,gamePlay] )=>{
-                // check if playerRoundDidComplete(), 
-                // if not, set playerRoundBegin=false, disable wordAction buttons
-                let doPlayerRoundComplete = this.stash.onTheSpot && gamePlay.playerRoundComplete==false;
-                if (doPlayerRoundComplete)
-                  console.info("\t>>>> wordAction extra time DidComplete()")
-                return doPlayerRoundComplete;
-              })
-            ).toPromise();
-          });
-        }
-        else return true;
-      })
-      .then( (v)=>{
-        if (v==false) {
-          // buzz=false, silent OR playerRoundDidComplete()
-          return
-        }
+        // !wasOnTheSpot: cloud response, no access to gamePlay
+        // silent: timerDidComplete() should ALREADY have happened
+      }
+    })
+    .then( ()=>{
+      // stop timer isTicking, but do OVERTIME
+      let update = { 
+        isTicking: false, 
+        // playerRoundBegin: true,      // should be already set
+      };
+      console.info("\t>>>> timerWillComplete()")
+      return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
+    })      
+    .then( ()=>{
+      console.info("\t>>>> timerDidComplete()")
+      // delay disabling wordAction buttons
+      // but, last wordAction() will trigger completePlayerRound()
+      // no OVERTIME if the next.remaining==0, but buzz=false in this case
+      return interval(ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS).pipe(
+        withLatestFrom(this.gamePlayWatch.gamePlay$),
+        take(1),
+        map( ([_,gamePlay] )=>{
+          console.info("\t>>>> timerDidComplete with OVERTIME")
+          // check if playerRoundDidComplete(), 
+          // if not, set playerRoundBegin=false, disable wordAction buttons
+          let doPlayerRoundComplete = this.stash.onTheSpot && 
+            gamePlay.playerRoundBegin==true;
+          if (doPlayerRoundComplete){
+            console.info("\t>>>> wordAction OVERTIME DidComplete() => completePlayerRound()")
+          }
+          else {
+
+            // OK: score and next.remaining are not being updated correctly from here
+            // BUG: playerRoundComplete=true for [nextPlayer]
+
+            console.info("\t>>>> wordAction Complete() before overtime, completePlayerRound() ALREADY fired on last word in overtime ")
+          }
+          return doPlayerRoundComplete;
+        })
+      ).toPromise();
+    })
+    .then( (doPlayerRoundComplete)=>{
+      if (doPlayerRoundComplete) {
+        console.log("0: ******* completePlayerRound, from onTimerDone() OVERTIME, clearTimer=false")
         return this.completePlayerRound(false);
-      })
-    });
+      }
+      else {
+        // buzz=false/overtime=false silent OR playerRoundDidComplete()
+        /**
+         * NOTE: wordAction[remaining==0 && isTicking==true]
+         *  => onTimerDone()    ( <== here )
+         *  => completePlayerRound()  // do NOT call onTimerDone from completePlayerRound
+         */
+        return
+      }
+    })
+    .catch( err=>{
+      if (err=="skip") return Promise.resolve()
+      return Promise.reject(err)
+    })
   }
 
   onWordActionClick(action:string) {
@@ -850,6 +894,7 @@ export class GamePage implements OnInit {
       return;
     };
     
+    let isOvertime = gamePlay.isTicking==false;
     let {word} = gamePlay;
     let correct = action=="OK" ? true : false;
     let available = !correct;
@@ -879,9 +924,12 @@ export class GamePage implements OnInit {
     .then( ()=>{ 
       if (gamePlay.word) {
         let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]:available} );
-        if (gamePlay.isTicking==true){
+        update.remaining = next.remaining;
+        if (isOvertime){
+          update.word = null;
+        }
+        else {
           update.word = next.word || null;
-          update.remaining = next.remaining;
         }
   
         // apply score the word, based on action=[OK,PASS] then get next word
@@ -913,13 +961,16 @@ export class GamePage implements OnInit {
         console.log( "wordAction, gamePlay=", update )
         return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
         .then( async ()=>{
-          if (next.remaining===0 && this.activeRound) {
+          let isLastWord = next.remaining==0;
+          let isDone = this.activeRound && (isLastWord || isOvertime);
+          if (isDone) {
             // state: player got last word BEFORE Timer expired
-            if (gamePlay.isTicking) {
+            if (!isOvertime) {
+              console.log("0: ******* onTimerDone() <= completePlayerRound(), from wordAction(),  buzz=FALSE")
               await this.onTimerDone( new Date(), false);
             }
-            this.completePlayerRound(true);
-  
+            console.log("0: ******* completePlayerRound(), from wordAction(), next.remaining==0")
+            this.completePlayerRound(isLastWord);
           }
         });
       }
@@ -927,15 +978,14 @@ export class GamePage implements OnInit {
   }
 
   /**
+   * orchestrate the timed sequence to complete the playerRound
+   * [before]
+   *    onTimerDone()
    * onTimerDone() or FishbowlHelpers.nextWord() is empty 
    */
-  async completePlayerRound(clearTimer=false, roundComplete=false):Promise<void>{
+  async completePlayerRound(gameRoundComplete=false):Promise<void>{
+    console.log("1: ******* completePlayerRound, roundComplete=", gameRoundComplete)
     let wasOnTheSpot = this.stash.onTheSpot;
-    if (clearTimer) {
-      await this.onTimerDone( null, false);
-      // stop timer gracefully, (cloud sound), 
-      // wait for animation to begin, then continue
-    }
 
     // role guard
     if (!wasOnTheSpot) 
@@ -948,8 +998,7 @@ export class GamePage implements OnInit {
     let rid = this.game.activeRound;
 
     let playerRoundComplete = true;
-    let gameRoundComplete = roundComplete;
-    let gameComplete = roundComplete && activeRound.round==3;
+    let gameComplete = gameRoundComplete && activeRound.round==3;
 
     return Promise.resolve()
     .then( ()=>{
@@ -972,16 +1021,22 @@ export class GamePage implements OnInit {
     })
     .then( ()=>{
       // merge gamePlay.log => gameLog
+      console.log(" >>>> gamePlay.log copied to gameLog and changes applied to round.entries");
       return this.gameHelpers.pushGameLog(this.gamePlayWatch, activeRound)
     })
     .then( ()=>{
       // event: playerRoundDidComplete
       console.info("\t>>>> playerRoundDidComplete()");
       // NOTE: Handle UX response in doShowInterstitials()
+      return Helpful.waitFor(2000)
     })
     .then( ()=>{
-      if (!roundComplete)
-        return this.nextPlayerRound();
+      return this.nextPlayerRound();
+    })
+    .then( ()=>{
+      if (gameRoundComplete) {
+        return this.completeGameRound(this.activeRound)
+      }
     });
   }
 
@@ -1016,22 +1071,13 @@ export class GamePage implements OnInit {
       return this.db.list<GamePlayState>('/gamePlay').update(rid, updateGamePlay)
     })
     .then( ()=>{
-      console.log(" >>>> gameLog and gamePlay reset for next playerRound");
+      console.info("\t>>>> spotlightWillChange()");
     })
-    .then( ()=>{
-      // move spotlight, or complete Round
-
-      this.db.object<GamePlayRound>(`/rounds/${rid}`).valueChanges().pipe(
-        take(1),
-        map( activeRound=>{
-          let entries = Object.entries(activeRound.entries).filter( ([word,avail])=>avail===true );
-          if (entries.length==0){
-            return this.completeGameRound(activeRound);
-          }
-          return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound)
-        })
-      ).subscribe();
-    });
+    .then(()=>{
+      this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound).then( ()=>{
+        console.info("\t>>>> spotlightDidChange()");
+      })
+    })
   }
 
   async completeGameRound(round:GamePlayRound){

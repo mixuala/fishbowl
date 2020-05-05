@@ -157,13 +157,13 @@ export class GameHelpers {
       FishbowlHelpers.pipeSort('round'),
     )
     // let game$ = game_af.valueChanges();
-    let game$ = new ReplaySubject<Game>(1);
-    game_af.valueChanges().subscribe(game$);  // "hot" observable
+    let HOT_game$ = new ReplaySubject<Game>(1);
+    game_af.valueChanges().subscribe(HOT_game$);  // "hot" observable
 
     // NOTE: only emits when rounds change
     // DOES NOT emit when game changes
     let gameDict$:Observable<GameDict> = hasManyRounds_af.valueChanges().pipe(
-      withLatestFrom( game$ ),
+      withLatestFrom( HOT_game$ ),
       map( ([rounds,g])=>{
         let uidLookup:GameDict = {
           [gameId]: g
@@ -183,7 +183,7 @@ export class GameHelpers {
     )
     return {
       gameId,
-      game$,
+      game$: HOT_game$,
       hasManyRounds$, // sorted
       gameDict$, // by key
     }
@@ -194,16 +194,21 @@ export class GameHelpers {
     let rid = game.activeRound || gameId;
     let gamePlay$ = of(rid).pipe(
       switchMap( rid=>{
-        if (rid) 
-        // GamePlayRound hasOne GamePlayWatch, use SAME rid
-          return this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges()
+        if (rid) {
+          // GamePlayRound hasOne GamePlayWatch, use SAME rid
+          console.warn("making gamePlayWatch.game$ a HOT observable. may have side effects")
+          let HOT_gamePlay$ = new ReplaySubject<GamePlayState>(1);
+          this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges()
           .pipe( 
             // TODO: sort gamePlay.log desc
-            share() 
-          )
+            // this is a COLD observable, does not emit until subscribed
+          ).subscribe(HOT_gamePlay$)
+          return HOT_gamePlay$;
+        }
         else 
           return of({} as GamePlayState )
       })
+
     );
     let gameLog$ = of(gameId).pipe(
       switchMap( gameId=>{
@@ -276,7 +281,10 @@ export class GameHelpers {
     return Promise.resolve(null);
   }
 
-  initGamePlayState(rid: string, teamCount:number, lastGamePlay:GamePlayState):Promise<void>{
+
+
+
+  initGamePlayState(rid: string, teamCount:number, lastGamePlay:Partial<GamePlayState>):Promise<void>{
     let spotlight = lastGamePlay && lastGamePlay.spotlight || {
       teamIndex: -1,  
       playerIndex: new Array(teamCount).fill(0),
@@ -330,7 +338,13 @@ export class GameHelpers {
     return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound);   
   }
       
-  moveSpotlight(watch:GamePlayWatch, round:GamePlayRound, nextTeam=true ) :Promise<void>{
+  moveSpotlight(
+    watch:GamePlayWatch, 
+    round:GamePlayRound, 
+    options:{ nextTeam?:boolean, defaultDuration?:number} = {} 
+  ): 
+    Promise<void>
+  {
     let {uid, gamePlay$} = watch;
     return new Promise( (resolve, reject)=>{
       gamePlay$.pipe(
@@ -346,7 +360,7 @@ export class GameHelpers {
             teamIndex: teamRosters.length,
             playerIndex: teamRosters.map( v=>v.length)
           }
-          if (nextTeam){
+          if (options.nextTeam!==false){
             // increment team first
             spotlight.teamIndex +=1;
             if (spotlight.teamIndex >= limits.teamIndex){
@@ -366,14 +380,17 @@ export class GameHelpers {
             if (spotlight.playerIndex[ i ] >= limits.playerIndex[ i ]) spotlight.playerIndex[ i ] = 0;
           }
           spotlight.teamName =  Object.keys(round.teams)[spotlight.teamIndex];
+          // where does gamePlayTimerDuration first get set?
+          let timerDuration = gamePlay.timerDuration || options.defaultDuration || 33;
 
           let update = {
             spotlight,
             timer: null,
             log: {},
+            timerDuration,
+            word: null,
             isTicking: false,
             timerPausedAt: null,
-            word: null,
           } as GamePlayState;
           this.pushGamePlayState(watch, update).then( ()=>{
             resolve();
@@ -420,12 +437,8 @@ export class GameHelpers {
               entries: merged,
             } as GamePlayRound;
             return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound).then(
-              ()=>console.log("0>>> updateRound=", updateRound)
+              ()=>console.log("0>>> update round.entries=", updateRound)
             )
-          })
-          .then( v=>{
-            // update in the Cloud, but not here
-            console.log("1> GameHelper.pushGameLog() update round.entries=",  round.entries);
           })
           .then( v=>{
             resolve();
