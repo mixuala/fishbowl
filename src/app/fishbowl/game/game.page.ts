@@ -336,7 +336,11 @@ export class GamePage implements OnInit {
     this.loadGameRounds();
   }
   beginGameRoundClick(){
-    this.beginNextGameRound();
+    this.beginNextGameRound()
+    .then( (v)=>{
+      // handle error in game state
+      if (v===null) this.completeGame();
+    })
   }
   resetGameClick(ev){
     let hard = ev.ctrlKey;
@@ -452,21 +456,42 @@ export class GamePage implements OnInit {
     if (!isModerator) return;
 
     // find activeRound or initialize/begin next round
-    let {rid, activeRound} = await this.gameHelpers.loadNextRound(
+    return this.gameHelpers.loadNextRound(
       this.gameDict, this.gameId, this.gamePlayWatch.gamePlay$
     )
-    if (activeRound) {
-      // DEV
-      if ("reset round" && true){
-        this.gameHelpers.DEV_resetRoundEntries(rid, activeRound);
+    .then( async (res)=>{
+      let isGameComplete = !res;
+      if (isGameComplete) {
+        return Promise.reject("skip"); // => completeGame()
       }
-      this.gameHelpers.beginRound(rid)
-      this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound);
-    }
-    else {
-      console.info("GAME COMPLETE")
-    }
-    return activeRound
+      else {
+        let {rid, activeRound} = res;
+
+        /**
+         * optional: allow moderator to adjust teams
+         * BEFORE calling beginRound
+         */
+
+
+      }
+      return res;
+    })
+    .then( async (res)=>{
+      // ???: move to another method and trigger from buttonClick?
+      let {rid, activeRound} = res;
+      await this.gameHelpers.beginRound(rid)
+      if (activeRound.round==1){
+        await this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound, {
+          nextTeam: true,
+          defaultDuration: this.initialTimerDuration
+        });
+      }
+      return activeRound;
+    })
+    .catch( err=>{
+      if (err=="skip") return Promise.resolve(null)
+      return Promise.reject(err)
+    })
   }
 
   // called from game-controls
@@ -476,16 +501,14 @@ export class GamePage implements OnInit {
 
     let game = this.gameDict[this.gameId] as Game;
     let round = this.activeRound;
-    this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, nextTeam);
+    this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam});
   }
 
 
   ngAfterViewInit(){
     this.preloadAudio();
   }
-  
 
-  
   // called AFTER ngOnInit, before page transition begins
   ionViewWillEnter() {
     // const dontWait = HelpComponent.presentModal(this.modalCtrl, {template:'intro', once:false});
@@ -811,7 +834,7 @@ export class GamePage implements OnInit {
       // delay disabling wordAction buttons
       // but, last wordAction() will trigger completePlayerRound()
       // no OVERTIME if the next.remaining==0, but buzz=false in this case
-      return interval(ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS).pipe(
+      let dontWait = interval(ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS).pipe(
         withLatestFrom(this.gamePlayWatch.gamePlay$),
         take(1),
         map( ([_,gamePlay] )=>{
@@ -828,26 +851,26 @@ export class GamePage implements OnInit {
             // OK: score and next.remaining are not being updated correctly from here
             // BUG: playerRoundComplete=true for [nextPlayer]
 
-            console.info("\t>>>> wordAction Complete() before overtime, completePlayerRound() ALREADY fired on last word in overtime ")
+            console.info("\t>>>> wordAction Complete() before OVERTIME, completePlayerRound() ALREADY fired on last word in overtime ")
           }
           return doPlayerRoundComplete;
         })
-      ).toPromise();
-    })
-    .then( (doPlayerRoundComplete)=>{
-      if (doPlayerRoundComplete) {
-        console.log("0: ******* completePlayerRound, from onTimerDone() OVERTIME, clearTimer=false")
-        return this.completePlayerRound(false);
-      }
-      else {
-        // buzz=false/overtime=false silent OR playerRoundDidComplete()
-        /**
-         * NOTE: wordAction[remaining==0 && isTicking==true]
-         *  => onTimerDone()    ( <== here )
-         *  => completePlayerRound()  // do NOT call onTimerDone from completePlayerRound
-         */
-        return
-      }
+      ).toPromise()
+      .then( (doPlayerRoundComplete)=>{
+        if (doPlayerRoundComplete) {
+          console.log("0: ******* completePlayerRound, from onTimerDone() OVERTIME, clearTimer=false")
+          return this.completePlayerRound(false);
+        }
+        else {
+          // buzz=false/overtime=false silent OR playerRoundDidComplete()
+          /**
+           * NOTE: wordAction[remaining==0 && isTicking==true]
+           *  => onTimerDone()    ( <== here )
+           *  => completePlayerRound()  // do NOT call onTimerDone from completePlayerRound
+           */
+          return
+        }
+      })
     })
     .catch( err=>{
       if (err=="skip") return Promise.resolve()
@@ -1107,7 +1130,12 @@ export class GamePage implements OnInit {
     waitFor.push(
       this.db.object<Game>(`/games/${this.gameId}`).update( updateGame )
     )
+
+    console.info("\t>>>> gameRoundWillComplete()");
     Promise.all(waitFor)
+    .then( ()=>{
+      console.info("\t>>>> gameRoundDidComplete()");
+    })
     .then( ()=>{
       if (isGameComplete) return this.completeGame();
     });
