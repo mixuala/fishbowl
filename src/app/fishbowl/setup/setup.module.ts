@@ -5,9 +5,10 @@ import { PipesModule } from '../../pipes/pipes.module';
 import { ComponentsModule } from '../../components/components.module';
 import { IonicModule } from '@ionic/angular';
 
-import { EntryPageRoutingModule } from './entry-routing.module';
+import { SetupPageRoutingModule } from './setup-routing.module';
 
 import { EntryPage } from './entry.page';
+import { GameSettingsPage } from './game-settings.page';
 
 @NgModule({
   imports: [
@@ -17,8 +18,10 @@ import { EntryPage } from './entry.page';
     PipesModule,
     ComponentsModule,
     IonicModule,
-    EntryPageRoutingModule
+    SetupPageRoutingModule
   ],
-  declarations: [EntryPage]
+  declarations: [
+    EntryPage, GameSettingsPage,
+  ]
 })
-export class EntryPageModule {}
+export class SetupPageModule {}

@@ -73,6 +73,9 @@ export class ListPage implements OnInit {
     this.games$ = this.gameHelpers.getGames$();
 
     let invite = this.activatedRoute.snapshot.queryParamMap.get('invite');
+    invite = invite || this.activatedRoute.snapshot.paramMap.get('uid');
+    this.stash.useInviteLayout = !!invite;
+
     if (invite) {
       this.games$ = this.games$.pipe(
         map( (games, i)=>{

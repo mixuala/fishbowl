@@ -10,7 +10,23 @@ const routes: Routes = [
     resolve: {
       // data: {}
     }
-  }
+  },
+  {
+    path: 'settings',
+    loadChildren: () => import('../setup/setup.module').then( m => m.SetupPageModule)
+  },
+  {
+    path: 'player',
+    loadChildren: () => import('../setup/setup.module').then( m => m.SetupPageModule)
+  },
+  {
+    path: 'moderator',
+    loadChildren: () => import('../setup/setup.module').then( m => m.SetupPageModule)
+  },    
+  // {
+  //   path: 'entry',
+  //   loadChildren: () => import('../setup/setup.module').then( m => m.SetupPageModule)
+  // },    
 ];
 
 @NgModule({

@@ -82,25 +82,25 @@ const routes: Routes = [
       },
       {
         path: 'games',
-        children: [
-          {
-            path: '',
-            loadChildren: () => import('../fishbowl/list/list.module').then(m => m.ListPageModule)
-          }
-        ]
-      },    
+        loadChildren: () => import('../fishbowl/list/list.module').then(m => m.ListPageModule)
+      },
       {
-        path: 'list',
-        loadChildren: () => import('../fishbowl/list/list.module').then( m => m.ListPageModule)
-      },    
+        path: 'invite/:uid',
+        loadChildren: () => import('../fishbowl/list/list.module').then(m => m.ListPageModule)
+      },
       {
         path: 'game/:uid',
         loadChildren: () => import('../fishbowl/game/game.module').then( m => m.GamePageModule)
       },
-      {
-        path: 'entry/:uid',
-        loadChildren: () => import('../fishbowl/entry/entry.module').then( m => m.EntryPageModule)
-      },      
+      // {
+      //   path: 'list',
+      //   loadChildren: () => import('../fishbowl/list/list.module').then( m => m.ListPageModule)
+      // },    
+      // {
+      //   // e.g. /app/[entry]/:gameId/entry
+      //   path: 'entry/:uid',
+      //   loadChildren: () => import('../fishbowl/setup/setup.module').then( m => m.SetupPageModule)
+      // },
       {
         path: 'playground',
         children: [
