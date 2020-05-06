@@ -97,9 +97,11 @@ export class ListPage implements OnInit {
     ).subscribe();
   }
 
-  private _moveExpiredGamesToNextWeek(gameList){
-    let now = Date.now();
-    let updates:any[] = gameList.filter(g=>g.gameTime < now)
+  private _moveExpiredGamesToNextWeek(gameList:Game[]){
+    
+    let limit = dayjs().subtract(8,'hour').toDate().getTime()
+    let updates:any[] = gameList.filter(game=>!!game['isDev'])        // use game.isDev attr 
+      .filter(g=>g.gameTime < limit)
       .map( g=>{
           let later = dayjs(g.gameTime).add(7,'day').toDate().getTime()
           return {[g.uid]: { label: g.label, gameTime: later} }
