@@ -3,6 +3,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { RouteReuseStrategy } from '@angular/router';
 
 import { IonicModule, IonicRouteStrategy } from '@ionic/angular';
+import { IonicStorageModule } from '@ionic/storage';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -28,6 +29,7 @@ import { NativeAudio } from '@ionic-native/native-audio/ngx';
   imports: [
     BrowserModule,
     IonicModule.forRoot(),
+    IonicStorageModule.forRoot(),
     AppRoutingModule,
     ComponentsModule,
     ServiceWorkerModule.register('/ngsw-worker.js', { enabled: environment.production }),

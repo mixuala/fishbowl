@@ -292,6 +292,7 @@ export class GameHelpers {
       }
     })
     .then( (lastGamePlay)=>{
+      // update GamePlayState
       return this.initGamePlayState(activeRoundId, Object.keys(activeRound.teams).length, lastGamePlay) 
     }) 
     waitFor.push( prom );
@@ -299,6 +300,7 @@ export class GameHelpers {
 
     if (lastRound) {
       waitFor.push(
+        // update activeRound.teams
         this.copyTeams( activeRoundId, lastRound.teams)
       )
     }
@@ -386,6 +388,7 @@ export class GameHelpers {
     Promise<void>
   {
     let {uid, gamePlay$} = watch;
+    // rewrite without promise
     return new Promise( (resolve, reject)=>{
       gamePlay$.pipe(
         take(1),
@@ -510,7 +513,10 @@ export class GameHelpers {
     return watch.gameLog$.pipe( 
       first(), 
       map( (gameLog)=>{
-        if (!gameLog) return score;
+        if (!gameLog) {
+          console.log( "scoreRound$, gameLog is empty ")
+          return score;
+        }
         // move this section to FishbowlHelpers.tabulateScore(gameLog, {playerRound:{}, mergeKey: string})
 
         // update score, OR just summarize GamePlayLog

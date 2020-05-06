@@ -157,15 +157,18 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   }
 
   public stop(units:dayjs.UnitType='second'):number {
+    let time = this.getTimeRemaining(units);
+    if (this.stopAtZero && time<=0) {
+      return null; // too late, do NOT pause, 
+      // let timer buzz as usual
+
+      // // don't pause, just finish
+      // this.buzzTimer();
+    }
     this.complete$.next(true);
     this.pauseTimer$.next(true);
     this.key = null;
-    let time = this.getTimeRemaining(units);
-    if (time==0) {
-      // don't pause, just finish
-      this.buzzTimer();
-    }
-    return (this.stopAtZero) ? Math.max(time,0) : time;
+    return time;
   }
 
   public buzzTimer(reset=false) {
@@ -232,7 +235,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
         }
       },
       (error) => console.error(error),
-      () => console.log('CountdownTimer subscription complete at', this._endingTime.toDate())
+      // () => console.log('CountdownTimer subscription complete at', this._endingTime)
     );
   }
 
