@@ -8,7 +8,7 @@
       <ion-icon src="assets/icon/fish.svg"></ion-icon>
       <!-- <ion-label class="tab-title">Games</ion-label> -->
     </ion-tab-button>
-    <ion-tab-button tab="game" [disabled]="!stash.gameId">
+    <ion-tab-button tab="game/{{stash.gameId}}" [disabled]="!stash.gameId">
       <!-- <ion-icon name="game-controller"></ion-icon> -->
       <ion-icon src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon>
       <!-- <ion-label class="tab-title">Game</ion-label> -->
