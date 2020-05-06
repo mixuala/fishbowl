@@ -20,6 +20,8 @@
 
   --countdown-value-color: #CCC;
   --countdown-unit-color: #CCC;
+  --countdown-value-font-size: 1em;
+  --countdown-value-font-weight: unset;
 
   --countdown-time-flex-direction: row-reverse;
 
@@ -57,7 +59,8 @@
       display: block;
       color: var(--countdown-value-color);
       text-align: center;
-      font-size: 1em;
+      font-size: var(--countdown-value-font-size);
+      font-weight: var(--countdown-value-font-weight);
       line-height: 1em;
       min-height: 1em;
 
