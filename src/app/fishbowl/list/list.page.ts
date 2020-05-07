@@ -138,10 +138,6 @@ export class ListPage implements OnInit {
           gamesPlayed: 0,
           isAnonymous: u.isAnonymous,
         }
-        // DEV Hack
-        if (u.email=="sunday@test.com") {
-          p['isAdmin'] = true;
-        }
         return p;
       })
     );
@@ -174,33 +170,4 @@ export class ListPage implements OnInit {
     }
   }
 
-
-  // admin
-  create3Games(){
-    [
-      {label:"Fish Taco Tuesday",day:2},
-      {label:"Saturday Night Special",day:6},
-      {label:"Maybe Sunday",day:7}
-    ].forEach( o=>{
-      this.createGame(o.label, o.day)
-    });
-  }
-
-  createGame(label:string="Super Sunday", day:number=7){
-    let createGame = true;
-    if (createGame){
-      let date = FishbowlHelpers.setGameDateTime(day,19).toDate();
-      let cloudGame:Game = {
-        uid: this.db.createPushId(),
-        label,
-        gameTime: date.getTime(),
-        timezoneOffset: date.getTimezoneOffset()
-      }
-      this.db.list<Game>('/games').update(cloudGame.uid, cloudGame)
-      .then( v=>{
-        console.log("ngOnInit list<Games>", v )
-      });
-    }
-    else console.warn( "createGame: set createGame=true")
-  }
 }
