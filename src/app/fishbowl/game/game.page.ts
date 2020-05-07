@@ -330,7 +330,7 @@ export class GamePage implements OnInit {
           teamName: null,
         }
         this.player$.next(p);
-        console.log("  >>> loadPlayer$(): this.player$.next()")
+        this.setGamePlayer();
         return this.player$.asObservable();
       }),
       tap( p=>{
@@ -643,11 +643,14 @@ export class GamePage implements OnInit {
   setGamePlayer() {
     // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
     // merge {game.displayName }
+
     let _getNextRound = (game:Game, rounds: GamePlayRound[]): GamePlayRound => {
+      if (!game.rounds) return null;
       let sortedRids = Object.entries(game.rounds).sort( (a,b)=>a[1]-b[1] ).map( v=>v[0]);
       let i = Math.max(0, sortedRids.findIndex( v=>v==game.activeRound ) )
       return rounds && rounds[i];
     }
+
     zip(
       this.gameWatch.game$,
       this.gameWatch.hasManyRounds$
