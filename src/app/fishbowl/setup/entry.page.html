@@ -26,7 +26,6 @@
             </ion-card-header>
               
             <ion-card-content>
-            <ion-list class="ion-no-padding">
 
               <div class="game-time ion-text-center" *ngIf="stash.activeGame==false">
                 <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
@@ -36,28 +35,9 @@
                 <ion-item-divider></ion-item-divider>
               </div>
 
-            </ion-list>
-
 
 
             <form [formGroup]="entryForm" (ngSubmit)="doEntry()">
-
-
-              <div formGroupName="game" *ngIf="game?.moderators && game.moderators[player?.uid]">
-                <ion-item class="input-item">
-                  <ion-label position="stacked">video chat room</ion-label>
-                  <ion-textarea type="url" inputmode="url" auto-grow="true"
-                  placeholder="Zoom/Meet link" formControlName="chatRoom" clearInput></ion-textarea>
-                </ion-item>
-                <div class="error-container">
-                  <ng-container *ngFor="let validation of validation_messages.chatRoom">
-                    <div class="error-message" *ngIf="gameForm.get('chatRoom').hasError(validation.type) && (gameForm.get('chatRoom').dirty || gameForm.get('chatRoom').touched)">
-                      <ion-icon name="information-circle-outline"></ion-icon>
-                      <span>{{ validation.message }}</span>
-                    </div>
-                  </ng-container>
-                </div>
-              </div>
 
             
               <ion-list class="inputs-list" lines="full">

@@ -57,14 +57,11 @@ const routes: Routes = [
     path: 'showcase',
     loadChildren: () => import('./showcase/showcase.module').then(m => m.ShowcasePageModule)
   },
-  {
-    path: '**',
-    redirectTo: 'page-not-found'
-  },
   // {
-  //   path: 'entry',
-  //   loadChildren: () => import('./fishbowl/entry/entry.module').then( m => m.EntryPageModule)
-  // }
+  //   path: '**',
+  //   redirectTo: 'page-not-found'
+  // },
+
 ];
 @NgModule({
   imports: [RouterModule.forRoot(routes)],

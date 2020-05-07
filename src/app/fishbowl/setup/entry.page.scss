@@ -31,6 +31,15 @@ app-countdown-timer {
   --countdown-unit-color: var(--ion-color-light);
 }
 
+
+.input-item {
+  ion-label {
+    color: var(--ion-color-tertiary)
+  }
+}
+
+
+
 .game-time {
   padding: 20px 0;
 }

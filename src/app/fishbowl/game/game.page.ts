@@ -1211,7 +1211,7 @@ export class GamePage implements OnInit {
 
   doSettings() {
     // let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
-    this.router.navigate(['/app/entry', this.game.uid])
+    this.router.navigate(['/app/game', this.game.uid, 'settings'])
   }
 
   check() {

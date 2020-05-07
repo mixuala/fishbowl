@@ -25,13 +25,14 @@ declare let window;
 @Component({
   selector: 'app-game-settings',
   templateUrl: './game-settings.page.html',
-  styleUrls: ['./entry.page.scss'],
+  styleUrls: ['./game-settings.page.scss'],
 })
 export class GameSettingsPage implements OnInit {
   
   public stash:any = {
     listen: true,
   };
+  public inviteLink: string;
 
   public listen$ : Subject<boolean> = new Subject<boolean>();
   public game$:Observable<Game>;
@@ -43,22 +44,25 @@ export class GameSettingsPage implements OnInit {
   public gameForm: FormGroup;
   validation_messages = {
     'name':[
-      { type: 'required', message: 'Please enter your name.' },
+      { type: 'required', message: 'Please enter a screen name.' },
       { type: 'pattern', message: 'Your word must be letters and numbers only.' }
     ],
-    'word': [
-      { type: 'required', message: 'Please enter a Person, Place or Thing.' },
+    'label':[
+      { type: 'required', message: 'Please enter the title for this game.' },
       { type: 'pattern', message: 'Your word must be letters and numbers only.' }
+    ],
+    'startTime':[
+      { type: 'required', message: 'Please enter a the start time for this game.' },
+    ],
+    'time':[
+      { type: 'required', message: 'Please enter a the start time for this game.' },
     ],
     'chatRoom': [
-      { type: 'required', message: 'Please enter the link for a video chat room' },
+      { type: 'required', message: 'Please enter the video meeting invitation for this game.' },
       { type: 'pattern', message: 'Must be a valid `https` web link' }
     ],
   };  
 
-
-  @ViewChild( 'playTimer', {static:false} ) playTimer:IonButton; 
-  
   
   constructor(
     private activatedRoute: ActivatedRoute,
@@ -79,6 +83,10 @@ export class GameSettingsPage implements OnInit {
     ]);
 
     this.gameForm = new FormGroup({
+      'label': new FormControl('', validEntry),
+      'startTime': new FormControl('', Validators.compose([
+        Validators.required,
+      ])),  
       'chatRoom': new FormControl('', Validators.compose([
         // Validators.required,
         Validators.pattern(urlRegex),
@@ -86,13 +94,7 @@ export class GameSettingsPage implements OnInit {
     })
 
     this.entryForm = new FormGroup({
-      'name': new FormControl('', Validators.compose([
-        Validators.required,
-        Validators.pattern('^[a-zA-Z0-9_.+-\\s]+$')
-      ])),
-      'word_1': new FormControl('', validEntry),
-      'word_2': new FormControl('', validEntry),
-      'word_3': new FormControl('', validEntry),   
+      'name': new FormControl('', validEntry),
       'game': this.gameForm,
     });
 
@@ -128,13 +130,16 @@ export class GameSettingsPage implements OnInit {
       }),
       tap( (game)=>{
         let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
+
+        this.inviteLink = this.getInvite(gameId);
+
         let now = new Date();
         this.gameRef = this.db.object(`/games/${gameId}`);  
         this.game$ = this.gameRef.valueChanges().pipe( 
           tap( o=>{
             this.game = o;
             this.stash.activeGame = o.gameTime < Date.now();
-            this.loadEntries();
+            this.loadData();
           })
         )
 
@@ -172,22 +177,26 @@ export class GameSettingsPage implements OnInit {
     );
   }
 
-  loadEntries(){
-    let entry = {
-      name: "",
-      word_1: "",
-      word_2: "",
-      word_3: "",
+  loadData(){
+    let game = this.game;
+    let gameData = Helpful.pick(this.game, 'label', 'gameTime', 'chatRoom') as Partial<Game>;
+    let name = game.players && game.players[this.player.uid] || this.player.displayName || "";
+    let data = {
+      name,
+      'game': {
+        label: gameData.label, 
+        startTime: gameData.gameTime,
+        chatRoom: gameData.chatRoom,
+      }
     }
-    let words = this.game.entries && this.game.entries[this.player.uid] || [];
-    words.forEach( (v,i)=>{
-      entry[`word_${i+1}`] = v;
-    });
-
-    let name = this.game.players && this.game.players[this.player.uid] || this.player.displayName || "";
-    entry['name'] = name as string;
-    entry['game'] = {chatRoom: this.game.chatRoom || ""};
-    this.entryForm.setValue(entry)
+    this.stash.pickDatetime = {
+      format: "DDD, D-MMM @ HH:mm",
+      min: dayjs().startOf('hour').format('YYYY-MM-DD'),
+      max: dayjs().add(14, 'day').endOf('day').format('YYYY-MM-DD'),
+      value: new Date(gameData.gameTime).toISOString(),
+    }
+    console.log( this.stash.pickDatetime)
+    this.entryForm.setValue(  data  )
   }
 
   ionViewDidEnter() {
@@ -207,20 +216,35 @@ export class GameSettingsPage implements OnInit {
     loading.present();
     return loading;
   }
+
+  getInvite(gameId:string){
+    gameId = gameId || this.activatedRoute.snapshot.paramMap.get('uid')
+    let baseurl = 'https://fishbowl-the-game.web.app';
+    return `${baseurl}/app/invite/${gameId}`
+  }
+
+  gameTimeChanged(ev:CustomEvent){
+    console.log(ev)
+    let datetime = ev.detail.value;
+    let gameTime = dayjs(datetime).toDate().getTime();
+    let startTime = new Date(datetime).toISOString();
+    this.gameForm.patchValue( { startTime:gameTime });
+    console.log("gameTime=", startTime, gameTime);
+  }
+
+
   
-  doEntry(){
+  doSubmit(){
     let formData = this.entryForm.value;
     let u = this.player;
+
     let players = this.game.players || {};
     players[u.uid]=formData.name;
     let playerCount = Object.keys(players).length;
-    let entries = this.game.entries || {};
-    entries[u.uid] = Object.entries(formData).filter( ([k,v])=>k.startsWith('word_')).map( ([k,v])=>v as string);
-    let update = {players, playerCount, entries} as Game;
-    if (formData.game){
-      let {chatRoom} = formData.game;
-      if (chatRoom) update.chatRoom = chatRoom;
-    }
+    let {label, startTime, chatRoom} = formData.game;
+    
+    
+    let update = {players, playerCount, label, gameTime:startTime, chatRoom} as Partial<Game>;
     this.gameRef.update( update ).then(
       res=>{
         let gameId = this.activatedRoute.snapshot.paramMap.get('uid')

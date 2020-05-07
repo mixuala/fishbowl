@@ -24,18 +24,73 @@
                 Game Settings
               </ion-card-subtitle>
             </ion-card-header>
-              
+            
             <ion-card-content>
 
+              <ion-chip class="copy-paste-url ion-margin-vertical">
+                <ion-label>
+                  <ion-note color="dark"><strong>Invite your friends</strong></ion-note>
+                  <br />
+                  <ion-note>Share this link with your friends</ion-note>
+                  <pre class="url-wrap force-select-all">
+                    {{inviteLink}}
+                  </pre>
+                </ion-label>
+              </ion-chip>            
 
-            <form [formGroup]="entryForm" (ngSubmit)="doEntry()">
+
+            <form [formGroup]="entryForm" (ngSubmit)="doSubmit()">
 
 
               <div formGroupName="game" *ngIf="game?.moderators && game.moderators[player?.uid]">
+
                 <ion-item class="input-item">
-                  <ion-label position="stacked">video chat room</ion-label>
-                  <ion-textarea type="url" inputmode="url" auto-grow="true"
-                  placeholder="Zoom/Meet link" formControlName="chatRoom" clearInput></ion-textarea>
+                  <ion-label position="stacked">Game Title</ion-label>
+                  <ion-input type="text" placeholder="A super-fun title for this game" formControlName="label" clearInput autocapitalize="word" inputmode="text"></ion-input>
+                </ion-item>
+                <div class="error-container">
+                  <ng-container *ngFor="let validation of validation_messages.label">
+                    <div class="error-message" *ngIf="gameForm.get('label').hasError(validation.type) && (gameForm.get('label').dirty || gameForm.get('label').touched)">
+                      <ion-icon name="information-circle-outline"></ion-icon>
+                      <span>{{ validation.message }}</span>
+                    </div>
+                  </ng-container>
+                </div>
+
+
+                <ion-item class="input-item">
+                  <ion-label position="stacked">Start Time</ion-label>
+                  <!-- <ion-input type="text" placeholder="" formControlName="startTime" clearInput autocapitalize="word" inputmode="text"></ion-input> -->
+                  <ion-datetime [displayFormat]="stash.pickDatetime.format" [min]="stash.pickDatetime.min" [max]="stash.pickDatetime.max" minuteValues="0,15,30,45"
+                  [value]="stash.pickDatetime.value" (ionChange)="gameTimeChanged($event)"
+                  ></ion-datetime>
+                </ion-item>
+                <div class="error-container">
+                  <ng-container *ngFor="let validation of validation_messages.startTime">
+                    <div class="error-message" *ngIf="gameForm.get('startTime').hasError(validation.type) && (gameForm.get('startTime').dirty || gameForm.get('startTime').touched)">
+                      <ion-icon name="information-circle-outline"></ion-icon>
+                      <span>{{ validation.message }}</span>
+                    </div>
+                  </ng-container>
+                </div>
+                <!-- <ion-item class="input-item" color="medium">
+                  <ion-label position="stacked">Game Time</ion-label>
+                  <ion-input type="text" readonly="true" placeholder="" formControlName="startTime" clearInput autocapitalize="word" inputmode="text"></ion-input>
+                </ion-item>
+                <div class="error-container">
+                  <ng-container *ngFor="let validation of validation_messages.startTime">
+                    <div class="error-message" *ngIf="gameForm.get('startTime').hasError(validation.type) && (gameForm.get('startTime').dirty || gameForm.get('startTime').touched)">
+                      <ion-icon name="information-circle-outline"></ion-icon>
+                      <span>{{ validation.message }}</span>
+                    </div>
+                  </ng-container>
+                </div> -->
+
+
+                <ion-item class="input-item">
+                  <ion-label position="stacked">Video Link</ion-label>
+                  <ion-textarea class="url-wrap" type="url" inputmode="url" rows="2" auto-grow="true"
+                  placeholder="The Zoom/Google Meet link all players will join" formControlName="chatRoom" clearInput></ion-textarea>
                 </ion-item>
                 <div class="error-container">
                   <ng-container *ngFor="let validation of validation_messages.chatRoom">
@@ -47,11 +102,13 @@
                 </div>
               </div>
 
+
+
             
               <ion-list class="inputs-list" lines="full">
                 <ion-item class="input-item">
-                  <ion-label position="stacked">player name</ion-label>
-                  <ion-input type="text" placeholder="name" formControlName="name" clearInput autocapitalize="word" inputmode="text"></ion-input>
+                  <ion-label position="stacked">Game Master Name</ion-label>
+                  <ion-input type="text" placeholder="An all-powerful screen name for all players will call you." formControlName="name" clearInput autocapitalize="word" inputmode="text"></ion-input>
                 </ion-item>
                 <div class="error-container">
                   <ng-container *ngFor="let validation of validation_messages.name">
@@ -62,45 +119,7 @@
                   </ng-container>
                 </div>
 
-                <ion-item-divider></ion-item-divider>
-
-                <ion-item class="input-item">
-                  <ion-label position="stacked">Provide 3 nouns</ion-label>
-                  <ion-input type="text" placeholder="a Person, Place, or Thing" formControlName="word_1" clearInput autocapitalize="word" inputmode="text"></ion-input>
-                </ion-item>
-                <div class="error-container">
-                  <ng-container *ngFor="let validation of validation_messages.word">
-                    <div class="error-message" *ngIf="entryForm.get('word_1').hasError(validation.type) && (entryForm.get('word_1').dirty || entryForm.get('word_1').touched)">
-                      <ion-icon name="information-circle-outline"></ion-icon>
-                      <span>{{ validation.message }}</span>
-                    </div>
-                  </ng-container>
-                </div>
-
-                <ion-item class="input-item">
-                  <ion-input type="text" placeholder="a Person, Place, or Thing" formControlName="word_2" clearInput autocapitalize="word" inputmode="text"></ion-input>
-                </ion-item>
-                <div class="error-container">
-                  <ng-container *ngFor="let validation of validation_messages.word">
-                    <div class="error-message" *ngIf="entryForm.get('word_2').hasError(validation.type) && (entryForm.get('word_2').dirty || entryForm.get('word_2').touched)">
-                      <ion-icon name="information-circle-outline"></ion-icon>
-                      <span>{{ validation.message }}</span>
-                    </div>
-                  </ng-container>
-                </div>
-
-                <ion-item class="input-item">
-                  <ion-input type="text" placeholder="a Person, Place, or Thing" formControlName="word_3" clearInput autocapitalize="word" inputmode="text"></ion-input>
-                </ion-item>
-                <div class="error-container">
-                  <ng-container *ngFor="let validation of validation_messages.word">
-                    <div class="error-message" *ngIf="entryForm.get('word_3').hasError(validation.type) && (entryForm.get('word_3').dirty || entryForm.get('word_3').touched)">
-                      <ion-icon name="information-circle-outline"></ion-icon>
-                      <span>{{ validation.message }}</span>
-                    </div>
-                  </ng-container>
-                </div>
-          
+                <ion-item-divider></ion-item-divider>          
               </ion-list>
           
               <ion-button class="login-btn" type="submit" expand="block" [disabled]="!entryForm.valid">Submit</ion-button>
