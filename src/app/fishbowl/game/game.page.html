@@ -115,7 +115,7 @@
                   <ion-note>countdown to game time</ion-note>
                 </ion-item-divider>
                 <div class="game-time ion-text-center">
-                  <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}"></app-countdown-timer>
+                  <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"></app-countdown-timer>
                   <ion-text  color="dark">
                     Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                   </ion-text>

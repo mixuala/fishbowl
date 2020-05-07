@@ -244,7 +244,19 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
       let [k, change] = en;
       switch(k){
         case 'end': {
-          this.startCountdown(this._endingTime);
+          if (dayjs(this._endingTime) < dayjs()) {
+            if (this.stopAtZero){
+              this._daysLeft = 0;
+              this._hoursLeft = 0;
+              this._minutesLeft = 0;
+              this._secondsLeft = 0;
+              // dont start expired timers
+              return;
+            }
+          }
+          else {
+            this.startCountdown(this._endingTime);
+          }
           break;
         }
         case 'duration':

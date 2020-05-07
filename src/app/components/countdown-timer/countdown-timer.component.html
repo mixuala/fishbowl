@@ -18,7 +18,7 @@
     </div>
   </ion-col>
   <ion-col class="time" *ngIf="_endingUnit === 'second'">
-    <ng-container *ngIf="stopAtZero && _secondsLeft==0; else tick">
+    <ng-container *ngIf="stopAtZero && _initialUnit === 'second' && _secondsLeft==0; else tick">
       <div class="inner-time">
         <span class="time-value"><ng-content></ng-content></span>
       </div>
