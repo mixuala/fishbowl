@@ -48,6 +48,7 @@ export class GamePage implements OnInit {
   public activeRound: GamePlayRound;
   public gamePlay$: Observable<GamePlayState>;
   public scoreboard:Scoreboard;
+  
 
   public roundDesc = {
     1: "give clues but don\'t say the word (\"Taboo\") ",
@@ -1210,8 +1211,11 @@ export class GamePage implements OnInit {
   }
 
   doSettings() {
-    // let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
-    this.router.navigate(['/app/game', this.game.uid, 'settings'])
+    let gameId = this.game.uid || this.activatedRoute.snapshot.paramMap.get('uid');
+    let isModerator = this.game.moderators[this.playerId] == true;
+    console.warn("TODO: have a separate button for moderator game settings")
+    let target = isModerator ? "settings" : "player";
+    this.router.navigate( ['/app/game', gameId, target])
   }
 
   check() {

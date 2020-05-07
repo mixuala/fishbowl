@@ -190,7 +190,10 @@ export class GameHelpers {
   }
 
   getGamePlay(game:Game, gameDict:GameDict):GamePlayWatch{
-    let gameId = game.uid || gameDict.activeRound.gameId;
+    let gameId = game.uid;
+    if (!gameId) {
+      gameId = gameDict.activeRound ? gameDict.activeRound.gameId : Object.keys(gameDict)[0];
+    }
     let rid = game.activeRound || gameId;
     let gamePlay$ = of(rid).pipe(
       switchMap( rid=>{

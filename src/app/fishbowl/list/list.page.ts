@@ -175,7 +175,6 @@ export class ListPage implements OnInit {
   }
 
 
-
   // admin
   create3Games(){
     [

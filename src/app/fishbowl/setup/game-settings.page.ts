@@ -19,6 +19,7 @@ import {
   Game, GameWatch, GameDict, RoundEnum,
   PlayerListByUids, TeamRosters,  
 } from '../types';
+import { takeUntil } from 'angular-pipes/utils/utils';
 
 declare let window;
 
@@ -38,6 +39,7 @@ export class GameSettingsPage implements OnInit {
   public game$:Observable<Game>;
   public gameRef:AngularFireObject<Game>;
   private game:Game;
+  private gameId:string;
   public player: Player;
 
   public entryForm: FormGroup;
@@ -128,28 +130,32 @@ export class GameSettingsPage implements OnInit {
       tap( (p)=>{ 
         this.player = p;
       }),
-      tap( (game)=>{
+      switchMap( ()=>{
         let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
-
-        this.inviteLink = this.getInvite(gameId);
-
-        let now = new Date();
-        this.gameRef = this.db.object(`/games/${gameId}`);  
-        this.game$ = this.gameRef.valueChanges().pipe( 
-          tap( o=>{
-            this.game = o;
-            this.stash.activeGame = o.gameTime < Date.now();
-            this.loadData();
-          })
-        )
-
+        if (gameId=="new"){
+          this.createNewGame();
+          this.gameId = this.db.createPushId();
+          return of({});
+        }
+        else {
+          this.gameId = gameId;
+          this.inviteLink = this.getInvite(gameId);
+          this.gameRef = this.db.object(`/games/${this.gameId}`);  
+          this.game$ = this.gameRef.valueChanges().pipe(
+            // takeUntil($done)
+            tap( o=>{
+              if (!o) return
+              this.loadData(o);
+            })
+          )
+          return this.game$;      
+        }
       }),
       filter( _=>this.stash.listen),
       tap( ()=>{
         loading && loading.dismiss();
       }),
     ).subscribe();
-
   }
 
 
@@ -159,11 +165,6 @@ export class GameSettingsPage implements OnInit {
         if (!!u) return of(u);
 
         return from(this.authService.doAnonymousSignIn());
-
-        // email/passwd signIn with DEV user
-        console.log( `DEV: auto-login to default app user.`);
-        return this.authService.doLogin({email:'test@test.com', password:'hellow'})
-
       }),
       map( u=>{
         let p:Player = {
@@ -177,11 +178,11 @@ export class GameSettingsPage implements OnInit {
     );
   }
 
-  loadData(){
-    let game = this.game;
-    let gameData = Helpful.pick(this.game, 'label', 'gameTime', 'chatRoom') as Partial<Game>;
+  loadData(game:Partial<Game>={}){
+
+    let gameData = Helpful.pick(game, 'label', 'gameTime', 'chatRoom') as Partial<Game>;
     let name = game.players && game.players[this.player.uid] || this.player.displayName || "";
-    let data = {
+    let formData = {
       name,
       'game': {
         label: gameData.label, 
@@ -195,8 +196,9 @@ export class GameSettingsPage implements OnInit {
       max: dayjs().add(14, 'day').endOf('day').format('YYYY-MM-DD'),
       value: new Date(gameData.gameTime).toISOString(),
     }
-    console.log( this.stash.pickDatetime)
-    this.entryForm.setValue(  data  )
+    // console.log( "loadData=", game, formData)
+    this.entryForm.setValue(  formData  )
+    this.game = game as Game;
   }
 
   ionViewDidEnter() {
@@ -217,8 +219,15 @@ export class GameSettingsPage implements OnInit {
     return loading;
   }
 
+  isAuthorized() {
+    return this.game && this.game.moderators && this.game.moderators[this.player.uid] == true
+  }
+
+
   getInvite(gameId:string){
     gameId = gameId || this.activatedRoute.snapshot.paramMap.get('uid')
+    if (gameId == "new") return;
+
     let baseurl = 'https://fishbowl-the-game.web.app';
     return `${baseurl}/app/invite/${gameId}`
   }
@@ -232,6 +241,19 @@ export class GameSettingsPage implements OnInit {
     console.log("gameTime=", startTime, gameTime);
   }
 
+  createNewGame() {
+    // create skeleton for new Game
+    let gameDefaults = {
+      label: "",
+      gameTime: dayjs().add(1,'hour').startOf('hour').toDate().getTime(),
+      chatRoom: "",
+      moderators: {
+        [this.player.uid]: true
+      }
+    }
+    this.inviteLink = null;
+    this.loadData(gameDefaults)
+  }
 
   
   doSubmit(){
@@ -242,13 +264,20 @@ export class GameSettingsPage implements OnInit {
     players[u.uid]=formData.name;
     let playerCount = Object.keys(players).length;
     let {label, startTime, chatRoom} = formData.game;
+    let timezoneOffset = new Date(startTime).getTimezoneOffset();
     
+    let update = {players, playerCount, label, gameTime:startTime,  timezoneOffset, chatRoom} as Partial<Game>;
+
+    let gameId = this.activatedRoute.snapshot.paramMap.get('uid');
+    if (gameId=="new"){
+      update.moderators = { [u.uid]: true };
+      // show toast
+    }
     
-    let update = {players, playerCount, label, gameTime:startTime, chatRoom} as Partial<Game>;
+    this.gameRef = this.db.object(`/games/${this.gameId}`);
     this.gameRef.update( update ).then(
       res=>{
-        let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
-        this.router.navigate(['/app/game', gameId]);
+        this.router.navigate(['/app/game/', this.gameId]);
       }
     );
   }

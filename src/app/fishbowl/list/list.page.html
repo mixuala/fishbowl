@@ -71,5 +71,11 @@
         </ion-col>
     </ion-row>
   </ion-grid>
-
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button type="button" show="true" color="success" 
+      routerDirection="forward" [routerLink]="['/app/game/new/settings']" 
+    >
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
 </ion-content>
