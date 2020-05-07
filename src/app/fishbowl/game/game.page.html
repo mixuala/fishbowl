@@ -15,7 +15,7 @@
   <ion-grid no-padding class="team-round" [class.spotlight]="spotlight?.teamName && player?.teamName==spotlight.teamName">
     <ion-row>
         <ion-col size="12" size-sm="8" offset-sm="2" offset-xl="3" size-xl="6">
-          <ion-card  *ngIf="game?.moderators && game.moderators[playerId]">
+          <ion-card  *ngIf="isModerator()">
             <ion-card-header color="dark">      
               <ion-card-title>
                 Game Controls for <ion-text color="tertiary">
@@ -24,13 +24,14 @@
               </ion-card-title>
             </ion-card-header>
             <ion-card-content>
-              <ion-list class="game-controls" *ngIf="stash.activeGame">
+              <div *ngIf="stash.activeGame; else preGameAdmin">
+              <ion-list class="game-controls wide">
                 <ion-item>
                   <ion-button size="small" color="primary" 
                   [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="doCheckInClick()">Check-In</ion-button>
                   <ion-button size="small" color="primary" 
                   [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="loadRoundClick()">Load Rounds</ion-button>
-                  <ion-button size="small" color="secondary" 
+                  <ion-button size="small" color="success" slot="end"
                   [disabled]="!game.rounds || !!game.activeRound" (click)="beginGameRoundClick()">Begin Round</ion-button>
                 </ion-item>
                 <ion-item>
@@ -39,7 +40,7 @@
                   <ion-button size="small" color="tertiary" slot="end"
                   [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer(false)">Skip Player</ion-button>
                 </ion-item>
-                <ion-item lines="none">
+                <ion-item>
                   <!-- <ion-label position="stacked"></ion-label> -->
                   <ion-note class="range-label">Timer</ion-note>
                   <ion-badge class="range-value" color="secondary">{{initialTimerDuration}}s</ion-badge>
@@ -54,7 +55,8 @@
                     </ion-range>
                 </ion-item>
               </ion-list>
-              <ion-list *ngIf="game.checkIn">
+
+              <ion-list class="game-check-in wide" *ngIf="game.checkIn">
                 <ion-list-header>
                   Player Check-In
                 </ion-list-header>
@@ -67,11 +69,34 @@
                   (click)="hidePlayerClick(p.key)">hide</ion-button>
                 </ion-item>
               </ion-list>
-              <ion-item>
-                <ion-button color="danger" (click)="resetGameClick($event)">reset Game</ion-button>
-              </ion-item>
+
+              <ion-list class="game-admin ion-padding-top wide">
+                <ion-item>
+                  <ion-button size="small" color="success" (click)="doSettings()">
+                    <ion-icon name="settings" slot="start"></ion-icon>
+                    Settings
+                  </ion-button>
+                  <ion-button  size="small" color="danger" (click)="resetGameClick($event)"  slot="end">
+                    <ion-icon name="warning" slot="start"></ion-icon>
+                    Reset Game
+                  </ion-button>
+                </ion-item>
+              </ion-list>
+            </div>
+
+            <ng-template #preGameAdmin>
+              <ion-list class="ion-padding-top">
+                  <ion-button color="success" expand="block" (click)="doSettings()">
+                    <ion-icon name="settings" slot="start"></ion-icon>
+                    Game Settings
+                  </ion-button>
+              </ion-list>
+            </ng-template>
+
+
             </ion-card-content>
           </ion-card>
+
 
           <ion-card  *ngIf="game">
             <ion-card-header color="tertiary">      
@@ -84,7 +109,6 @@
             </ion-card-header>
               
             <ion-card-content [ngClass]="{'on-the-spot': stash.onTheSpot}">
-            <ion-list class="ion-no-padding">
 
               <div class="game-countdown"  *ngIf="!stash.activeGame">
                 <ion-item-divider class="ion-margin-top">
@@ -97,6 +121,11 @@
                   </ion-text>
                 </div>
               </div>
+
+            <ion-list class="ion-no-padding">
+
+              <div  *ngIf="stash.activeGame">
+
 
               <div class="user-controls">
                 <ion-item-divider class="ion-margin-top">
@@ -136,7 +165,6 @@
                 </div>
               </div>                  
             
-              <div  *ngIf="stash.activeGame">
               <div class="game-summary">
                 <ion-item-divider class="ion-margin-top">
                   <ion-note>game summary</ion-note>

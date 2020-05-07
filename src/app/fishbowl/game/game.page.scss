@@ -31,6 +31,13 @@ app-countdown-timer {
   --countdown-unit-color: var(--ion-color-light);
 }
 
+ion-list.wide {
+  --inner-padding-end: 0;
+  ion-item {
+    --inner-padding-end: 0;
+  }
+}
+
 
 .team-round.spotlight {
   background-color: rgba(var(--ion-color-success-rgb), 0.5);

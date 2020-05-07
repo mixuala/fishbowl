@@ -340,7 +340,9 @@ export class GamePage implements OnInit {
     );
   }
 
-
+  isModerator() {
+    return this.game && this.game.moderators && this.game.moderators[this.player.uid] == true
+  }
 
   /**
    * GameMaster components

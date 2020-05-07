@@ -219,7 +219,7 @@ export class GameSettingsPage implements OnInit {
     return loading;
   }
 
-  isAuthorized() {
+  isModerator() {
     return this.game && this.game.moderators && this.game.moderators[this.player.uid] == true
   }
 

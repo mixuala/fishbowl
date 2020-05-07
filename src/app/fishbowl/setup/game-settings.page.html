@@ -42,7 +42,7 @@
             <form [formGroup]="entryForm" (ngSubmit)="doSubmit()">
 
 
-              <div formGroupName="game" *ngIf="isAuthorized()">
+              <div formGroupName="game" *ngIf="isModerator()">
 
                 <ion-item class="input-item">
                   <ion-label position="stacked">Game Title</ion-label>
