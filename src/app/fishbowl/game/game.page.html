@@ -56,25 +56,31 @@
                 </ion-item>
               </ion-list>
 
-              <ion-list class="game-check-in wide" *ngIf="game.checkIn">
+              <ion-list class="game-check-in wide" *ngIf="game.checkIn && !game.activeRound">
                 <ion-list-header>
-                  Player Check-In
-                </ion-list-header>
-                <ion-item *ngFor="let p of game.players | keyvalue">
-                  <ion-icon slot="start" 
-                  [color]="checkInAction(p.key, game)=='~done' && 'success'"
-                  [name]="checkInAction(p.key, game)=='~done' ? 'checkbox' : 'close-circle-outline'"></ion-icon>
-                  <ion-label [color]="checkInAction(p.key, game)=='~show' && 'medium'" >{{p.value}}</ion-label>
-                  <ion-button slot="end" *ngIf="checkInAction(p.key, game)!='~done'"
-                  [color]="checkInAction(p.key, game)=='~hide' ? 'danger' : 'medium'" 
-                  (click)="hidePlayerClick(p.key, checkInAction(p.key, game))">
-                    {{game.checkIn[p.key]===false ? 'un-hide' : 'hide'}}
+                  <ion-label>Player Check-In</ion-label>
+                  <ion-button fill="clear"  (click)="stash.hideCheckInDetails = !stash.hideCheckInDetails">
+                    <ion-icon [name]="stash.hideCheckInDetails ? 'chevron-down' : 'chevron-up'"></ion-icon>
                   </ion-button>
-                </ion-item>
+                </ion-list-header>
+                <ng-container *ngIf="!stash.hideCheckInDetails">
+                  <ion-item *ngFor="let p of game.players | keyvalue">
+                    <ion-icon slot="start" 
+                    [color]="checkInAction(p.key, game)=='~done' && 'success'"
+                    [name]="checkInAction(p.key, game)=='~done' ? 'checkbox' : 'close-circle-outline'"></ion-icon>
+                    <ion-label [color]="checkInAction(p.key, game)=='~show' && 'medium'" >{{p.value}}</ion-label>
+                    <ion-button slot="end" *ngIf="checkInAction(p.key, game)!='~done'"
+                    [color]="checkInAction(p.key, game)=='~hide' ? 'danger' : 'medium'" 
+                    [disabled]="game.activeRound"
+                    (click)="hidePlayerClick(p.key, checkInAction(p.key, game))">
+                      {{game.checkIn[p.key]===false ? 'un-hide' : 'hide'}}
+                    </ion-button>
+                  </ion-item>
+                </ng-container>                
               </ion-list>
 
               <ion-list class="game-admin ion-padding-top wide">
-                <ion-item>
+                <ion-item lines="full">
                   <ion-button size="small" color="success" (click)="doSettings()">
                     <ion-icon name="settings" slot="start"></ion-icon>
                     Settings

@@ -8,7 +8,8 @@ import {
   PlayerListByUids, TeamRosters,
   SpotlightPlayer, 
   GamePlayState,
-  GamePlayLogEntries
+  GamePlayLogEntries,
+  PlayerByUids
 } from './types';
 import { Helpful} from '../services/app.helpers';
 
@@ -32,12 +33,12 @@ export class FishbowlHelpers {
   }
 
   static
-  assignTeams(game:Game, teamNames:string[]):TeamRosters {
-    let shuffledPlayers = Helpful.shuffle(Object.keys(game.players));
+  assignTeams(players:PlayerByUids, teamNames:string[]):TeamRosters {
+    let shuffledPlayerUids = Helpful.shuffle(Object.keys(players));
     let teamCount = teamNames.length;
 
     let teams = teamNames.reduce( (o,v)=>(o[v]=[] as PlayerListByUids, o), {} );
-    shuffledPlayers.forEach( (uid,i)=>{
+    shuffledPlayerUids.forEach( (uid,i)=>{
       let teamIndex = i % teamCount;
       teams[ teamNames[teamIndex] ].push(uid);
     });
@@ -48,11 +49,22 @@ export class FishbowlHelpers {
   buildGamePlayRound(game:Game, type:RoundEnum): GamePlayRound{
     let teamNames = game.teamNames;
     if (!teamNames) teamNames = ['blue team', 'red team'];    // DEV
-    let entries = Object.values(game.entries).reduce( (o,_3words)=>{
-      _3words.forEach( w=>o[w]=true);
+    let combined = Object.assign({}, game.players, game.checkIn)
+    let checkedInPlayers:PlayerByUids = Object.entries(combined).reduce( (o, [pid, v])=>{
+      if (typeof v=='boolean' && v===false) 
+        return o;
+
+      o[pid] = game.players[pid];
+      return o;
+    },{});
+    let entries = Object.entries(game.entries).reduce( (o,[pid,_3words])=>{
+      if (checkedInPlayers[pid]){
+        _3words.forEach( w=>o[w]=true);
+      }
       return o;
     } ,{});
-    let teams = FishbowlHelpers.assignTeams(game, teamNames);
+    let teams = FishbowlHelpers.assignTeams(checkedInPlayers, teamNames);
+
 
     return {
       uid: null,    // firebase pushId
@@ -62,7 +74,7 @@ export class FishbowlHelpers {
       teams,
       orderOfPlay: teamNames,
       entries,
-      players: Object.assign({}, game.players),
+      players: checkedInPlayers,
     }
   }
 

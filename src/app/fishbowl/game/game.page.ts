@@ -193,7 +193,7 @@ export class GamePage implements OnInit {
       }
     })
     .then( ()=>{
-      if (changed.doCheckIn && cur.doCheckIn) {
+      if (changed.doCheckIn==true) {
         if (!game.checkIn || !game.checkIn[this.playerId]){
           this.showCheckInInterstitial();
         }
@@ -472,6 +472,7 @@ export class GamePage implements OnInit {
     let update = {
       gameId: this.gameId,
       doPlayerUpdate: true,           // handle in doGamePlayExtras()
+      checkInComplete: true,
     } as Partial<GameAdminState>
     waitFor.push (
       // GamePlayAdminState
