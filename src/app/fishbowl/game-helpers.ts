@@ -11,7 +11,7 @@ import {
   Game, GameWatch, GameDict, GameAdminState, RoundEnum,
   GamePlayWatch, GamePlayState, GamePlayRound, GamePlayLogEntries, GamePlayLog,
   SpotlightPlayer, WordResult, Scoreboard,
-  PlayerListByUids, PlayerByUids, TeamRosters, 
+  PlayerListByUids, PlayerByUids, TeamRosters, CheckInByUids, 
 } from './types';
 
 
@@ -571,7 +571,7 @@ export class GameHelpers {
     });
   }
 
-  pushCheckIn( gameId: string, checkIn:PlayerByUids): Promise<void>{
+  pushCheckIn( gameId: string, checkIn:CheckInByUids): Promise<void>{
     let update = checkIn;
     return this.db.object<Game>(`/games/${gameId}/checkIn`).update( update )
   }
@@ -596,7 +596,7 @@ export class GameHelpers {
   }
 
   DEV_resetGame(game:Game, gameDict:GameDict, onlyUnplayed=true){
-    let sortedByRoundNumber = Object.entries(game.rounds).sort( (a,b)=>a[1]-b[1] );
+    let sortedByRoundNumber = Object.entries(game.rounds || {}).sort( (a,b)=>a[1]-b[1] );
     let unplayed = sortedByRoundNumber.filter( ([rid,roundNumber])=>{
       // find the next round that is not complete
       return !(gameDict[rid] as GamePlayRound).complete;
@@ -627,7 +627,7 @@ export class GameHelpers {
           // this.db.object<GamePlayRound>(`/rounds/${uid}`).update(resetRound)
           this.db.object<GamePlayRound>(`/rounds/${uid}`).remove()
         }
-        this.db.object<GamePlayState>(`/gameLogs/${uid}`).remove();
+        this.db.object<GamePlayState>(`/gamePlay/${uid}`).remove();
         this.db.object<GamePlayLog>(`/gameLogs/${uid}`).remove();
       })
     })

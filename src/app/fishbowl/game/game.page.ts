@@ -715,6 +715,30 @@ export class GamePage implements OnInit {
     ).subscribe()
   }
 
+  /**
+   * moderator hides a player from team assignment, spotlight. 
+   * AFTER responses from doCheckIn => showCheckInInterstitial()
+   * @param pid 
+   * @param keep 
+   */
+  hidePlayerClick(pid:string, action: string){
+    switch (action){
+      case '~hide': 
+        this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: false });
+        break;
+      case '~show': 
+        this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: null });
+        break;
+    }
+  }
+
+  checkInAction(pid:string, game:Game):string{
+    if (!game.checkIn) return '~hide';
+    if (typeof game.checkIn[pid]=="undefined") return '~hide';
+    if (typeof game.checkIn[pid]=="string") return '~done';
+    return (game.checkIn[pid]===false) ? '~show' : '~hide';  // toggle logic, set game.checkIn[pid]=undefined
+  }
+
   beginPlayerRoundClick(){
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),

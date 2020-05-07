@@ -6,6 +6,10 @@ export type PlayerByUids = {
   [uid:string]: string
 }
 
+export type CheckInByUids = {
+  [uid:string]: string | boolean
+}
+
 export interface Game {
   uid: string;
   label: string;
@@ -15,7 +19,7 @@ export interface Game {
   timezoneOffset: number;
   playerCount?: number;
   players?: PlayerByUids;
-  checkIn?: PlayerByUids;
+  checkIn?: CheckInByUids;
   moderators?: {
     [uid:string]: boolean;
   }

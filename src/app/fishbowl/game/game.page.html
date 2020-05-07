@@ -62,11 +62,14 @@
                 </ion-list-header>
                 <ion-item *ngFor="let p of game.players | keyvalue">
                   <ion-icon slot="start" 
-                  [color]="(game.checkIn && game.checkIn[p.key]) && 'success'"
-                  [name]="(game.checkIn && game.checkIn[p.key]) ? 'checkbox' : 'close-circle-outline'"></ion-icon>
-                  <ion-label>{{p.value}}</ion-label>
-                  <ion-button slot="end" color="danger" *ngIf="(game.checkIn && !game.checkIn[p.key])"
-                  (click)="hidePlayerClick(p.key)">hide</ion-button>
+                  [color]="checkInAction(p.key, game)=='~done' && 'success'"
+                  [name]="checkInAction(p.key, game)=='~done' ? 'checkbox' : 'close-circle-outline'"></ion-icon>
+                  <ion-label [color]="checkInAction(p.key, game)=='~show' && 'medium'" >{{p.value}}</ion-label>
+                  <ion-button slot="end" *ngIf="checkInAction(p.key, game)!='~done'"
+                  [color]="checkInAction(p.key, game)=='~hide' ? 'danger' : 'medium'" 
+                  (click)="hidePlayerClick(p.key, checkInAction(p.key, game))">
+                    {{game.checkIn[p.key]===false ? 'un-hide' : 'hide'}}
+                  </ion-button>
                 </ion-item>
               </ion-list>
 
