@@ -335,7 +335,7 @@ export class GameHelpers {
       log: {},
       timerDuration,
       word: null,
-      remaining: null,
+      remaining: [],
       isTicking: false,
     }
     return this.db.list<GamePlayState>('/gamePlay').update(rid, gamePlayState)
@@ -474,6 +474,7 @@ export class GameHelpers {
           .then( ()=>{
             // TODO: refactor /gameLogs => /gameLogss
             let logPath = `/gameLogs/${gameId}/${roundKey}`;
+            // console.log(">>> pushGameLog(): mergeLogEntries", mergeLogEntries)
             return this.db.object<GamePlayLog>(logPath).update(mergeLogEntries)
           })
           .then( v=>{

@@ -98,7 +98,7 @@ export interface GamePlayState extends GameAdminState {
   // activePlayer and game master must have access:
   timerDuration: number;
   word: string;
-  remaining: number;   
+  remaining: number[];   
   isTicking: boolean;
   // admin states
   timerPausedAt?: number;

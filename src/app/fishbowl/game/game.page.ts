@@ -134,6 +134,7 @@ export class GamePage implements OnInit {
           duration: TIME.PLAYER_ROUND_DISMISS,
           gamePlay: gamePlayCopy,
           gameSummary,
+          getRemaining: FishbowlHelpers.getRemaining,
 
           onDidDismiss: (v)=>{
             console.info('player-round complete dismissed')
@@ -576,7 +577,11 @@ export class GamePage implements OnInit {
            */
         }),
         tap( gamePlay=>{
-          this.stash.wordsRemaining = gamePlay && gamePlay.remaining;
+          console.log("gamePlay=", gamePlay)
+        }),
+        tap( gamePlay=>{
+          this.stash.wordsRemaining = FishbowlHelpers.getRemaining(gamePlay);
+
           if (!round)
             return
 
@@ -803,11 +808,9 @@ export class GamePage implements OnInit {
         if (!gamePlay.word) {
           // serve FIRST word of round
           let next = FishbowlHelpers.nextWord(round, gamePlay);
-          update.word = next.word || null;
-          update.remaining = next.remaining;
-          if (update.remaining==0){
+          Object.assign( update, next);   // add next word to GamePlayState
+          if (next.remaining.length==0){
             // end of round, already?
-            console.warn("ERROR: how can you start the timer with next.remaining==0??")
             return this.completeGameRound(this.activeRound);
           }
 
@@ -948,7 +951,7 @@ export class GamePage implements OnInit {
         else {
           // buzz=false/overtime=false silent OR playerRoundDidComplete()
           /**
-           * NOTE: wordAction[remaining==0 && isTicking==true]
+           * NOTE: wordAction[remaining.length==0 && isTicking==true]
            *  => onTimerDone()    ( <== here )
            *  => completePlayerRound()  // do NOT call onTimerDone from completePlayerRound
            */
@@ -1012,15 +1015,17 @@ export class GamePage implements OnInit {
     .then( ()=>{
       if (!gamePlay.word) {
         // TODO: move to onPlayerRoundWillBegin()
+        // NOTE: this will never hit:
+        //    onWordActionClick() is disabled until gamePlay.isTicking
+        //    startTimer() calls FishbowlHelpers.nextWord() and pushes to GamePlayState directly
 
         // load initial word
-        let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]:available} );
-        update.word = next.word || null;
-        update.remaining = next.remaining;
+        let next = FishbowlHelpers.nextWord( round, gamePlay);
+        Object.assign( update, next);   // add next word to GamePlayState
         return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
         .then( async ()=>{
           // move to a catch block
-          if (next.remaining===0 && this.activeRound) {
+          if (next.remaining.length===0 && this.activeRound) {
             throw new Error("INVALID STATE: playerRound has not begun and no more words.");
             // await this.onTimerDone( new Date(), false);
             // return this.completePlayerRound(true);
@@ -1030,14 +1035,12 @@ export class GamePage implements OnInit {
     })
     .then( ()=>{ 
       if (gamePlay.word) {
-        let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]:available} );
-        update.remaining = next.remaining;
+        let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]: available} );
         if (isOvertime){
-          update.word = null;
+          next.word = null;
+          // next.remaining does NOT change
         }
-        else {
-          update.word = next.word || null;
-        }
+        Object.assign( update, next);         // add next word to GamePlayState
   
         // apply score the word, based on action=[OK,PASS] then get next word
         let entries = round.entries;
@@ -1068,7 +1071,7 @@ export class GamePage implements OnInit {
         console.log( "wordAction, gamePlay=", update )
         return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
         .then( async ()=>{
-          let isLastWord = next.remaining==0;
+          let isLastWord = next.remaining.length==0;
           let isDone = this.activeRound && (isLastWord || isOvertime);
           if (isDone) {
             // state: player got last word BEFORE Timer expired

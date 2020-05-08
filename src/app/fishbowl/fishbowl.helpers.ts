@@ -139,22 +139,52 @@ export class FishbowlHelpers {
   }
 
   /**
-   * updateFishbowl with gamePlay+gameLog results, then pick a random word
+   * updateFishbowl with gamePlay+gameLog results, then pick a word from a shuffled list
+   * - shuffle words ONCE per playerRound, repeat words in the same sequence
    * - Note: lastResult is pre-update, not be in the cloud, so the gamePlay update can happen in one transaction
-   * @param gamePlay 
+   * - TODO: push lastResult to gameLog BEFORE playerRoundComplete
+   * 
    * @param round 
+   * @param gamePlay 
    * @param lastResult { [word]: available }
-   */
+   */ 
   static
-  nextWord(round:GamePlayRound, gamePlay:GamePlayState, lastResult: {[word:string]:boolean}={}): {
-      word:string,
-      remaining: number
+  nextWord(round:GamePlayRound, gamePlay:GamePlayState, lastResult: {[word:string]: boolean}=null): {
+      word: string,
+      remaining: number[],      // array of index values from Object.keys(round.entries)
     } 
-  {    
-    let fishbowl = FishbowlHelpers.updateFishbowl(round, gamePlay.log, lastResult);
-    let entries = Object.entries(fishbowl).filter( ([word,avail])=>avail===true ).map( ([word,avail])=>word );
-    let word = Helpful.shuffle(entries, 1).pop();
-    return {word, remaining: entries.length};
+  { 
+    let remaining = gamePlay.remaining
+    let doShuffle = lastResult===null;
+    if (lastResult){
+      // if wrong, unshift index onto remaining
+      let [word, available] = Object.entries(lastResult)[0];
+      if (available) {
+        let index = Object.keys(round.entries).findIndex( w=>w==word);
+        if (~index) {
+          remaining.push(index);
+        }
+      }
+      remaining.shift();
+    }
+    else {
+      lastResult = {};
+      // last PASS/AVAILABLE result from previous round is missing from next round?
+    }
+
+    if (doShuffle) {
+      let fishbowl = FishbowlHelpers.updateFishbowl(round, gamePlay.log, lastResult);
+      let remainingWords = Object.entries(fishbowl).filter( ([word,avail])=>avail===true ).map( ([word,avail])=>word );
+      let availableByIndex = remainingWords.map( (w,i)=>Object.keys(round.entries).findIndex( v=>v==w) ).filter( v=>v>-1);
+      remaining = Helpful.shuffle(availableByIndex);
+      console.log("123> after shuffle, round.entries, remaining=", remaining, availableByIndex, remainingWords)
+      console.log("123> after shuffle, round.entries=", round.entries)
+    }
+    if (remaining.length==0) {
+      return {word:null, remaining:[]}
+    }
+    let word = Object.keys(round.entries)[remaining[0]]
+    return {word, remaining};
   }
   
   /**
@@ -178,12 +208,17 @@ export class FishbowlHelpers {
     }, {});
 
     let fishbowl = Object.assign( {}, round.entries, playerBowl, lastResult);
-    // console.log("0>>> updateFishbowl=",fishbowl);
-    // console.log("   >> fishbowl false=", Object.values(fishbowl).filter(v=>v==false).length)
-    // console.log("   >> round.entries false=", Object.values(round.entries).filter(v=>v==false).length)
+    // console.log(">>> updateFishbowl=",fishbowl);
+    // console.log("   >>> fishbowl false=", Object.values(fishbowl).filter(v=>v==false).length)
+    // console.log("   >>> round.entries false=", Object.values(round.entries).filter(v=>v==false).length)
     return fishbowl as {[word:string]: boolean};
   }
 
+  static
+  getRemaining (gamePlay:GamePlayState):string {
+    let count = gamePlay && gamePlay.remaining && gamePlay.remaining.length;
+    return count ? count.toString() : "––";
+  }
 
 
   static 
