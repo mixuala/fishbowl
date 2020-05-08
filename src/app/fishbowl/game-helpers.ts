@@ -427,7 +427,7 @@ export class GameHelpers {
           }
           spotlight.teamName =  Object.keys(round.teams)[spotlight.teamIndex];
           // where does gamePlayTimerDuration first get set?
-          let timerDuration = gamePlay.timerDuration || options.defaultDuration || 33;
+          let timerDuration = gamePlay.timerDuration || options.defaultDuration;
 
           let update = {
             spotlight,
@@ -472,7 +472,6 @@ export class GameHelpers {
           // updateLog = Helpful.sortObjectByKey( updateLog, -1 ); // DESC
           return Promise.resolve()
           .then( ()=>{
-            // TODO: refactor /gameLogs => /gameLogss
             let logPath = `/gameLogs/${gameId}/${roundKey}`;
             // console.log(">>> pushGameLog(): mergeLogEntries", mergeLogEntries)
             return this.db.object<GamePlayLog>(logPath).update(mergeLogEntries)

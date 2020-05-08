@@ -538,7 +538,8 @@ export class GamePage implements OnInit {
 
     let game = this.gameDict[this.gameId] as Game;
     let round = this.activeRound;
-    this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam});
+    let defaultDuration = this.initialTimerDuration
+    this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam, defaultDuration});
   }
 
 
@@ -773,6 +774,15 @@ export class GamePage implements OnInit {
     ).subscribe();
   }
 
+  /**
+   * push gamePlay.timer to cloud, timer actually starts from cloud event loop
+   * - called by onTimerClick()
+   * - guard: the Spotlight player
+   * - guard: stash.onTheSpot = (this.spotlight.uid === this.playerId), set in this.loadGame$() event loop
+   * - UX response in doGamePlayUx()
+   * @param gamePlay 
+   * @param duration 
+   */
   private startTimer(gamePlay: GamePlayState, duration=null){
     if (!gamePlay) {
       return console.warn("error: round is not loaded");
