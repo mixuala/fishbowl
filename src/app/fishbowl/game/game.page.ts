@@ -91,14 +91,14 @@ export class GamePage implements OnInit {
     );
   }
 
-  private doInterstitials(
+  private doInterstitialsWithScoreboard(
     // res:[GamePlayState, GamePlayState],
     changed: Partial<GamePlayState>,
-    cur: GamePlayState,
-    player: Player,
+    gamePlay: GamePlayState,
     game: Game,
     round: GamePlayRound,
-    scoreboard: Scoreboard,
+    player: Player,
+    // waitForScoreboard: Promise<Scoreboard>,   
   ) {
 
     const TIME={
@@ -107,24 +107,53 @@ export class GamePage implements OnInit {
       GAME_ROUND_DISMISS: 10000,
     }
 
-    let dontWait = Promise.resolve()
-    .then( ()=>{
-      // DEBUG
+    // guards
+    if (!game.rounds && !game.teamNames) 
+        return;
+    if (gamePlay && gamePlay.log && !round) {
+      throw new Error( "ERROR: gamePlay.log should be undefined between, rounds, e.g. when activeRound=null")
+    }
+
+    // required
+    let teamNames = Object.values(game.teamNames);
+    let merge = {
+      roundKey: round && `round${round.round}` || null,
+      log: gamePlay && gamePlay.log || null,
+    }
+
+    /**
+     * these intertitials must wait for the scoreboard to update
+     */
+    Promise.resolve(this.scoreboard)
+    .then( (scoreboard)=>{
+      if (changed.log) {
+        return this.gameHelpers.scoreRound$(
+          this.gamePlayWatch, 
+          teamNames, 
+          merge
+        ).toPromise().then( (score)=>{
+          this.scoreboard = score;
+          return score;
+        })
+      }
+      return scoreboard
     })
-    .then( ()=>{
-      if (changed.playerRoundComplete && cur.playerRoundComplete) {
+    .then( (scoreboard)=>{
+      if (changed.playerRoundComplete && gamePlay.playerRoundComplete) {
 
         // guard: playerRoundComplete=true
         if (!round) throw new Error("round should not be empty when playerRoundComplete==true")
 
-        let gamePlayCopy = Object.assign({}, cur);
-        gamePlayCopy.log = Object.assign({}, cur.log);
+        let gamePlayCopy = Object.assign({}, gamePlay);
+        gamePlayCopy.log = Object.assign({}, gamePlay.log);
         let gameSummary = {
           player: Helpful.pick(player, 'displayName', 'teamName'),
           game: Helpful.pick(game, 'playerCount', 'teamNames'),
           round: Helpful.pick(round, 'round', 'startTimeDesc', ),
           scoreboard,
         }
+
+        console.log("2: playerRoundComplete=true", scoreboard)
 
 
         // flash player round complete interstitial
@@ -143,11 +172,13 @@ export class GamePage implements OnInit {
         return Helpful.waitFor(TIME.BUZZER_ANIMATION_COMPLETE)
         .then( ()=>{
           return HelpComponent.presentModal(this.modalCtrl, interstitial)
-        });
+        })
+        .then( ()=>scoreboard )
       }
+      else return scoreboard;
     })
-    .then( ()=>{
-      if (changed.gameRoundComplete && cur.gameRoundComplete) {
+    .then( (scoreboard)=>{
+      if (changed.gameRoundComplete && gamePlay.gameRoundComplete) {
 
         // guard: roundComplete=true
         // NOTE: playerRoundComplete==true when gameRoundComplete=true
@@ -168,7 +199,7 @@ export class GamePage implements OnInit {
           roundNumber: round.round,
           scoreboard,
         }
-        console.log(winnersByRound,gameSummary)
+        console.log("2: gameRoundComplete=true", winnersByRound, gameSummary)
     
         return this.gamePlayWatch.gameLog$.pipe(
           take(1),
@@ -185,12 +216,27 @@ export class GamePage implements OnInit {
               return true;
             }
           }
-          return HelpComponent.presentModal(this.modalCtrl, interstitial);            
+          return HelpComponent.presentModal(this.modalCtrl, interstitial)
+          .then( ()=>scoreboard )          
         });
       }
+      else return scoreboard;
     })
+  }
+
+
+  /**
+   * these interstitials do NOT depend on the scoreboard
+   */
+  private doInterstitialsPreGame(
+    changed: Partial<GamePlayState>,
+    cur: GamePlayState,
+    game: Game,
+  ) {
+    let dontWait = Promise.resolve()
     .then( ()=>{
-      if (changed.checkInComplete && cur.checkInComplete) {
+      if (changed.checkInComplete==true) {
+        // ???: dismiss remaining checkInInterstitials?
       }
     })
     .then( ()=>{
@@ -234,7 +280,9 @@ export class GamePage implements OnInit {
     changed: Partial<GamePlayState>,
     cur: GamePlayState,
   ){
-
+    if (!!changed.remaining) {
+      this.stash.wordsRemaining = FishbowlHelpers.getRemaining(cur);
+    }
     if (changed.doPlayerUpdate) {
       this.setGamePlayer();
     }
@@ -567,9 +615,9 @@ export class GamePage implements OnInit {
         // takeUntil(this.done$),  // ??
         takeWhile( (d)=>!!d[this.gameId]),
         tap( d=>{
-          game = d[this.gameId] as Game;
+          game = d[this.gameId] as Game;                  // closure
+          round = d[game.activeRound] as GamePlayRound;   // closure
           this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
-          round = d[game.activeRound] as GamePlayRound;
         }),
         switchMap( (d)=>{
           return this.gamePlayWatch.gamePlay$;
@@ -578,46 +626,12 @@ export class GamePage implements OnInit {
            */
         }),
         tap( gamePlay=>{
-          console.log("gamePlay=", gamePlay)
-        }),
-        tap( gamePlay=>{
-          this.stash.wordsRemaining = FishbowlHelpers.getRemaining(gamePlay);
-
-          if (!round)
-            return
+          if (!round) return
 
           this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
           // true if this player is under the spotlight
           // TODO: use roles here
           this.stash.onTheSpot = (this.spotlight.uid === this.playerId);
-        }),
-        tap( (gamePlay)=>{
-          // score round
-          if (!this.game.rounds && !this.game.teamNames) 
-            return;
-
-          // required
-          let teamNames = Object.values(this.game.teamNames);
-          
-          let round = this.activeRound || null;
-          let merge = {
-            roundKey: round && `round${round.round}` || null,
-            log: gamePlay && gamePlay.log || null,
-          }
-
-          if (gamePlay && gamePlay.log && !round) throw new Error( "ERROR: gamePlay.log should be undefined betwee, rounds, e.g. when activeRound=null")
-
-          this.gameHelpers.scoreRound$(
-            this.gamePlayWatch, 
-            teamNames, 
-            merge
-          ).pipe(
-            take(1),
-            tap( score=>{
-              this.scoreboard = score;
-              // console.log("scoreboard:", score)
-            })
-          ).subscribe();
         }),
         startWith(null),
         pairwise(),
@@ -629,13 +643,22 @@ export class GamePage implements OnInit {
           let isFirst = prev===null
           let changed = isFirst ? cur : Object.keys(cur).filter( k=>cur[k]!==prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
           console.log( `===>>> loadGame() gamePlay changed=` , changed)
+
           this.doGamePlayUx(changed, cur);
           this.doGamePlayExtras(changed, cur);
-          this.doInterstitials(
-            changed, cur,
-            this.player, this.game, 
-            this.activeRound, this.scoreboard
+
+          this.doInterstitialsPreGame(
+            changed, cur, game,
           )
+
+          // let waitForScoreboard = this.stash.scoreboard$;
+          this.doInterstitialsWithScoreboard(
+            changed, cur,  // gamePlay
+            game, round,
+            this.player,
+            // waitForScoreboard,
+          );
+
         })
       ).subscribe(null,null,
         ()=>console.info(" 10>>> ***** ionViewWillEnter(): subscriber COMPLETE ******")
@@ -820,7 +843,7 @@ export class GamePage implements OnInit {
           let next = FishbowlHelpers.nextWord(round, gamePlay);
           Object.assign( update, next);   // add next word to GamePlayState
           if (next.remaining.length==0){
-            // end of round, already?
+            console.warn("INVALID STATE: playerRound should not begin with next.remaining.length=0")
             return this.completeGameRound(this.activeRound);
           }
 
@@ -1078,7 +1101,7 @@ export class GamePage implements OnInit {
         update.log = Object.assign( log, {
           [-1*now]: score,
         });
-        console.log( "wordAction, gamePlay=", update )
+        // console.log( ">>> wordAction, gamePlay=", update )
         return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
         .then( async ()=>{
           let isLastWord = next.remaining.length==0;
@@ -1089,7 +1112,7 @@ export class GamePage implements OnInit {
               console.log("0: ******* onTimerDone() <= completePlayerRound(), from wordAction(),  buzz=FALSE")
               await this.onTimerDone( new Date(), false);
             }
-            console.log("0: ******* completePlayerRound(), from wordAction(), next.remaining==0")
+            console.log("1: ******* completePlayerRound(), from wordAction(), next.remaining==0")
             this.completePlayerRound(isLastWord);
           }
         });
@@ -1104,7 +1127,7 @@ export class GamePage implements OnInit {
    * onTimerDone() or FishbowlHelpers.nextWord() is empty 
    */
   async completePlayerRound(gameRoundComplete=false):Promise<void>{
-    console.log("1: ******* completePlayerRound, roundComplete=", gameRoundComplete)
+    console.log("3: ******* completePlayerRound, roundComplete=", gameRoundComplete)
     let wasOnTheSpot = this.stash.onTheSpot;
 
     // role guard
@@ -1126,6 +1149,11 @@ export class GamePage implements OnInit {
       console.info("\t>>>> playerRoundWillComplete()")
     })
     .then( ()=>{
+      // merge gamePlay.log => gameLog BEFORE playerRoundComplete=true
+      console.log("4: >>>> gamePlay.log copied to gameLog and changes applied to round.entries");
+      return this.gameHelpers.pushGameLog(this.gamePlayWatch, activeRound)
+    })
+    .then( ()=>{
       // push complete game status to doInterstitials()
       let update = {
         playerRoundBegin: false,
@@ -1136,19 +1164,10 @@ export class GamePage implements OnInit {
       // NOTE: Handle UX response in doShowInterstitials()
     })
     .then( ()=>{
-      // wait for interstitial to grab closure data before 
-      return Helpful.waitFor(2000)
-    })
-    .then( ()=>{
-      // merge gamePlay.log => gameLog
-      console.log(" >>>> gamePlay.log copied to gameLog and changes applied to round.entries");
-      return this.gameHelpers.pushGameLog(this.gamePlayWatch, activeRound)
-    })
-    .then( ()=>{
       // event: playerRoundDidComplete
       console.info("\t>>>> playerRoundDidComplete()");
       // NOTE: Handle UX response in doShowInterstitials()
-      return Helpful.waitFor(2000)
+      return Helpful.waitFor(1000)
     })
     .then( ()=>{
       return this.nextPlayerRound();
