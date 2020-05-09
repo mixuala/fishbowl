@@ -243,6 +243,7 @@ export class GamePage implements OnInit {
     })
     .then( ()=>{
       if (changed.doCheckIn==true) {
+        game.checkIn = game.checkIn || {};
         let status = game.checkIn && game.checkIn[this.playerId]
         this.showCheckInInterstitial(status);
       }

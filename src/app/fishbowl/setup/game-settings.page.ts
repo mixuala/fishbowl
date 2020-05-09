@@ -190,8 +190,8 @@ export class GameSettingsPage implements OnInit {
     let name = game.players && game.players[this.player.uid] || this.player.displayName || "";
     let formData = {
       name,
-      teamA: gameData.teamNames[0],
-      teamB: gameData.teamNames[1],
+      teamA: gameData.teamNames && gameData.teamNames[0] || "",
+      teamB: gameData.teamNames && gameData.teamNames[1] || "",
       'game': {
         label: gameData.label, 
         startTime: gameData.gameTime,

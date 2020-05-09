@@ -145,7 +145,7 @@
 
             <ng-template #preGameAdmin>
               <ion-list class="ion-padding-top">
-                  <ion-button color="success" expand="block" (click)="doSettings()">
+                  <ion-button color="success" expand="block" (click)="doGameSettings()">
                     <ion-icon name="settings" slot="start"></ion-icon>
                     Game Settings
                   </ion-button>
@@ -155,6 +155,19 @@
             </ion-card-content>
           </ion-card>
         </ion-col>
+
+
+
+
+
+
+
+
+
+
+
+
+
         <ion-col size="12" size-sm="8" size-md="6">
           <ion-card  *ngIf="game">
             <ion-card-header color="tertiary">      
@@ -282,7 +295,7 @@
                     <ion-row><ion-col>
                       <p><ion-note>on the spot</ion-note></p>
                       <ion-button color="success" expand="block" class="spotlight" 
-                      [color]="stash.onTheSpot ? 'success' : 'light'"
+                      [color]="stash.onTheSpot ? 'success' : 'medium'"
                       [class.on-the-spot]="stash.onTheSpot" 
                       >
                         <ion-icon name="person" slot="start"></ion-icon>

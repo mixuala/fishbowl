@@ -17,7 +17,7 @@
       <ion-searchbar showCancelButton="focus" debounce="1000" animated mode="ios"
       ></ion-searchbar>
     </ion-row> -->
-    <ion-row>
+    <ion-row [class.ion-justify-content-center]="games.length==1">
         <ion-col size="12" size-sm="6" size-xl="4" *ngFor="let game of games, let i=index">
           <ion-card class="game" [class.XXXspotlight]="game.activeGame">
             <ion-card-header color="tertiary">

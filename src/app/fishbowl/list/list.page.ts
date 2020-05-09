@@ -166,7 +166,7 @@ export class ListPage implements OnInit {
       this.router.navigate(['/app/game', game.uid]);
     }
     else {
-      this.router.navigate(['/app/entry', game.uid]);
+      this.router.navigate(['/app/game', game.uid, 'player']);
     }
   }
 
