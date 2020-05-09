@@ -184,8 +184,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   startCountdown(o:{key?:number}={}): void {
     if (!!o.key && o.key == this.key){
       // same timer, pass
-      // BUG: timer resets if the spotlightUser is signed in multiple times!!!
-      // console.info( "TIMER   1>>> key unchanged, skip ngOnChange, key=", o.key)
+      // ???: BUG: timer resets if the spotlightUser is signed in multiple times!!!
       return
     }
 

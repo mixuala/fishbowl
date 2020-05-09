@@ -199,7 +199,6 @@ export class GameHelpers {
       switchMap( rid=>{
         if (rid) {
           // GamePlayRound hasOne GamePlayWatch, use SAME rid
-          console.warn("making gamePlayWatch.game$ a HOT observable. may have side effects")
           let HOT_gamePlay$ = new ReplaySubject<GamePlayState>(1);
           this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges()
           .pipe( 
