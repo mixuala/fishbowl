@@ -145,16 +145,24 @@ ion-card-content{
   }
 
   .round-scores {
-    ion-row.condensed {
+
+    ion-row.wide {
       ion-col {
         & > * {
           --min-height: 36px;
           --inner-padding-top: 0;
           --inner-padding-bottom:0;
-          --padding-end: 16px;
         }
-        ion-icon[slot=start] {
-          margin-inline-end: 12px;
+        ion-item {
+          --padding-start: 6px;
+          ion-icon[slot=start] {
+            margin-inline-end: 6px;
+          }
+          ion-label {
+            margin-inline-end:0;
+          }
+        }
+        ion-icon {
           margin-top: 6px;
           margin-bottom: 6px;
         }
@@ -163,7 +171,13 @@ ion-card-content{
           margin-bottom: 5px;
         }
       }
+      ion-col:nth-child(even) {
+        ion-item {
+          --inner-padding-end: 0;
+        }
+      }
     }
+
   }
 
 

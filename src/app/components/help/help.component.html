@@ -38,43 +38,42 @@
           </ion-card-title>
         </ion-card-header>
         <ion-card-content class="ion-padding-vertical">
+
           <div class="round-scores">
             <ion-item-divider class="ion-margin-top">
               <ion-note>player round summary</ion-note>
             </ion-item-divider>
-            <ion-item>
-              <ion-grid class="ion-no-padding" *ngIf="gamePlay">
-                <ion-row class="header">
-                  <ion-col size="6">
-                    <ion-item lines="full">
-                      <ion-icon name="person" slot="start" class="ion-hide-sm-down"></ion-icon>
-                      <ion-label class="ion-text-wrap">
-                        {{gameSummary.player.displayName}} 
-                      </ion-label>
-                    </ion-item>
-                  </ion-col>
-                  <ion-col size="6">
-                    <ion-item class="team-name" lines="full">
-                      <ion-label class="ion-text-wrap">
-                        {{gameSummary.player.teamName}}
-                      </ion-label>
-                      <ion-icon name="people-circle-outline" class="ion-float-right ion-hide-sm-down"></ion-icon>
-                    </ion-item>
-                  </ion-col>
-                </ion-row>
+            <ion-grid class="ion-no-padding" *ngIf="gamePlay">
+              <ion-row class="header">
+                <ion-col size="6">
+                  <ion-item lines="full">
+                    <ion-icon name="person" slot="start" class="ion-hide-sm-down"></ion-icon>
+                    <ion-label class="ion-text-wrap">
+                      {{gameSummary.player.displayName}} 
+                    </ion-label>
+                  </ion-item>
+                </ion-col>
+                <ion-col size="6">
+                  <ion-item class="team-name" lines="full">
+                    <ion-label class="ion-text-wrap">
+                      {{gameSummary.player.teamName}}
+                    </ion-label>
+                    <ion-icon name="people-circle-outline" class="ion-float-right ion-hide-sm-down"></ion-icon>
+                  </ion-item>
+                </ion-col>
+              </ion-row>
 
-                <ion-row class="ion-no-padding condensed">
-                  <ion-col size="6" *ngFor="let log of (gamePlay.log | keyvalue)">
-                    <ion-item >
-                      <ion-icon slot="start" 
-                        [name]="log.value.result ? 'checkbox' : 'close-circle'" 
-                        [color]="log.value.result ? 'success' : 'danger'"></ion-icon>
-                      <ion-label  class="ion-text-wrap">{{log.value.result ? log.value.word : '[PASS]' }}</ion-label>
-                    </ion-item>
-                  </ion-col>
-                </ion-row>
-              </ion-grid>
-            </ion-item>
+              <ion-row class="ion-no-padding wide">
+                <ion-col size="6" *ngFor="let log of (gamePlay.log | keyvalue)">
+                  <ion-item >
+                    <ion-icon slot="start" 
+                      [name]="log.value.result ? 'checkbox' : 'close-circle'" 
+                      [color]="log.value.result ? 'success' : 'danger'"></ion-icon>
+                    <ion-label  class="ion-text-wrap">{{log.value.result ? log.value.word : '[PASS]' }}</ion-label>
+                  </ion-item>
+                </ion-col>
+              </ion-row>
+            </ion-grid>
           </div>
 
 
@@ -82,46 +81,44 @@
             <ion-item-divider class="ion-margin-top">
               <ion-note>game summary</ion-note>
             </ion-item-divider>
-            <ion-item>
-              <ion-grid>
-                
-                <ion-row>
-                  <ion-col size=6>
-                    <ion-item>
-                      <ion-label class="ion-text-wrap">
-                        <ion-note>round</ion-note>
-                      </ion-label>
-                      <ion-badge color="light" class="ion-padding-horizontal">{{gameSummary.round.round || "––"}}</ion-badge>
-                    </ion-item>
-                  </ion-col>
-      
-                  <ion-col size=6>
-                    <ion-item class="ion-no-padding">
-                      <ion-label class="ion-text-wrap">
-                        <ion-note>words remaining</ion-note> 
-                      </ion-label>
-                      <ion-badge color="light" class="ion-padding-horizontal">{{getRemaining(gamePlay)}}</ion-badge>
-                    </ion-item>
-                  </ion-col>
-                </ion-row>
+            <ion-grid>
+              
+              <ion-row class="wide">
+                <ion-col size=6>
+                  <ion-item>
+                    <ion-label class="ion-text-wrap">
+                      <ion-note>round</ion-note>
+                    </ion-label>
+                    <ion-badge color="light" class="ion-padding-horizontal">{{gameSummary.roundNo}}</ion-badge>
+                  </ion-item>
+                </ion-col>
+    
+                <ion-col size=6>
+                  <ion-item class="ion-no-padding">
+                    <ion-label class="ion-text-wrap">
+                      <ion-note>words remaining</ion-note> 
+                    </ion-label>
+                    <ion-badge color="light" class="ion-padding-horizontal">{{getRemaining(gamePlay)}}</ion-badge>
+                  </ion-item>
+                </ion-col>
+              </ion-row>
 
-                <ion-row class="scoreboard">
-                  <ion-col size="6" [class.on-the-spot]="gameSummary.game.teamNames[0]==gameSummary.player.teamName">
-                    <ion-note>{{gameSummary.game.teamNames[0]}}</ion-note>
-                    <ion-badge class="ion-float-right ion-padding-horizontal ion-margin-horizontal">
-                      {{(gameSummary.scoreboard.total[gameSummary.game.teamNames[0]])?.points || 0}} 
-                    </ion-badge>
-                  </ion-col>
-                  <ion-col size="6" [class.on-the-spot]="gameSummary.game.teamNames[1]==gameSummary.player.teamName">
-                    <ion-note class="ion-float-right">{{gameSummary.game.teamNames[1]}}</ion-note>
-                    <ion-badge class="ion-float-left ion-padding-horizontal ion-margin-horizontal">
-                      {{(gameSummary.scoreboard.total[gameSummary.game.teamNames[1]])?.points || 0}}
-                    </ion-badge>
-                  </ion-col>
-                </ion-row>
+              <ion-row class="scoreboard wide">
+                <ion-col size="6" [class.on-the-spot]="gameSummary.game.teamNames[0]==gameSummary.player.teamName">
+                  <ion-note>{{gameSummary.game.teamNames[0]}}</ion-note>
+                  <ion-badge class="ion-float-right ion-padding-horizontal ion-margin-horizontal">
+                    {{(gameSummary.scoreboard.total[gameSummary.game.teamNames[0]])?.points || 0}} 
+                  </ion-badge>
+                </ion-col>
+                <ion-col size="6" [class.on-the-spot]="gameSummary.game.teamNames[1]==gameSummary.player.teamName">
+                  <ion-note class="ion-float-right">{{gameSummary.game.teamNames[1]}}</ion-note>
+                  <ion-badge class="ion-float-left ion-padding-horizontal ion-margin-horizontal">
+                    {{(gameSummary.scoreboard.total[gameSummary.game.teamNames[1]])?.points || 0}}
+                  </ion-badge>
+                </ion-col>
+              </ion-row>
 
-              </ion-grid>
-            </ion-item>
+            </ion-grid>
           </div>
         </ion-card-content>
       </ion-card>
@@ -133,57 +130,60 @@
       <ion-card class="content interstitial game-round-complete" padding *ngSwitchCase="'game-round-complete'">
         <ion-card-header color="tertiary">
           <ion-card-title>
-            Round Complete
+            Round {{gameSummary.roundNo}} Complete
           </ion-card-title>
         </ion-card-header>
         <ion-card-content class="ion-no-padding game-summary">
           <ion-item-divider class="ion-margin-top">
-            <ion-note>game summary</ion-note>
+            <ion-label slot="start">
+              <ion-note>game summary</ion-note>
+            </ion-label>
           </ion-item-divider>
-          <ion-item>
-            <ion-grid>
-              <ion-row class="header">
-                <ion-col size="6">
-                  <ion-item lines="full"
-                  [color]="winnersByRound['total']==gameSummary.teamNames[0] && 'success'" 
-                  >
-                    <ion-icon name="people-circle-outline" slot="start" class="ion-hide-sm-down"></ion-icon>
-                    <ion-label class="ion-text-wrap">
-                      {{gameSummary.teamNames[0]}} 
-                    </ion-label>
-                  </ion-item>
-                </ion-col>
-                <ion-col size="6">
-                  <ion-item lines="full" class="ion-no-padding"
-                  [color]="winnersByRound['total']==gameSummary.teamNames[1] && 'success'" >
-                    <ion-label class="ion-text-wrap">
-                      {{gameSummary.teamNames[1]}}
-                    </ion-label>
-                    <ion-icon name="people-circle-outline" class="ion-float-right ion-hide-sm-down"></ion-icon>
-                  </ion-item>
-                </ion-col>
-              </ion-row>
-              <ion-row *ngFor="let kv of (gameSummary.scoreboard | keyvalue); let i=index"
-                [className]="kv.key"
-              >
-                <ion-col size="6"
-                  [class.on-the-spot]="winnersByRound[kv.key]==gameSummary.teamNames[0]">
-                  <ion-note>{{kv.key}}</ion-note>
-                  <ion-badge class="ion-float-right ion-padding-horizontal ion-margin-horizontal">
-                    {{(kv.value[gameSummary.teamNames[0]])?.points || 0}} 
-                  </ion-badge>
-                </ion-col>
-                <ion-col size="6"
-                  [class.on-the-spot]="winnersByRound[kv.key]==gameSummary.teamNames[1]"
+
+          <ion-grid>
+            <ion-row class="header wide">
+              <ion-col size="6">
+                <ion-item lines="full"
+                [color]="winnersByRound['total']==gameSummary.teamNames[0] && 'success'" 
                 >
-                  <ion-note class="ion-float-right">{{kv.key}}</ion-note>
-                  <ion-badge class="ion-float-left ion-padding-horizontal ion-margin-horizontal">
-                    {{(kv.value[gameSummary.teamNames[1]])?.points || 0}} 
-                  </ion-badge>
-                </ion-col>
-              </ion-row>
-            </ion-grid>
-          </ion-item>
+                  <ion-icon name="people-circle-outline" slot="start" class="ion-hide-sm-down"></ion-icon>
+                  <ion-label class="ion-text-wrap">
+                    {{gameSummary.teamNames[0]}} 
+                  </ion-label>
+                </ion-item>
+              </ion-col>
+              <ion-col size="6">
+                <ion-item lines="full" class="ion-no-padding"
+                [color]="winnersByRound['total']==gameSummary.teamNames[1] && 'success'" >
+                  <ion-label class="ion-text-wrap">
+                    {{gameSummary.teamNames[1]}}
+                  </ion-label>
+                  <ion-icon name="people-circle-outline" class="ion-float-right ion-hide-sm-down"></ion-icon>
+                </ion-item>
+              </ion-col>
+            </ion-row>
+            <ion-row class="wide"
+              *ngFor="let kv of (gameSummary.scoreboard | keyvalue); let i=index"
+              [className]="kv.key"
+            >
+              <ion-col size="6"
+                [class.on-the-spot]="winnersByRound[kv.key]==gameSummary.teamNames[0]">
+                <ion-note>{{kv.key}}</ion-note>
+                <ion-badge class="ion-float-right ion-padding-horizontal ion-margin-horizontal">
+                  {{(kv.value[gameSummary.teamNames[0]])?.points || 0}} 
+                </ion-badge>
+              </ion-col>
+              <ion-col size="6"
+                [class.on-the-spot]="winnersByRound[kv.key]==gameSummary.teamNames[1]"
+              >
+                <ion-note class="ion-float-right">{{kv.key}}</ion-note>
+                <ion-badge class="ion-float-left ion-padding-horizontal ion-margin-horizontal">
+                  {{(kv.value[gameSummary.teamNames[1]])?.points || 0}} 
+                </ion-badge>
+              </ion-col>
+            </ion-row>
+          </ion-grid>
+          
         </ion-card-content>
       </ion-card>
 

@@ -140,38 +140,34 @@
                 <ion-item-divider class="ion-margin-top">
                   <ion-note>player profile</ion-note>
                 </ion-item-divider>
-                <div>
-                  <ion-grid class="ion-no-padding">
-                    <ion-row  class="ion-no-padding">
 
-                      <ion-col size=5>
-                        <ion-item  class="ion-text-wrap">
-                          <ion-label>
-                            <ion-note>player</ion-note> 
-                          </ion-label>
-                          <ion-badge color="light" class="ion-padding-horizontal">{{player.displayName}}</ion-badge>
-                        </ion-item>
-                      </ion-col>
-                      <ion-col size=5>
-                        <ion-item class="ion-text-wrap">
-                          <ion-label>
-                            <ion-note>team</ion-note> 
-                          </ion-label>
-                          <ion-badge color="light" class="ion-padding-horizontal">{{player.teamName}}</ion-badge>
-                        </ion-item>
-                      </ion-col>
-                      <ion-col size=2>
-                        <ion-item class="ion-no-padding">
-                          <ion-button color="dark" [disabled]="stash.activeGame && 0" 
-                          (click)="doSettings()">
-                            <ion-icon name="settings"> </ion-icon>
-                          </ion-button>                           
-                        </ion-item>
-                      </ion-col>
+                <ion-grid class="ion-no-padding">
+                  <ion-row  class="ion-no-padding">
 
-                    </ion-row>
-                  </ion-grid>
-                </div>
+                    <ion-col size=5>
+                        <ion-label>
+                          <ion-note>player</ion-note> 
+                        </ion-label>
+                        <ion-badge color="light" class="ion-padding-horizontal">{{player.displayName}}</ion-badge>
+                    </ion-col>
+                    <ion-col size=5>
+                        <ion-label>
+                          <ion-note>team</ion-note> 
+                        </ion-label>
+                        <ion-badge color="light" class="ion-padding-horizontal">{{player.teamName}}</ion-badge>
+                    </ion-col>
+                    <ion-col size=2>
+                      <ion-item class="ion-no-padding" lines="none">
+                        <ion-button color="dark" size="small" [disabled]="stash.activeGame && 0" 
+                        (click)="doSettings()">
+                          <ion-icon name="settings"> </ion-icon>
+                        </ion-button>                           
+                      </ion-item>
+                    </ion-col>
+
+                  </ion-row>
+                </ion-grid>
+                
               </div>                  
             
               <div class="game-summary">
@@ -285,16 +281,19 @@
                   <ion-note>round scores</ion-note>
                 </ion-item-divider>
                 <ion-grid class="ion-no-padding" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
-                  <ion-row class="ion-no-padding condensed">
-                  <ion-col size="6" *ngFor="let log of (gamePlay.log | keyvalue)">
-                    <ion-item >
-                      <ion-icon slot="start" 
-                        [name]="log.value.result ? 'checkbox' : 'close-circle'" 
-                        [color]="log.value.result ? 'success' : 'danger'"></ion-icon>
-                      <ion-label  class="ion-text-wrap">{{log.value.result ? log.value.word : '[PASS]' }}</ion-label>
-                    </ion-item>
-                  </ion-col>
-                </ion-row></ion-grid>
+
+                  <ion-row class="ion-no-padding wide">
+                    <ion-col size="6" *ngFor="let log of (gamePlay.log | keyvalue)">
+                      <ion-item >
+                        <ion-icon slot="start" 
+                          [name]="log.value.result ? 'checkbox' : 'close-circle'" 
+                          [color]="log.value.result ? 'success' : 'danger'"></ion-icon>
+                        <ion-label  class="ion-text-wrap">{{log.value.result ? log.value.word : '[PASS]' }}</ion-label>
+                      </ion-item>
+                    </ion-col>
+                  </ion-row>
+
+                </ion-grid>
               </div>
               
               <div  class="timer-controls ion-margin-bottom" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">

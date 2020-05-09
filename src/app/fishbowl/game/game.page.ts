@@ -148,7 +148,8 @@ export class GamePage implements OnInit {
         let gameSummary = {
           player: Helpful.pick(player, 'displayName', 'teamName'),
           game: Helpful.pick(game, 'playerCount', 'teamNames'),
-          round: Helpful.pick(round, 'round', 'startTimeDesc', ),
+          roundNo: round.round || "––",
+          duration: Date.now()+round.startTimeDesc,
           scoreboard,
         }
 
@@ -163,7 +164,6 @@ export class GamePage implements OnInit {
           gamePlay: gamePlayCopy,
           gameSummary,
           getRemaining: FishbowlHelpers.getRemaining,
-
           onDidDismiss: (v)=>{
             console.info('player-round complete dismissed')
           }
@@ -195,7 +195,8 @@ export class GamePage implements OnInit {
 
         let gameSummary = {
           teamNames: game.teamNames,
-          roundNumber: round.round,
+          roundNo: round.round || "––",
+          duration: Date.now()+round.startTimeDesc,          
           scoreboard,
         }
         console.log("2: gameRoundComplete=true", winnersByRound, gameSummary)
