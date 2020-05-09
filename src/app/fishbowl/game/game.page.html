@@ -56,13 +56,29 @@
                 </ion-item>
               </ion-list>
 
-              <ion-list class="game-check-in wide" *ngIf="game.checkIn && !game.activeRound">
-                <ion-list-header>
-                  <ion-label>Player Check-In</ion-label>
-                  <ion-button fill="clear"  (click)="stash.hideCheckInDetails = !stash.hideCheckInDetails">
-                    <ion-icon [name]="stash.hideCheckInDetails ? 'chevron-down' : 'chevron-up'"></ion-icon>
+              <ion-list class="game-admin ion-padding-top wide">
+                <ion-item lines="full">
+                  <ion-button size="small" color="success" (click)="doSettings()">
+                    <ion-icon name="settings" slot="start"></ion-icon>
+                    Settings
                   </ion-button>
-                </ion-list-header>
+                  <ion-button  size="small" color="danger" (click)="resetGameClick($event)"  slot="end">
+                    <ion-icon name="warning" slot="start"></ion-icon>
+                    Reset Game
+                  </ion-button>
+                </ion-item>
+              </ion-list>
+
+
+              <ion-list class="game-check-in wide" *ngIf="game.checkIn && !game.activeRound">
+                <ion-item lines="none">
+                  <ion-label>Player Check-In</ion-label>
+                  <ion-button fill="clear" slot="end" (click)="stash.hideCheckInDetails = !stash.hideCheckInDetails">
+                    <ion-icon [name]="stash.hideCheckInDetails ? 'chevron-forward' : 'chevron-up'"></ion-icon>
+                  </ion-button>
+                </ion-item>
+                
+
                 <ng-container *ngIf="!stash.hideCheckInDetails">
                   <ion-item *ngFor="let p of game.players | keyvalue">
                     <ion-icon slot="start" 
@@ -79,18 +95,46 @@
                 </ng-container>                
               </ion-list>
 
-              <ion-list class="game-admin ion-padding-top wide">
-                <ion-item lines="full">
-                  <ion-button size="small" color="success" (click)="doSettings()">
-                    <ion-icon name="settings" slot="start"></ion-icon>
-                    Settings
-                  </ion-button>
-                  <ion-button  size="small" color="danger" (click)="resetGameClick($event)"  slot="end">
-                    <ion-icon name="warning" slot="start"></ion-icon>
-                    Reset Game
+              <ion-list class="teleprompter-container wide" *ngIf="true">
+
+                <ion-item lines="none">
+                  <ion-label>Game Controls</ion-label>
+                  <ion-button fill="clear"  slot="end" (click)="stash.showTelepromter = !stash.showTelepromter">
+                    <ion-icon [name]="stash.showTelepromter ? 'chevron-up' : 'chevron-forward'"></ion-icon>
                   </ion-button>
                 </ion-item>
-              </ion-list>
+                
+                <ng-container *ngIf="stash.showTelepromter">
+                  <div class="teleprompter"  *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
+  
+                    <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p>
+                    <p><ion-note>word</ion-note></p>
+  
+                    <ion-item color="medium" expand="block" 
+                    (click)="beginPlayerRoundClick()"
+                    >
+                      <ion-label class="ion-text-wrap ion-text-center">
+                        {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[ready]')}}
+                      </ion-label>
+                    </ion-item>
+                    <ion-grid class="ion-no-padding"><ion-row>
+                      <ion-col size=5>
+                        <ion-button color="danger" expand="block" 
+                        (click)="onWordActionClick('PASS')" [disabled]="gamePlay.timerPausedAt || !gamePlay.isTicking"
+                        >PASS</ion-button>
+                      </ion-col>
+                      <ion-col size=7>
+                        <ion-button color="success" expand="block"
+                        (click)="onWordActionClick('OK')" [disabled]="gamePlay.timerPausedAt || !gamePlay.playerRoundBegin"
+                        >OK</ion-button>
+                      </ion-col>
+                    </ion-row></ion-grid>
+  
+                  </div>
+                </ng-container>
+              </ion-list>                  
+
+
             </div>
 
             <ng-template #preGameAdmin>
@@ -100,8 +144,7 @@
                     Game Settings
                   </ion-button>
               </ion-list>
-            </ng-template>
-
+            </ng-template>        
 
             </ion-card-content>
           </ion-card>
@@ -167,7 +210,7 @@
 
                   </ion-row>
                 </ion-grid>
-                
+
               </div>                  
             
               <div class="game-summary">

@@ -293,7 +293,7 @@ export class GamePage implements OnInit {
    */
 
   public audioVolumeIcons = ["volume-mute","volume-low","volume-medium","volume-high"];
-  public initialTimerDuration = 45;
+  public initialTimerDuration = 10;
   
   public stash:any = {
     // GameWatch changes
@@ -767,7 +767,10 @@ export class GamePage implements OnInit {
   checkInAction(pid:string, game:Game):string{
     if (!game.checkIn) return '~hide';
     if (typeof game.checkIn[pid]=="undefined") return '~hide';
-    if (typeof game.checkIn[pid]=="string") return '~done';
+    if (typeof game.checkIn[pid]=="string") {
+      // let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
+      return '~done';
+    }
     return (game.checkIn[pid]===false) ? '~show' : '~hide';  // toggle logic, set game.checkIn[pid]=undefined
   }
 
@@ -1004,16 +1007,16 @@ export class GamePage implements OnInit {
     if (!this.gameDict.activeRound) return
 
     // role guard
+    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
     let isOnTheSpot = this.stash.onTheSpot;
-    if (!isOnTheSpot) return;
+    if (!(isOnTheSpot || isModerator)) return;
 
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),
       tap( gamePlay=>{
         if (gamePlay.playerRoundBegin==true) {
           if (gamePlay.isTicking==false){
-            console.warn("TODO: decide if player can click wordAction when timer is paused");
-            // also happens during extra time
+            // OK. use button[disabled=true] to add overtime
           }
           // accept wordAction
           this.wordAction(gamePlay, action);
@@ -1025,8 +1028,9 @@ export class GamePage implements OnInit {
   // TODO: let the game master also trigger a wordAction
   private wordAction( gamePlay: GamePlayState, action:string ){
     // role guard
+    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
     let isOnTheSpot = this.stash.onTheSpot;
-    if (!isOnTheSpot) return;
+    if (!(isOnTheSpot || isModerator)) return;
 
     /**
      * NOTES: round begins with beginPlayerRoundClick() => startTimer() => nextWord()
