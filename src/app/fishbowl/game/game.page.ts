@@ -1290,8 +1290,14 @@ export class GamePage implements OnInit {
 
   doSettings() {
     let gameId = this.game.uid || this.activatedRoute.snapshot.paramMap.get('uid');
-    let target = this.isModerator() ? "settings" : "player";
-    this.router.navigate( ['/app/game', gameId, target])
+    this.router.navigate( ['/app/game', gameId, "player"] );
+  }
+
+  doGameSettings() {
+    if (!this.isModerator()) return;
+    
+    let gameId = this.game.uid || this.activatedRoute.snapshot.paramMap.get('uid');
+    this.router.navigate( ['/app/game', gameId, "settings"] );
   }
 
   check() {
