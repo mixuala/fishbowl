@@ -559,7 +559,7 @@ export class GameHelpers {
   }
 
 
-  set_DayOfWeekTeams(gameDict:GameDict, gameId:string){
+  DEV_set_DayOfWeekTeams(gameDict:GameDict, gameId:string){
     let roundUpdate = {
       teams : {
         "blue team": ["JJM3Ct3iPzNR8gMy5DkSZB5UdOn2","tRIagpG1P5ToB4jhxMzGghQKbNx2","enJzDKGvvoQPTONESYGN03cVYPZ2","8seIMvmHXBSvAo07scJxaeKxhFI3"],

@@ -149,7 +149,7 @@ export class ListPage implements OnInit {
   ionViewDidLeave() {
     this.stash.listen = false;
   }
-
+  
   // Helpers
   async presentLoading() {
     const loading = await this.loadingController.create({
@@ -159,6 +159,12 @@ export class ListPage implements OnInit {
     });
     loading.present();
     return loading;
+  }
+
+  onGameTime(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
+    // reload page
+    window.location.href = window.location.href;
+    return
   }
   
   join(game, index) {

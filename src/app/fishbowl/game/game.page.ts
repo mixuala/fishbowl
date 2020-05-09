@@ -740,6 +740,12 @@ export class GamePage implements OnInit {
     ["click","buzz","ok","pass","dq", "pause"].forEach( k=>this.audio.preload(k));
   }
 
+  onGameTime(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
+    // reload page
+    window.location.href = window.location.href;
+    return
+  }
+
   onTimerRangeChange(range: CustomEvent) {
     this.initialTimerDuration = range.detail.value;
     let update = {timerDuration: range.detail.value} as GamePlayState;
@@ -1302,7 +1308,7 @@ export class GamePage implements OnInit {
   }
 
   check() {
-    this.gameHelpers.set_DayOfWeekTeams(this.gameDict, this.gameId)
+    this.gameHelpers.DEV_set_DayOfWeekTeams(this.gameDict, this.gameId)
   }
 
 }
