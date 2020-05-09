@@ -53,6 +53,10 @@ export class GameSettingsPage implements OnInit {
       { type: 'required', message: 'Please enter the title for this game.' },
       { type: 'pattern', message: 'Your word must be letters and numbers only.' }
     ],
+    'team':[
+      { type: 'required', message: 'Please enter team names for this game.' },
+      { type: 'pattern', message: 'Your word must be letters and numbers only.' }
+    ],    
     'startTime':[
       { type: 'required', message: 'Please enter a the start time for this game.' },
     ],
@@ -94,9 +98,11 @@ export class GameSettingsPage implements OnInit {
         Validators.pattern(urlRegex),
       ])),
     })
-
+    
     this.entryForm = new FormGroup({
       'name': new FormControl('', validEntry),
+      'teamA': new FormControl('', validEntry),
+      'teamB': new FormControl('', validEntry),
       'game': this.gameForm,
     });
 
@@ -180,10 +186,12 @@ export class GameSettingsPage implements OnInit {
 
   loadData(game:Partial<Game>={}){
 
-    let gameData = Helpful.pick(game, 'label', 'gameTime', 'chatRoom') as Partial<Game>;
+    let gameData = Helpful.pick(game, 'label', 'gameTime', 'chatRoom', 'teamNames', ) as Partial<Game>;
     let name = game.players && game.players[this.player.uid] || this.player.displayName || "";
     let formData = {
       name,
+      teamA: gameData.teamNames[0],
+      teamB: gameData.teamNames[1],
       'game': {
         label: gameData.label, 
         startTime: gameData.gameTime,
@@ -266,8 +274,9 @@ export class GameSettingsPage implements OnInit {
     let playerCount = Object.keys(players).length;
     let {label, startTime, chatRoom} = formData.game;
     let timezoneOffset = new Date(startTime).getTimezoneOffset();
+    let teamNames = [formData.teamA, formData.teamB];
     
-    let update = {players, playerCount, label, gameTime:startTime,  timezoneOffset, chatRoom} as Partial<Game>;
+    let update = {players, playerCount, label, gameTime:startTime,  timezoneOffset, chatRoom , teamNames} as Partial<Game>;
 
     let gameId = this.activatedRoute.snapshot.paramMap.get('uid');
     if (gameId=="new"){

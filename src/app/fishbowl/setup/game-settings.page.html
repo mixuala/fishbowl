@@ -118,6 +118,34 @@
                   </ng-container>
                 </div>
 
+
+                <ion-item class="input-item">
+                  <ion-label position="stacked">Team Name A</ion-label>
+                  <ion-input type="text" placeholder="like Blue Team" formControlName="teamA" clearInput autocapitalize="words" inputmode="text"></ion-input>
+                </ion-item>
+                <div class="error-container">
+                  <ng-container *ngFor="let validation of validation_messages.team">
+                    <div class="error-message" *ngIf="entryForm.get('teamA').hasError(validation.type) && (entryForm.get('teamA').dirty || entryForm.get('teamA').touched)">
+                      <ion-icon name="information-circle-outline"></ion-icon>
+                      <span>{{ validation.message }}</span>
+                    </div>
+                  </ng-container>
+                </div>
+                
+                <ion-item class="input-item">
+                  <ion-label position="stacked">Team Name B</ion-label>
+                  <ion-input type="text" placeholder="and Red Team" formControlName="teamB" clearInput autocapitalize="words" inputmode="text"></ion-input>
+                </ion-item>
+                <div class="error-container">
+                  <ng-container *ngFor="let validation of validation_messages.team">
+                    <div class="error-message" *ngIf="entryForm.get('teamB').hasError(validation.type) && (entryForm.get('teamB').dirty || entryForm.get('teamB').touched)">
+                      <ion-icon name="information-circle-outline"></ion-icon>
+                      <span>{{ validation.message }}</span>
+                    </div>
+                  </ng-container>
+                </div>
+                
+
                 <ion-item-divider></ion-item-divider>          
               </ion-list>
           
