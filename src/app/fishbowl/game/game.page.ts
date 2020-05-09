@@ -71,6 +71,8 @@ export class GamePage implements OnInit {
           // takeUntil(this.done$),
           tap( g=>{
             this.game = g;
+            let sorted = Helpful.sortObjectEntriesByValues(g.players);
+            this.stash.playersSorted = Helpful.sortObjectEntriesByValues(g.players) as Array<[string,string]>
             // console.log(g);
           }),          
           startWith(null),
@@ -241,9 +243,8 @@ export class GamePage implements OnInit {
     })
     .then( ()=>{
       if (changed.doCheckIn==true) {
-        if (!game.checkIn || !game.checkIn[this.playerId]){
-          this.showCheckInInterstitial();
-        }
+        let status = game.checkIn && game.checkIn[this.playerId]
+        this.showCheckInInterstitial(status);
       }
     });
   }
@@ -302,6 +303,9 @@ export class GamePage implements OnInit {
     // activePlayer only
     onTheSpot: null,
     // end GameWatch
+    playersSorted: [],          // Object.entries(game.players) sorted by player name
+    showCheckInDetails: false,
+    showTelepromter: false,
 
 
     // deprecate
@@ -389,8 +393,9 @@ export class GamePage implements OnInit {
     );
   }
 
-  isModerator() {
-    return this.game && this.game.moderators && this.game.moderators[this.player.uid] == true
+  isModerator(pid=null) {
+    pid = pid || this.playerId;
+    return this.game && this.game.moderators && this.game.moderators[pid] == true
   }
 
   /**
@@ -399,16 +404,14 @@ export class GamePage implements OnInit {
 
   doCheckInClick() {
     this.requestCheckIn(this.gameId);
+    this.stash.showCheckInDetails = true;
   }
-  loadRoundClick(){
-    this.loadGameRounds();
+  async loadRoundClick(){
+    await this.loadGameRounds();
+    this.stash.showCheckInDetails = false;
   }
   beginGameRoundClick(){
-    this.beginNextGameRound()
-    .then( (v)=>{
-      // handle error in game state
-      if (v===null) this.completeGame();
-    })
+    this.beginNextGameRound();
   }
   resetGameClick(ev){
     let hard = ev.ctrlKey || ev.shiftKey;
@@ -417,8 +420,7 @@ export class GamePage implements OnInit {
 
 
   doGameReset(hard=false){
-    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
-    if (!isModerator) return;
+    if (!this.isModerator()) return;
 
     Promise.resolve()
     .then( ()=>{
@@ -435,17 +437,18 @@ export class GamePage implements OnInit {
   /**
    * triggered by moderator
    */
-  requestCheckIn(gameId:string){
-    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
-    if (!isModerator) return;
+  async requestCheckIn(gameId:string){
+    if (!this.isModerator()) return;
 
-    this.gameHelpers.requestCheckIn(this.gameId);
+    await this.gameHelpers.requestCheckIn(this.gameId);
+    this.stash.showCheckInDetails = true;
   }
 
   /**
    * cloud action, trigger on gamePlay.doCheckIn==true, GameAdminState
    */ 
-  showCheckInInterstitial() {
+  showCheckInInterstitial(status:string | boolean) {
+    const ALREADY_CHECKED_IN_DISMISS = 5000;
     this.player$.pipe(
       filter( p=>!!p.displayName),
       take(1),
@@ -455,14 +458,15 @@ export class GamePage implements OnInit {
           once:false,
           playerName: player.displayName,
           backdropDismiss: false,
+          duration: status===false ? null : ALREADY_CHECKED_IN_DISMISS,
           swipeToClose: true,
-          playerReady: ()=>{
-            this.modalCtrl.dismiss("ok");
-            let checkIn = {[player.uid]: player.displayName};
-            console.log( "player checked in: ", checkIn)
+          playerReady: (res)=>{
+            this.modalCtrl.dismiss(res);
+            let checkIn = {[player.uid]: res ? player.displayName : false };
+            // console.log( "player checked in: ", checkIn)
             this.gameHelpers.pushCheckIn(this.gameId, checkIn);
           },
-          dismiss: (v)=>{ return false;}
+          dismiss: (v)=>{ return status }
         });
       })
     ).subscribe();
@@ -471,8 +475,7 @@ export class GamePage implements OnInit {
 
   async loadGameRounds(force=false):Promise<boolean>{
     if (!this.game) return false;
-    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
-    if (!isModerator) return false;
+    if (!this.isModerator()) return false;
 
     //TODO: need a form to add teamNames
 
@@ -539,8 +542,7 @@ export class GamePage implements OnInit {
    */
   async beginNextGameRound():Promise<GamePlayRound>{
     if (!this.game) return
-    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
-    if (!isModerator) return;
+    if (!this.isModerator()) return;
 
     // find activeRound or initialize/begin next round
     return this.gameHelpers.loadNextRound(
@@ -549,7 +551,7 @@ export class GamePage implements OnInit {
     .then( async (res)=>{
       let isGameComplete = !res;
       if (isGameComplete) {
-        return Promise.reject("skip"); // => completeGame()
+        return Promise.reject("gameComplete"); // => completeGame()
       }
       else {
         let {rid, activeRound} = res;
@@ -576,8 +578,10 @@ export class GamePage implements OnInit {
       return res;
     }) 
     .catch( err=>{
-      if (err=="skip") return Promise.resolve(null)
-      return Promise.reject(err)
+      if (err=="gameComplete") {
+        return this.completeGame().then( ()=>null);
+      }
+      return Promise.reject(err);
     })
   }
 
@@ -747,6 +751,12 @@ export class GamePage implements OnInit {
     ).subscribe()
   }
 
+  toggleStashClick(key, ev){
+    this.stash[key] = !this.stash[key]
+    // not sure why this is necessary, but it is
+    setTimeout( ()=>ev.target.checked = this.stash[key], 100)
+  } 
+
   /**
    * moderator hides a player from team assignment, spotlight. 
    * AFTER responses from doCheckIn => showCheckInInterstitial()
@@ -759,19 +769,21 @@ export class GamePage implements OnInit {
         this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: false });
         break;
       case '~show': 
-        this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: null });
+        this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: true });
         break;
     }
   }
 
   checkInAction(pid:string, game:Game):string{
     if (!game.checkIn) return '~hide';
-    if (typeof game.checkIn[pid]=="undefined") return '~hide';
-    if (typeof game.checkIn[pid]=="string") {
-      // let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
-      return '~done';
+    let resp = game.checkIn[pid];
+    if (typeof resp=="undefined") return '~hide';
+    if (typeof resp=="string") {
+      if (!this.isModerator(pid))
+        return '~done';
+      else return '~hide';  // moderators can still toggle after checkin
     }
-    return (game.checkIn[pid]===false) ? '~show' : '~hide';  // toggle logic, set game.checkIn[pid]=undefined
+    return (resp===false) ? '~show' : '~hide';  // toggle logic, set game.checkIn[pid]=undefined
   }
 
   beginPlayerRoundClick(){
@@ -1007,9 +1019,8 @@ export class GamePage implements OnInit {
     if (!this.gameDict.activeRound) return
 
     // role guard
-    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
     let isOnTheSpot = this.stash.onTheSpot;
-    if (!(isOnTheSpot || isModerator)) return;
+    if (!(isOnTheSpot || this.isModerator())) return;
 
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),
@@ -1025,12 +1036,11 @@ export class GamePage implements OnInit {
     ).subscribe();
   }
 
-  // TODO: let the game master also trigger a wordAction
+
   private wordAction( gamePlay: GamePlayState, action:string ){
     // role guard
-    let isModerator = Object.keys(this.game.moderators).find( uid=>this.playerId);
     let isOnTheSpot = this.stash.onTheSpot;
-    if (!(isOnTheSpot || isModerator)) return;
+    if (!(isOnTheSpot || this.isModerator())) return;
 
     /**
      * NOTES: round begins with beginPlayerRoundClick() => startTimer() => nextWord()
@@ -1280,9 +1290,7 @@ export class GamePage implements OnInit {
 
   doSettings() {
     let gameId = this.game.uid || this.activatedRoute.snapshot.paramMap.get('uid');
-    let isModerator = this.game.moderators[this.playerId] == true;
-    console.warn("TODO: have a separate button for moderator game settings")
-    let target = isModerator ? "settings" : "player";
+    let target = this.isModerator() ? "settings" : "player";
     this.router.navigate( ['/app/game', gameId, target])
   }
 

@@ -70,38 +70,44 @@
               </ion-list>
 
 
-              <ion-list class="game-check-in wide" *ngIf="game.checkIn && !game.activeRound">
+              <ion-list class="game-check-in wide">
                 <ion-item lines="none">
                   <ion-label>Player Check-In</ion-label>
-                  <ion-button fill="clear" slot="end" (click)="stash.hideCheckInDetails = !stash.hideCheckInDetails">
-                    <ion-icon [name]="stash.hideCheckInDetails ? 'chevron-forward' : 'chevron-up'"></ion-icon>
-                  </ion-button>
+                  <ion-toggle color="tertiary" [checked]="stash.showCheckInDetails"
+                  (click)="toggleStashClick('showCheckInDetails', $event)"></ion-toggle>
                 </ion-item>
                 
 
-                <ng-container *ngIf="!stash.hideCheckInDetails">
-                  <ion-item *ngFor="let p of game.players | keyvalue">
+                <ng-container *ngIf="stash.showCheckInDetails">
+                  <ion-item *ngFor="let p of stash.playersSorted">
                     <ion-icon slot="start" 
-                    [color]="checkInAction(p.key, game)=='~done' && 'success'"
-                    [name]="checkInAction(p.key, game)=='~done' ? 'checkbox' : 'close-circle-outline'"></ion-icon>
-                    <ion-label [color]="checkInAction(p.key, game)=='~show' && 'medium'" >{{p.value}}</ion-label>
-                    <ion-button slot="end" *ngIf="checkInAction(p.key, game)!='~done'"
-                    [color]="checkInAction(p.key, game)=='~hide' ? 'danger' : 'medium'" 
+                    [color]="checkInAction(p[0], game)=='~done' && 'success'"
+                    [name]="checkInAction(p[0], game)=='~done' ? 'checkbox' : 'close-circle-outline'"></ion-icon>
+                    <ion-label [color]="checkInAction(p[0], game)=='~show' && 'medium'" >
+                      {{p[1]}}
+                      <ion-note class="ion-float-right" *ngIf="isModerator(p[0])">moderator</ion-note>
+                    </ion-label>
+                    <ion-button slot="end" *ngIf="checkInAction(p[0], game)!='~done'"
+                    [color]="checkInAction(p[0], game)=='~hide' ? 'danger' : 'medium'" 
                     [disabled]="game.activeRound"
-                    (click)="hidePlayerClick(p.key, checkInAction(p.key, game))">
-                      {{game.checkIn[p.key]===false ? 'un-hide' : 'hide'}}
+                    (click)="hidePlayerClick(p[0], checkInAction(p[0], game))">
+                      {{game.checkIn[p[0]]===false ? 'un-hide' : 'hide'}}
                     </ion-button>
+                  </ion-item>
+                  <ion-item>
+                    <ion-button size="small" color="primary" 
+                  [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="loadRoundClick()">Load Rounds</ion-button>
                   </ion-item>
                 </ng-container>                
               </ion-list>
 
-              <ion-list class="teleprompter-container wide" *ngIf="true">
 
+
+              <ion-list class="teleprompter-container wide" *ngIf="true">
                 <ion-item lines="none">
                   <ion-label>Game Controls</ion-label>
-                  <ion-button fill="clear"  slot="end" (click)="stash.showTelepromter = !stash.showTelepromter">
-                    <ion-icon [name]="stash.showTelepromter ? 'chevron-up' : 'chevron-forward'"></ion-icon>
-                  </ion-button>
+                  <ion-toggle color="tertiary" [checked]="stash.showTelepromter"
+                   (click)="toggleStashClick('showTelepromter', $event)"></ion-toggle>
                 </ion-item>
                 
                 <ng-container *ngIf="stash.showTelepromter">

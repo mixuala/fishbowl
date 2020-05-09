@@ -220,7 +220,8 @@ export class GameSettingsPage implements OnInit {
   }
 
   isModerator() {
-    return this.game && this.game.moderators && this.game.moderators[this.player.uid] == true
+    let pid = this.player && this.player.uid
+    return this.game && this.game.moderators && this.game.moderators[pid] == true
   }
 
 
@@ -271,6 +272,7 @@ export class GameSettingsPage implements OnInit {
     let gameId = this.activatedRoute.snapshot.paramMap.get('uid');
     if (gameId=="new"){
       update.moderators = { [u.uid]: true };
+      update.checkIn = { [u.uid]: false };    // default moderators are hidden from gameplay
       // show toast
     }
     

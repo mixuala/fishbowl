@@ -228,14 +228,21 @@ export class Helpful {
     return K.reduce((o, k) => (O&&O.hasOwnProperty(k)?o[k]=O[k]:0, o), {});
   }
 
-  public static sortObjectByKey(O:any, sortKeys:number=0):any{
+  public static sortObjectByKeys(O:any, orderBy:number=1):any{
     let keys = Object.keys(0);
-    if (sortKeys!==0){
-      keys.sort();
-      if (sortKeys<0) keys.reverse();
-    }
+    keys.sort();
+    if (orderBy<0) keys.reverse();
     return keys.reduce( (o,k)=>(o[k]=O[k],o),{});
   }
+
+  public static sortObjectEntriesByValues(O:any, orderBy:number=0):any[]{
+    return Object.entries(O).sort( (a,b)=>{
+      let sorted = a[1] >= b[1] ? 1 : -1;
+      if (orderBy<0) return -1*sorted;
+      return sorted;
+    })
+  }
+
 
   // e.g. sortByids( {[id]: any}, ids)
   public static sortByKeys(O:{[id:string]:any}[], ids:string[], key?:string|string[], strict=false){

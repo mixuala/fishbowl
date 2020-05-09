@@ -359,7 +359,6 @@ export class GameHelpers {
       gameId,
       doCheckIn: true,
       checkInComplete: false,
-      gameComplete: false,
     }
     this.db.list<GameAdminState>('/gamePlay').update(gameId, gamePlayState).then( ()=>{
       console.info( "GameAdminState created, testing doCheckIn()", )
@@ -615,7 +614,7 @@ export class GameHelpers {
       let resetGame = {
         complete: false,
         activeRound: null,
-        checkIn: null,
+        checkIn: Object.keys(game.moderators).reduce( (o,k)=>(o[k]=false,o),{}),   // default moderator are hidden
         rounds: onlyUnplayed ? unplayed : null,
       }
       let resetRound = {
