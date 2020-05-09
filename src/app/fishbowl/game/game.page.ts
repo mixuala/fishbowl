@@ -410,7 +410,7 @@ export class GamePage implements OnInit {
     })
   }
   resetGameClick(ev){
-    let hard = ev.ctrlKey;
+    let hard = ev.ctrlKey || ev.shiftKey;
     this.doGameReset(hard)
   }
 

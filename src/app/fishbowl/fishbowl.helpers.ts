@@ -177,8 +177,6 @@ export class FishbowlHelpers {
       let remainingWords = Object.entries(fishbowl).filter( ([word,avail])=>avail===true ).map( ([word,avail])=>word );
       let availableByIndex = remainingWords.map( (w,i)=>Object.keys(round.entries).findIndex( v=>v==w) ).filter( v=>v>-1);
       remaining = Helpful.shuffle(availableByIndex);
-      console.log("123> after shuffle, round.entries, remaining=", remaining, availableByIndex, remainingWords)
-      console.log("123> after shuffle, round.entries=", round.entries)
     }
     if (remaining.length==0) {
       return {word:null, remaining:[]}
