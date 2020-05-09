@@ -81,8 +81,7 @@ export class GamePage implements OnInit {
               prev===null ||
               prev.activeRound!=cur.activeRound
             ) {
-              // NOTE: this must trigger whenever game.activeRound changes
-              // this should also emit GameAdminState
+
               this.gamePlayWatch = this.gameHelpers.getGamePlay(this.game, this.gameDict); 
             }
           }),
@@ -570,7 +569,9 @@ export class GamePage implements OnInit {
         gameId: this.gameId,
         doPlayerUpdate: true,           // handle in doGamePlayExtras()
       } as Partial<GamePlayState>
-      this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update);
+      this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update).then( ()=>{
+        this.gameHelpers.beginRound(rid);
+      })
       return res;
     }) 
     .catch( err=>{
@@ -585,7 +586,7 @@ export class GamePage implements OnInit {
     if (!this.stash.activeGame) return;
 
     let game = this.gameDict[this.gameId] as Game;
-    let round = this.activeRound;
+    let round = this.gameDict.activeRound;
     let defaultDuration = this.initialTimerDuration
     this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam, defaultDuration});
   }

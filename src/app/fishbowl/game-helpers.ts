@@ -374,7 +374,7 @@ export class GameHelpers {
     return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound);   
   }
 
-  beginRound(rid: string){
+  beginRound(rid: string):Promise<void>{
     // updateRound in beginGameRound()
     let updateRound = { 
       startTimeDesc: -Date.now(),
@@ -398,6 +398,10 @@ export class GameHelpers {
         tap( (gamePlay)=>{       
           
           if (!gamePlay) return;  // round is complete
+          if (!round) {
+            console.error("round is empty")
+            return      // not sure this is the right path
+          }
 
 
           let spotlight = Object.assign( {} , gamePlay && gamePlay.spotlight );
