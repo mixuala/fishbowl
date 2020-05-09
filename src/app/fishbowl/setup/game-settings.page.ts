@@ -38,7 +38,7 @@ export class GameSettingsPage implements OnInit {
   public listen$ : Subject<boolean> = new Subject<boolean>();
   public game$:Observable<Game>;
   public gameRef:AngularFireObject<Game>;
-  private game:Game;
+  public game:Game;
   private gameId:string;
   public player: Player;
 

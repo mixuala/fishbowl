@@ -18,24 +18,29 @@ import { GameSettingsPage } from './game-settings.page';
 */
 
 
-const routes: Routes = [
+export function SettingsMatcher(segments, group, route){
+  // console.log("settings: ", segments)
+  let last = group.segments[group.segments.length-1];
+  return last && last.path == "settings" ?  {consumed: [] } : null;
+}
+
+export function PlayerMatcher(segments, group, route){
+  // console.log("player: ", segments)
+  let last = group.segments[group.segments.length-1];
+  return last && last.path == "player" ?  {consumed: [] } : null;
+}
+
+
+export const routes: Routes = [
   // e.g. `/app/entry/[gameId]/settings`
   {
     // path: `/app/game/[gameId]/settings`,
-    matcher: (segments, group, route) =>{
-      // console.log("settings: ", segments)
-      let last = group.segments[group.segments.length-1];
-      return last && last.path == "settings" ?  {consumed: [] } : null;
-    },
+    matcher: SettingsMatcher,
     component: GameSettingsPage
   },
   {
     // path: `/app/game/[gameId]/player`,
-    matcher: (segments, group, route) =>{
-      // console.log("player: ", segments)
-      let last = group.segments[group.segments.length-1];
-      return last && last.path == "player" ?  {consumed: [] } : null;
-    },
+    matcher: PlayerMatcher,
     component: EntryPage
   },
   {

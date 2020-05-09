@@ -318,7 +318,7 @@ export class GamePage implements OnInit {
   public game$:Observable<Game>;
   public gameRef:AngularFireObject<Game>;
   public playerId: string;
-  private player: Player;
+  public player: Player;
   private player$ = new BehaviorSubject<Player>(null);
   public spotlight:SpotlightPlayer;
 
