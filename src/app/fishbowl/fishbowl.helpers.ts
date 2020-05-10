@@ -81,11 +81,12 @@ export class FishbowlHelpers {
   static
   getPlayerSettings(pid:string, game:Game, round:GamePlayRound):{
     displayName:string, teamName?:string, teamId?:string
-  } {
+  } 
+  {
     // get Player {displayName, teamName?, teamId? } from game
     // get Player.displayName from game.Players
     let displayName = game.players && game.players[pid];
-    if (!displayName) return null;
+    if (!displayName) return {} as any;
 
     
     let playerTeam = {displayName};

@@ -73,6 +73,7 @@ export class GamePage implements OnInit {
             this.game = g;
             let sorted = Helpful.sortObjectEntriesByValues(g.players);
             this.stash.playersSorted = Helpful.sortObjectEntriesByValues(g.players) as Array<[string,string]>
+            this.setGamePlayer(g);
             // console.log(g);
           }),          
           startWith(null),
@@ -83,8 +84,7 @@ export class GamePage implements OnInit {
               prev===null ||
               prev.activeRound!=cur.activeRound
             ) {
-
-              this.gamePlayWatch = this.gameHelpers.getGamePlay(this.game, this.gameDict); 
+              this.gamePlayWatch = this.gameHelpers.getGamePlay(this.gameId, this.game, this.gameDict); 
             }
           }),
         ).subscribe();
@@ -285,7 +285,7 @@ export class GamePage implements OnInit {
     if (!!changed.remaining) {
       this.stash.wordsRemaining = FishbowlHelpers.getRemaining(cur);
     }
-    if (changed.doPlayerUpdate) {
+    if (!!changed.doPlayerUpdate) {
       this.setGamePlayer();
     }
 
@@ -372,6 +372,9 @@ export class GamePage implements OnInit {
         return from(this.authService.doAnonymousSignIn());
       }),
       switchMap( u=>{
+        if (!u) 
+          throw new Error( "loadPlayer$ user is undefined")
+
         this.playerId = u.uid;      // only change here
 
         let p:Player = {
@@ -384,7 +387,6 @@ export class GamePage implements OnInit {
           teamName: null,
         }
         this.player$.next(p);
-        this.setGamePlayer();
         return this.player$.asObservable();
       }),
       tap( p=>{
@@ -677,9 +679,19 @@ export class GamePage implements OnInit {
   /**
    * break main UI/UX Subscribers into smaller functional units
    */
-  setGamePlayer() {
+  setGamePlayer(game:Game = null) {
     // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
     // merge {game.displayName }
+
+    if (game && game.players) {
+      let p = this.player$.value;
+      // set locally, don't use Observable
+      let displayName = game.players[p && p.uid];
+      if (displayName) {
+        this.player$.next( Object.assign({}, p, {displayName}) );
+        return;
+      }
+    }
 
     let _getNextRound = (game:Game, rounds: GamePlayRound[]): GamePlayRound => {
       if (!game.rounds) return null;
@@ -694,6 +706,14 @@ export class GamePage implements OnInit {
     ).pipe(
       take(1),
       tap( ([game, rounds])=>{
+
+        if (!game) 
+          throw new Error( "game is undefined")
+        if (!rounds) 
+          throw new Error( "rounds is undefined")
+        if (!this.playerId) 
+          throw new Error( "this.playerId is undefined")
+
         let round = _getNextRound(game, rounds);
         let playerSettings = FishbowlHelpers.getPlayerSettings(this.playerId, game, round);
         let player = this.player$.value;
@@ -882,6 +902,7 @@ export class GamePage implements OnInit {
         key: Date.now(),
       };
       update.isTicking = true;
+      update.doPlayerUpdate = false;  // reset
       // console.log("0> startTimer, update=", JSON.stringify(update))
     
       this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
