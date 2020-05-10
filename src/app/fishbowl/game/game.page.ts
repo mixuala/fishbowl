@@ -433,7 +433,7 @@ export class GamePage implements OnInit {
         let resp = window.confirm(msg)
         if (!resp) return;
       }
-      return this.gameHelpers.DEV_resetGame(game, this.gameDict, !hard)
+      return this.gameHelpers.DEV_resetGame(this.gameId, game, this.gameDict, !hard)
     });
   }
 
@@ -487,7 +487,7 @@ export class GamePage implements OnInit {
     let rounds = [RoundEnum.Taboo, RoundEnum.OneWord, RoundEnum.Charades]
       .filter( e=>existingRoundEnums.find( ex=>ex==e )==null )
       .map( (round)=>{
-      let gameRound = FishbowlHelpers.buildGamePlayRound(this.game, round);
+      let gameRound = FishbowlHelpers.buildGamePlayRound(this.gameId, this.game, round );
       gameRound.uid = this.db.createPushId();
       return gameRound;
     });
@@ -549,7 +549,8 @@ export class GamePage implements OnInit {
 
     // find activeRound or initialize/begin next round
     return this.gameHelpers.loadNextRound(
-      this.gameDict, this.gameId, this.gamePlayWatch.gamePlay$
+      this.gameId, 
+      this.gameDict, this.gamePlayWatch.gamePlay$
     )
     .then( async (res)=>{
       let isGameComplete = !res;

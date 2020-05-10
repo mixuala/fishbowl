@@ -46,7 +46,7 @@ export class FishbowlHelpers {
   }
 
   static
-  buildGamePlayRound(game:Game, type:RoundEnum): GamePlayRound{
+  buildGamePlayRound(gameId: string, game:Game, type:RoundEnum): GamePlayRound{
     let teamNames = game.teamNames;
     if (!teamNames) teamNames = ['blue team', 'red team'];    // DEV
     let combined = Object.assign({}, game.players, game.checkIn)
@@ -68,7 +68,7 @@ export class FishbowlHelpers {
 
     return {
       uid: null,    // firebase pushId
-      gameId: game.uid,
+      gameId,
       round: type,
       startTimeDesc: -Date.now(),
       teams,
@@ -211,6 +211,17 @@ export class FishbowlHelpers {
     // console.log("   >>> fishbowl false=", Object.values(fishbowl).filter(v=>v==false).length)
     // console.log("   >>> round.entries false=", Object.values(round.entries).filter(v=>v==false).length)
     return fishbowl as {[word:string]: boolean};
+  }
+
+  static
+  DEV_patchMissingAttrs(o, type:string){
+    switch(type) {
+      case "game": {
+        let g = o as Game;
+        g.teamNames = g.teamNames || ['mahi mahi', 'yoko ono'];
+        return g;
+      }
+    }
   }
 
   static

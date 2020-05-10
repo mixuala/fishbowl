@@ -145,11 +145,11 @@ export class GameHelpers {
     );
     
 
-    // game with no rounds built?
-    let games$ = games.snapshotChanges().pipe(
-      FishbowlHelpers.pipeSnapshot2Data(),
-      FishbowlHelpers.pipeSort('gameTime'),
-    )
+    // // game with no rounds built?
+    // let games$ = games.snapshotChanges().pipe(
+    //   FishbowlHelpers.pipeSnapshot2Data(),
+    //   FishbowlHelpers.pipeSort('gameTime'),
+    // )
     // games$.subscribe( (v)=>console.log("games$:", v));
 
     let hasManyRounds$ = hasManyRounds_af.valueChanges().pipe(
@@ -158,7 +158,12 @@ export class GameHelpers {
     )
     // let game$ = game_af.valueChanges();
     let HOT_game$ = new ReplaySubject<Game>(1);
-    game_af.valueChanges().subscribe(HOT_game$);  // "hot" observable
+    game_af.valueChanges().pipe(
+      map( g=>{
+        return FishbowlHelpers.DEV_patchMissingAttrs(g, 'game')
+      })
+    )
+    .subscribe(HOT_game$);  // "hot" observable
 
     // NOTE: only emits when rounds change
     // DOES NOT emit when game changes
@@ -189,8 +194,7 @@ export class GameHelpers {
     }
   }
 
-  getGamePlay(game:Game, gameDict:GameDict):GamePlayWatch{
-    let gameId = game.uid;
+  getGamePlay(gameId: string, game:Game, gameDict:GameDict):GamePlayWatch{
     if (!gameId) {
       gameId = gameDict.activeRound ? gameDict.activeRound.gameId : Object.keys(gameDict)[0];
     }
@@ -237,7 +241,7 @@ export class GameHelpers {
    * @param gameDict 
    * @param gameId 
    */
-  async loadNextRound(gameDict:GameDict, gameId: string, gamePlay$:Observable<GamePlayState> )
+  async loadNextRound(gameId: string, gameDict:GameDict, gamePlay$:Observable<GamePlayState> )
     : Promise<{rid:string, activeRound:GamePlayRound}>
   {
     let game = gameDict[gameId] as Game;
@@ -597,12 +601,14 @@ export class GameHelpers {
     await this.db.object<GamePlayLog>(`/gameLogs/${rid}/${roundKey}`).set(null);
   }
 
-  DEV_resetGame(game:Game, gameDict:GameDict, onlyUnplayed=true){
+  DEV_resetGame(gameId: string, game:Game, gameDict:GameDict, onlyUnplayed=true){
     let sortedByRoundNumber = Object.entries(game.rounds || {}).sort( (a,b)=>a[1]-b[1] );
     let unplayed = sortedByRoundNumber.filter( ([rid,roundNumber])=>{
       // find the next round that is not complete
-      return !(gameDict[rid] as GamePlayRound).complete;
+      let round = gameDict[rid] as GamePlayRound;
+      return !(round && round.complete);
     }).reduce( (o,v)=>(o[v[0]]=v[1],o),{});
+
     return Promise.resolve()
     .then( ()=>{
       let removeIds = Object.keys(gameDict).filter( k=>k!='activeRound')
@@ -623,7 +629,7 @@ export class GameHelpers {
         players: null,
       }
       removeIds.forEach( uid=>{
-        if (uid==game.uid)
+        if (uid==gameId)
           this.db.object<Game>(`/games/${uid}`).update(resetGame)
         else {
           // this.db.object<GamePlayRound>(`/rounds/${uid}`).update(resetRound)
