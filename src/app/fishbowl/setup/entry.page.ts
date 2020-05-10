@@ -184,6 +184,10 @@ export class EntryPage implements OnInit {
     players[u.uid]=formData.name;
     let playerCount = Object.keys(players).length;
     let entries = this.game.entries || {};
+    // trim
+    Object.keys(entries).forEach( k=>{
+      entries[k] = entries[k].map( v=>v.trim() )
+    })
     entries[u.uid] = Object.entries(formData).filter( ([k,v])=>k.startsWith('word_')).map( ([k,v])=>v as string);
     let update = {players, playerCount, entries} as Game;
     this.gameRef.update( update ).then(
