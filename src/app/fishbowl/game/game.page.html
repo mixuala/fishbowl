@@ -15,7 +15,7 @@
   <ion-grid no-padding class="team-round" [class.spotlight]="spotlight?.teamName && player?.teamName==spotlight.teamName">
     <ion-row class="ion-justify-content-center">
         <ion-col size="12" size-sm="8" size-md="6"  *ngIf="isModerator()">
-          <ion-card>
+          <ion-card class="moderator-control-panel">
             <ion-card-header color="dark">      
               <ion-card-title>
                 Game Controls for <ion-text color="tertiary">
@@ -103,14 +103,21 @@
 
 
 
-              <ion-list class="teleprompter-container wide" *ngIf="true">
+              <ion-list class="game-controls-container wide" *ngIf="true">
                 <ion-item lines="none">
                   <ion-label>Game Controls</ion-label>
-                  <ion-toggle color="tertiary" [checked]="stash.showTelepromter"
-                   (click)="toggleStashClick('showTelepromter', $event)"></ion-toggle>
+                  <ion-toggle color="tertiary" [checked]="stash.showModeratorGameControls"
+                   (click)="toggleStashClick('showModeratorGameControls', $event)"></ion-toggle>
                 </ion-item>
                 
-                <ng-container *ngIf="stash.showTelepromter">
+                <ng-container *ngIf="stash.showModeratorGameControls">
+                  <ion-button expand="block" class="spotlight" size="small"
+                      [color]="spotlight.teamIndex ? 'success' : 'tertiary'"
+                      [class.on-the-spot]="stash.onTheSpot" 
+                      >
+                      <ion-icon name="person" slot="start"></ion-icon>
+                      {{spotlight?.label}}
+                  </ion-button>
                   <div class="teleprompter"  *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
   
                     <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p>
@@ -137,6 +144,30 @@
                     </ion-row></ion-grid>
   
                   </div>
+
+                  <div  class="timer-controls ion-margin-bottom" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
+                    <div #animateTarget class="wrapper">
+                      <ion-button id="play-timer" expand="block" color="success" 
+                        (click)="onTimerClick()"   
+                        [class.is-ticking]="gamePlay?.isTicking"
+                        [class.pause]="gamePlay?.timerPausedAt"
+                        >
+                        <span class="when-not-ticking">{{gamePlay?.timerPausedAt || gamePlay.timerDuration || initialTimerDuration}}s</span>
+                        <ion-icon name="pause" color="dark" *ngIf="gamePlay?.isTicking && !gamePlay?.timerPausedAt"></ion-icon>
+                      </ion-button>
+                      <app-countdown-timer #countdownTimer fill="time" [duration]="gamePlay?.timer" [units]="{from: 'second', to: 'second'}"
+                        [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
+                        >[done]
+                      </app-countdown-timer>
+                      <ion-button class="volume" color="light" (click)="toggleVolumeIcon()">
+                        <ion-icon [name]="stash.audioVolumeIcon" >
+                          <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
+                        </ion-icon>
+                      </ion-button>
+                    </div>
+                  </div>
+
+
                 </ng-container>
               </ion-list>                  
 

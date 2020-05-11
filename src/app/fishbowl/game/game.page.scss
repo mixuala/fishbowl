@@ -137,6 +137,7 @@ ion-card-content{
         font-size: 3em;
         margin: 0;
         border-radius: 10px;
+        cursor: default;
       }
     }
     ion-button {
@@ -258,6 +259,42 @@ ion-card-content{
     }
   }
 }
+
+
+
+
+
+.moderator-control-panel {
+  .game-controls-container {
+    .spotlight {
+      height: 36px;
+    }
+    // .teleprompter {}
+    .timer-controls {
+      margin: 0;
+      ion-button#play-timer {
+        flex: 0 41%;
+        z-index: 100;
+      }
+      app-countdown-timer {
+        --countdown-value-font-size: 1em;
+        --countdown-fill-border-radius: 4px;
+        --countdown-time-height: 36px;
+        margin: 4px 2px;
+        flex: 1;
+        font-size: 1em;
+        .time {
+          min-height: 1em;
+          height: 36px;
+        }
+      }
+      ion-button.volume {
+        flex: 0 10%;
+      }
+    }
+  }
+}
+
 
 
 //  extend animate.scss

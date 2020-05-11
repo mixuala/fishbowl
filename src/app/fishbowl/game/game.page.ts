@@ -71,7 +71,6 @@ export class GamePage implements OnInit {
           // takeUntil(this.done$),
           tap( g=>{
             this.game = g;
-            let sorted = Helpful.sortObjectEntriesByValues(g.players);
             this.stash.playersSorted = Helpful.sortObjectEntriesByValues(g.players) as Array<[string,string]>
             this.setGamePlayer(g);
             // console.log(g);
@@ -645,25 +644,40 @@ export class GamePage implements OnInit {
         }),
         startWith(null),
         pairwise(),
-        tap( (gamePlayChange)=>{
+        map( (gamePlayChange)=>{
+          const THROTTLE_TIMER_AND_WORD_ACTIONS = 1000;
           let [prev, cur] = gamePlayChange;
           if (cur===null) 
-          return
+            return;
           
           let isFirst = prev===null
           let changed = isFirst ? cur : Object.keys(cur).filter( k=>cur[k]!==prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
           console.log( `===>>> loadGame() gamePlay changed=` , changed)
+          
+          let isThrottling = !!this.stash.skipUntil;
+          let doThrottle = changed.isTicking || !!changed.word;
+          if (!isThrottling && doThrottle) {
+            // throttle LOCAL actions after cloud emits
+            this.stash.throttleTimeAndWordEvents = true;
+            setTimeout( ()=>this.stash.throttleTimeAndWordEvents=false
+              , THROTTLE_TIMER_AND_WORD_ACTIONS
+            )
+          }
+          return [changed, cur]
+        }),
+        tap( res=>{
+          if (res==null) return
+          let [changed, gamePlay] = res;
 
-          this.doGamePlayUx(changed, cur);
-          this.doGamePlayExtras(changed, cur);
-
+          this.doGamePlayUx(changed, gamePlay);
+          this.doGamePlayExtras(changed, gamePlay);
           this.doInterstitialsPreGame(
-            changed, cur, game,
+            changed, gamePlay, game,
           )
 
           // let waitForScoreboard = this.stash.scoreboard$;
           this.doInterstitialsWithScoreboard(
-            changed, cur,  // gamePlay
+            changed, gamePlay,  // gamePlay
             game, round,
             this.player,
             // waitForScoreboard,
@@ -803,6 +817,8 @@ export class GamePage implements OnInit {
   }
 
   checkInAction(pid:string, game:Game):string{
+    if (!this.isModerator()) return;
+
     if (!game.checkIn) return '~hide';
     let resp = game.checkIn[pid];
     if (typeof resp=="undefined") return '~hide';
@@ -829,7 +845,7 @@ export class GamePage implements OnInit {
 
     // role guard
     let isOnTheSpot = this.stash.onTheSpot;
-    if (!isOnTheSpot) return;
+    if (!(isOnTheSpot || this.isModerator())) return;
 
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),
@@ -852,13 +868,15 @@ export class GamePage implements OnInit {
    * @param duration 
    */
   private startTimer(gamePlay: GamePlayState, duration=null){
+    if (this.stash.throttleTimeAndWordEvents) return;
     if (!gamePlay) {
       return console.warn("error: round is not loaded");
     }
 
     // role guard
     let isOnTheSpot = this.stash.onTheSpot;
-    if (!isOnTheSpot) return; 
+    if (!(isOnTheSpot || this.isModerator())) return;
+
     if (gamePlay.playerRoundComplete) {
       // BUG: this is not getting reset properly
       let msg = "startTimer called with playerRoundComplete"
@@ -869,61 +887,62 @@ export class GamePage implements OnInit {
     let rid = this.game.activeRound;
     let round = this.gameDict.activeRound;
     
-    if (this.stash.onTheSpot) {
-      let timeOnClock = duration || gamePlay.timerDuration || this.initialTimerDuration;
-      
-      let update = {
-        timerDuration: timeOnClock
-      } as Partial<GamePlayState>;
 
-      if (gamePlay.timerPausedAt) {
-        // clear pause, then restart
-        // word has already been served
-        timeOnClock = gamePlay.timerPausedAt;
-        update.timerPausedAt = null;
-      }
-      else {
-        if (!gamePlay.word) {
-          // serve FIRST word of round
-          let next = FishbowlHelpers.nextWord(round, gamePlay);
-          Object.assign( update, next);   // add next word to GamePlayState
-          if (next.remaining.length==0){
-            console.warn("INVALID STATE: playerRound should not begin with next.remaining.length=0")
-            return this.completeGameRound(this.activeRound);
-          }
-
-          console.info("\t>>>> playerRoundWillBegin()");
-          update.playerRoundBegin = true;
-
-        }
-      }
-
-      update.timer = {
-        seconds: Math.max(timeOnClock,0),
-        key: Date.now(),
-      };
-      update.isTicking = true;
-      update.doPlayerUpdate = false;  // reset
-      // console.log("0> startTimer, update=", JSON.stringify(update))
+    // if (!isOnTheSpot) return;
+    let timeOnClock = duration || gamePlay.timerDuration || this.initialTimerDuration;
     
-      this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
-        this.gamePlayWatch.gamePlay$.pipe( 
-          take(1),
-          tap(v=>{
-            console.log("1> startTimer, update=", JSON.stringify(Helpful.cleanProperties(v, Object.keys(update))))
-          })
-        ).subscribe()
-      });
+    let update = {
+      timerDuration: timeOnClock
+    } as Partial<GamePlayState>;
+
+    if (gamePlay.timerPausedAt) {
+      // clear pause, then restart
+      // word has already been served
+      timeOnClock = gamePlay.timerPausedAt;
+      update.timerPausedAt = null;
     }
+    else {
+      if (!gamePlay.word) {
+        // startTimer(): serve FIRST word of round, from gamePlay.remaining 
+        let next = FishbowlHelpers.nextWord(round, gamePlay);
+        Object.assign( update, next);   // add next word to GamePlayState
+        if (next.remaining.length==0){
+          console.warn("INVALID STATE: playerRound should not begin with next.remaining.length=0")
+          return this.completeGameRound(this.activeRound);
+        }
+
+        console.info("\t>>>> playerRoundWillBegin()");
+        update.playerRoundBegin = true;
+
+      }
+    }
+
+    update.timer = {
+      seconds: Math.max(timeOnClock,0),
+      key: Date.now(),
+    };
+    update.isTicking = true;
+    update.doPlayerUpdate = false;  // reset
+    // console.log("0> startTimer, update=", JSON.stringify(update))
+  
+    this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
+      this.gamePlayWatch.gamePlay$.pipe( 
+        take(1),
+        tap(v=>{
+          console.log("1> startTimer, update=", JSON.stringify(Helpful.cleanProperties(v, Object.keys(update))))
+        })
+      ).subscribe()
+    });
+
   }
 
   private pauseTimer(gamePlay):boolean{
+    if (this.stash.throttleTimeAndWordEvents) return;
     if (!gamePlay.isTicking) return;
 
     // role guard
     let isOnTheSpot = this.stash.onTheSpot;
-    if (!isOnTheSpot) return;
-
+    if (!(isOnTheSpot || this.isModerator())) return;
 
 
     let update = {} as GamePlayState;
@@ -936,17 +955,16 @@ export class GamePage implements OnInit {
     update.isTicking = false;
     update.timer = {pause: true};
 
-    // push to cloud
-    if (this.stash.onTheSpot) {
-      this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
-        this.gamePlayWatch.gamePlay$.pipe( 
-          take(1),
-          tap(v=>{
-            console.log("1> PAUSE Timer, update=", JSON.stringify(Helpful.cleanProperties(v, Object.keys(update))))
-          })
-        ).subscribe()
-      })
-    }
+    // if (!isOnTheSpot) return;
+    this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
+      this.gamePlayWatch.gamePlay$.pipe( 
+        take(1),
+        tap(v=>{
+          console.log("1> PAUSE Timer, update=", JSON.stringify(Helpful.cleanProperties(v, Object.keys(update))))
+        })
+      ).subscribe()
+    });
+
   }
 
   /**
@@ -969,7 +987,10 @@ export class GamePage implements OnInit {
     if (!this.gameDict.activeRound) 
       return;
 
-    let wasOnTheSpot = this.stash.onTheSpot;
+    let isOnTheSpot = this.stash.onTheSpot;
+    let isAuthorized = isOnTheSpot || this.isModerator();
+    if (!isAuthorized) return;
+
     return Promise.resolve()
     .then( ()=>{
       if (buzz) {
@@ -979,10 +1000,10 @@ export class GamePage implements OnInit {
     })
     .then( ()=>{
       let silent = !buzz
-      if (!wasOnTheSpot || silent) {
+      if (!isAuthorized || silent) {
         return Promise.reject("skip")
 
-        // !wasOnTheSpot: cloud response, no access to gamePlay
+        // !isAuthorized: cloud response, no access to gamePlay
         // silent: timerDidComplete() should ALREADY have happened
       }
     })
@@ -1007,18 +1028,7 @@ export class GamePage implements OnInit {
           console.info("\t>>>> timerDidComplete with OVERTIME")
           // check if playerRoundDidComplete(), 
           // if not, set playerRoundBegin=false, disable wordAction buttons
-          let doPlayerRoundComplete = this.stash.onTheSpot && 
-            gamePlay.playerRoundBegin==true;
-          if (doPlayerRoundComplete){
-            console.info("\t>>>> wordAction OVERTIME DidComplete() => completePlayerRound()")
-          }
-          else {
-
-            // OK: score and next.remaining are not being updated correctly from here
-            // BUG: playerRoundComplete=true for [nextPlayer]
-
-            console.info("\t>>>> wordAction Complete() before OVERTIME, completePlayerRound() ALREADY fired on last word in overtime ")
-          }
+          let doPlayerRoundComplete = isAuthorized && gamePlay.playerRoundBegin==true;
           return doPlayerRoundComplete;
         })
       ).toPromise()
@@ -1058,7 +1068,6 @@ export class GamePage implements OnInit {
           if (gamePlay.isTicking==false){
             // OK. use button[disabled=true] to add overtime
           }
-          // accept wordAction
           this.wordAction(gamePlay, action);
         }
       })
@@ -1067,6 +1076,7 @@ export class GamePage implements OnInit {
 
 
   private wordAction( gamePlay: GamePlayState, action:string ){
+    if (this.stash.throttleTimeAndWordEvents) return;
     // role guard
     let isOnTheSpot = this.stash.onTheSpot;
     if (!(isOnTheSpot || this.isModerator())) return;
@@ -1092,6 +1102,7 @@ export class GamePage implements OnInit {
     Promise.resolve()
     .then( ()=>{
       if (!gamePlay.word) {
+        throw new Error("IMVALID STATE: this loop should never hit")
         // TODO: move to onPlayerRoundWillBegin()
         // NOTE: this will never hit:
         //    onWordActionClick() is disabled until gamePlay.isTicking
@@ -1113,6 +1124,7 @@ export class GamePage implements OnInit {
     })
     .then( ()=>{ 
       if (gamePlay.word) {
+        // onWordActionClick(): serve the next word off gamePlay.remaining
         let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]: available} );
         if (isOvertime){
           next.word = null;
@@ -1173,13 +1185,8 @@ export class GamePage implements OnInit {
    */
   async completePlayerRound(gameRoundComplete=false):Promise<void>{
     console.log("3: ******* completePlayerRound, roundComplete=", gameRoundComplete)
-    let wasOnTheSpot = this.stash.onTheSpot;
-
-    // role guard
-    if (!wasOnTheSpot) 
-      return;
-
-
+    let isOnTheSpot = this.stash.onTheSpot;
+    if (!(isOnTheSpot || this.isModerator())) return;
 
     // only active player pushes updates to the cloud
     let activeRound = this.activeRound;
@@ -1229,7 +1236,7 @@ export class GamePage implements OnInit {
    */
   private nextPlayerRound():Promise<void>{
     let isOnTheSpot = this.stash.onTheSpot;
-    if (!isOnTheSpot) {
+    if (!(isOnTheSpot || this.isModerator())) {
       throw new Error( " spotlight changed before ready")
     }
 

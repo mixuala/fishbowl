@@ -43,7 +43,7 @@
     flex-direction: var(--countdown-time-flex-direction);
     align-items: center;
     justify-content: center;
-    min-height: 5em;
+    height: var(--countdown-time-height, 5em);
 
     .time-unit {
       display: block;

@@ -121,7 +121,7 @@ export class FishbowlHelpers {
     let uid = Object.values(teams)[ spotlight.teamIndex ][ spotlight.playerIndex[ spotlight.teamIndex ] ];
     let label = players[ uid ];
     let [teamName, found] = Object.entries(round.teams).find( ([name, uids])=>uids.find( v=>v==uid) );
-    return {uid, label, teamName};
+    return {uid, label, teamName, teamIndex:spotlight.teamIndex};
   }
 
 
@@ -158,14 +158,21 @@ export class FishbowlHelpers {
     let remaining = gamePlay.remaining
     let doShuffle = lastResult===null;
     if (lastResult){
-      // if wrong, unshift index onto remaining
+      // if [pass]=>available, unshift index onto remaining
       let [word, available] = Object.entries(lastResult)[0];
+      // true: lastResult:word == Object.keys(round.entries)[remaining[0]]
+      let check = Object.keys(round.entries)[remaining[0]] == word;
+      if (!check) {
+        console.warn('CHECK: is this a doubleClick between spotlight/moderator?')
+        throw new Error("lastResult does not match remaining[0]")
+      }
       if (available) {
         let index = Object.keys(round.entries).findIndex( w=>w==word);
         if (~index) {
           remaining.push(index);
         }
       }
+      // shift() the "lastResult" off the remaining stack.
       remaining.shift();
     }
     else {
@@ -182,6 +189,7 @@ export class FishbowlHelpers {
     if (remaining.length==0) {
       return {word:null, remaining:[]}
     }
+    // return the next word off the remaining stack. lastResult has already been shifted()
     let word = Object.keys(round.entries)[remaining[0]]
     return {word, remaining};
   }
