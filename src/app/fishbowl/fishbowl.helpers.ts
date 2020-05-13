@@ -85,7 +85,7 @@ export class FishbowlHelpers {
   {
     // get Player {displayName, teamName?, teamId? } from game
     // get Player.displayName from game.Players
-    let displayName = game.players && game.players[pid];
+    let displayName = game && game.players && game.players[pid];
     if (!displayName) return {} as any;
 
     

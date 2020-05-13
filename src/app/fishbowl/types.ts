@@ -138,6 +138,7 @@ export enum RoundEnum {
 export interface GameDict {
   [uid: string]: Game | GamePlayRound;
   activeRound?: GamePlayRound;
+  game?: Game;
 }
 
 export interface GameWatch {

@@ -5,7 +5,7 @@ import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularf
 import { Storage } from  '@ionic/storage';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, BehaviorSubject, of, from, timer, interval, zip, } from 'rxjs';
+import { Observable, Subject, BehaviorSubject, of, from, interval, } from 'rxjs';
 import { map, tap, switchMap, take, takeWhile, pairwise, first, filter, startWith, withLatestFrom, } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
@@ -59,34 +59,31 @@ export class GamePage implements OnInit {
   // from ionViewWillEnter
   public loadGame$(gameId):Observable<GameDict>{
     this.gameWatch = this.gameHelpers.getGameWatch( gameId );
+    let {gameDict$, game$} = this.gameWatch;
 
     return this.gameWatch.gameDict$.pipe(
       // takeUntil(this.done$),
+      // debounceTime(500),
       tap( d=>{
         this.gameDict = d;
+        this.game = d.game;
         this.activeRound = d.activeRound; 
       }),
-      tap( d=>{
-        this.gameWatch.game$.pipe(
-          // takeUntil(this.done$),
-          tap( g=>{
-            this.game = g;
-            this.stash.playersSorted = Helpful.sortObjectEntriesByValues(g.players) as Array<[string,string]>
-            this.setGamePlayer(g);
-            // console.log(g);
-          }),          
-          startWith(null),
-          pairwise(),
-          tap( ([prev,cur])=>{
-            // console.log("  >>>> game$ emits game=",cur)
-            if (
-              prev===null ||
-              prev.activeRound!=cur.activeRound
-            ) {
-              this.gamePlayWatch = this.gameHelpers.getGamePlay(this.gameId, this.game, this.gameDict); 
-            }
-          }),
-        ).subscribe();
+      startWith(null),
+      pairwise(),
+      map( ([prev, cur])=>{
+        let isActiveRoundChanged = prev==null || prev.activeRound!=cur.activeRound;
+        if (isActiveRoundChanged) {
+          // TODO: refactor, delete param cur.game
+          if (this.stash.watchGamePlay) {
+            this.stash.watchGamePlay.unsubscribe();
+            this.stash.watchGamePlay = null;
+          }
+          // use Object.assign()?
+          console.log("0: ### reset this.gamePlayWatch")
+          this.gamePlayWatch = this.gameHelpers.getGamePlay(gameId, cur.game, cur); 
+        }
+        return cur;
       }),
     );
   }
@@ -98,7 +95,7 @@ export class GamePage implements OnInit {
     game: Game,
     round: GamePlayRound,
     player: Player,
-    // waitForScoreboard: Promise<Scoreboard>,   
+
   ) {
 
     const TIME={
@@ -253,19 +250,21 @@ export class GamePage implements OnInit {
     changed: Partial<GamePlayState>,
     cur: GamePlayState,
   ){
- 
+    
+
     // in order of priority
     if (changed.isTicking && cur.isTicking) {
       this.audio.play("click");
       console.info( "*** detect timer Start, sound=click");
       return;
     }
-    if (changed.timerPausedAt) {
+    else if (changed.timerPausedAt) {
       let sound = cur.timerPausedAt ? "pause" : "click";
       this.audio.play(sound);
       console.info( "*** detect timer PAUSE, sound=", sound);
       return;
     }
+
     if (changed.log) {
       let curEntries = cur.log && Object.keys(cur.log).length || 0;
       // [OK]: TEST detect new word action when we don't look at prevEntries
@@ -479,8 +478,6 @@ export class GamePage implements OnInit {
     if (!this.game) return false;
     if (!this.isModerator()) return false;
 
-    //TODO: need a form to add teamNames
-
     let existingRoundEnums = Object.values(this.game.rounds || {});
 
     let rounds = [RoundEnum.Taboo, RoundEnum.OneWord, RoundEnum.Charades]
@@ -521,17 +518,23 @@ export class GamePage implements OnInit {
       rounds_DbRef.update(updateBatch)
     )
 
-
     // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
     let update = {
       gameId: this.gameId,
       doPlayerUpdate: true,           // handle in doGamePlayExtras()
+      doCheckIn: false,
       checkInComplete: true,
     } as Partial<GameAdminState>
-    waitFor.push (
-      // GamePlayAdminState
-      this.gameHelpers.pushGamePlayState( {uid: this.gameId} as GamePlayWatch, update)
-    )
+    // GamePlayAdminState
+    // do gamePlay update FIRST to avoid duplicate doCheckIn screen.
+    let doFirst = await this.gameHelpers.pushGamePlayState( {uid: this.gameId} as GamePlayWatch, update)
+
+    // reload this.gamePlay$
+    // ???: is this necessary? we do not change gamePlay until beginNextGameRound()
+    if (this.stash.watchGamePlay) {
+      this.stash.watchGamePlay.unsubscribe();
+      this.stash.watchGamePlay = null;
+    }
     return Promise.all(waitFor).then( ()=>true);
   }
 
@@ -614,131 +617,129 @@ export class GamePage implements OnInit {
     } else {
       // release old game, should be handled by takeWhile();
       console.info(" 0>>> ***** ionViewWillEnter(): load ******")
-
-      /**
-       * this is the MAIN game listener for cloud players
-       */
-      let game:Game;
-      let round:GamePlayRound;
-      this.loadGame$(this.gameId).pipe(
-        // takeUntil(this.done$),  // ??
-        takeWhile( (d)=>!!d[this.gameId]),
-        tap( d=>{
-          game = d[this.gameId] as Game;                  // closure
-          round = d[game.activeRound] as GamePlayRound;   // closure
-          this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
-        }),
-        switchMap( (d)=>{
-          return this.gamePlayWatch.gamePlay$;
-          /**
-           * every NEW gamePlayState, caused by wordAction()
-           */
-        }),
-        tap( gamePlay=>{
-          if (!round) return
-
-          this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
-          // true if this player is under the spotlight
-          // TODO: use roles here
-          this.stash.onTheSpot = (this.spotlight.uid === this.playerId);
-        }),
-        startWith(null),
-        pairwise(),
-        map( (gamePlayChange)=>{
-          const THROTTLE_TIMER_AND_WORD_ACTIONS = 1000;
-          let [prev, cur] = gamePlayChange;
-          if (cur===null) 
-            return;
-          
-          let isFirst = prev===null
-          let changed = isFirst ? cur : Object.keys(cur).filter( k=>cur[k]!==prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
-          console.log( `===>>> loadGame() gamePlay changed=` , changed)
-          
-          let isThrottling = !!this.stash.skipUntil;
-          let doThrottle = changed.isTicking || !!changed.word;
-          if (!isThrottling && doThrottle) {
-            // throttle LOCAL actions after cloud emits
-            this.stash.throttleTimeAndWordEvents = true;
-            setTimeout( ()=>this.stash.throttleTimeAndWordEvents=false
-              , THROTTLE_TIMER_AND_WORD_ACTIONS
-            )
-          }
-          return [changed, cur]
-        }),
-        tap( res=>{
-          if (res==null) return
-          let [changed, gamePlay] = res;
-
-          this.doGamePlayUx(changed, gamePlay);
-          this.doGamePlayExtras(changed, gamePlay);
-          this.doInterstitialsPreGame(
-            changed, gamePlay, game,
-          )
-
-          // let waitForScoreboard = this.stash.scoreboard$;
-          this.doInterstitialsWithScoreboard(
-            changed, gamePlay,  // gamePlay
-            game, round,
-            this.player,
-            // waitForScoreboard,
-          );
-
-        })
-      ).subscribe(null,null,
-        ()=>console.info(" 10>>> ***** ionViewWillEnter(): subscriber COMPLETE ******")
-      );
+      this.watchGame(this.gameId);
     }
   }
 
+  /**
+   * throttle LOCAL events, triggered on cloud state, 
+   *  - sets 
+   *  - prevent duplicate actions from moderator/spotlight
+   * 
+   * 
+   * @param changed 
+   */
+  throttleTimeAndWordEvents(changed:Partial<GamePlayState>=null):boolean {
+    const THROTTLE_TIMER_AND_WORD_ACTIONS = 700;
+    if (changed) {
+      let isThrottling = this.stash.throttleTimeAndWordEvents;
+      let doThrottle = changed.isTicking || !!changed.word;
+      if (!isThrottling && doThrottle) {
+        // throttle LOCAL actions after cloud emits
+        this.stash.throttleTimeAndWordEvents = true;
+        setTimeout( ()=>this.stash.throttleTimeAndWordEvents=false
+          , THROTTLE_TIMER_AND_WORD_ACTIONS
+        )
+      }
+    }
+    return this.stash.throttleTimeAndWordEvents;
+  }
+
+  watchGame(gameId:string){
+    if (this.stash.watchGameId == gameId) return;
+    /**
+     * this is the MAIN game listener for cloud players
+     */
+    this.stash.watchGameId = gameId;
+    let game:Game;
+    let round:GamePlayRound;
+    this.loadGame$(gameId).pipe(
+      // takeUntil(this.done$),  // ??
+      takeWhile( (d)=>!!d[gameId]),
+      tap( d=>{
+        game = d.game;                  // closure
+        round = d.activeRound;          // closure
+      }),
+      tap( d=>{
+        this.setGamePlayer(d);
+        this.stash.playersSorted = Helpful.sortObjectEntriesByValues(game.players) as Array<[string,string]>
+        this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
+        this.watchGamePlay(gameId, d);
+      }),
+    ).subscribe(null,null,
+      ()=>{
+        if (this.stash.watchGameId!=gameId) this.stash.watchGameId = null;
+        console.info(">>> ***** loadGame$(): subscriber COMPLETE ******")
+      }
+    );
+    
+  }
+
+  watchGamePlay(gameId: string, d:GameDict){
+    if (this.stash.watchGamePlay) {
+      // not watching after game reset
+      return;
+    }
+
+    // console.log("1: ### reset this.gamePlay$")
+    this.gamePlay$ = this.gamePlayWatch.gamePlay$;
+    let game = d.game;                  // closure
+    let round = d.activeRound;          // closure
+    this.stash.watchGamePlay = this.gamePlayWatch.gamePlay$.pipe(
+      takeWhile( ()=>!!this.gameDict[this.gameId]),
+      startWith(null),
+      pairwise(),
+      map( (gamePlayChange)=>{
+        let [prev, cur] = gamePlayChange;
+        let isFirst = prev===null
+        cur = cur || {} as GamePlayState;
+        let changed = isFirst ? cur : Object.keys(cur).filter( k=>cur[k]!==prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
+        if (isFirst) {
+          // HACK: don't trigger doCheckIn from 
+          // changed.doCheckIn = false;
+        }
+        console.log( `===>>> loadGame() gamePlay changed=` , changed)
+        return [changed, cur]
+      }),
+      tap( res=>{
+        let [changed, gamePlay] = res;
+
+        if (changed.spotlight) {
+          this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
+          this.stash.onTheSpot = (this.spotlight.uid === this.playerId);
+        }        
+        let isThrottling = this.throttleTimeAndWordEvents(changed);        
+        this.doGamePlayUx(changed, gamePlay);
+        this.doGamePlayExtras(changed, gamePlay);
+        this.doInterstitialsWithScoreboard(
+          changed, gamePlay, game, round,
+          this.player$.value,
+        );
+        this.doInterstitialsPreGame(
+          changed, gamePlay, game,
+        );
+      })
+      
+    ).subscribe(null,null,
+      ()=>{
+        this.stash.watchGamePlay = null;
+        console.info(">>> ***** watchGamePlay(): subscriber COMPLETE ******")
+      }
+    );
+  }
 
   /**
    * break main UI/UX Subscribers into smaller functional units
    */
-  setGamePlayer(game:Game = null) {
+  setGamePlayer(d:GameDict=null) {
     // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
-    // merge {game.displayName }
+    // OR, every gameWatch.gameDict$ emit
 
-    if (game && game.players) {
-      let p = this.player$.value;
-      // set locally, don't use Observable
-      let displayName = game.players[p && p.uid];
-      if (displayName) {
-        this.player$.next( Object.assign({}, p, {displayName}) );
-        return;
-      }
-    }
-
-    let _getNextRound = (game:Game, rounds: GamePlayRound[]): GamePlayRound => {
-      if (!game.rounds) return null;
-      let sortedRids = Object.entries(game.rounds).sort( (a,b)=>a[1]-b[1] ).map( v=>v[0]);
-      let i = Math.max(0, sortedRids.findIndex( v=>v==game.activeRound ) )
-      return rounds && rounds[i];
-    }
-
-    zip(
-      this.gameWatch.game$,
-      this.gameWatch.hasManyRounds$
-    ).pipe(
-      take(1),
-      tap( ([game, rounds])=>{
-
-        if (!game) 
-          throw new Error( "game is undefined")
-        if (!rounds) 
-          throw new Error( "rounds is undefined")
-        if (!this.playerId) 
-          throw new Error( "this.playerId is undefined")
-
-        let round = _getNextRound(game, rounds);
-        let playerSettings = FishbowlHelpers.getPlayerSettings(this.playerId, game, round);
-        let player = this.player$.value;
-        Object.entries(playerSettings).forEach( ([k,v])=>{
-          // HACK: do NOT overwrite with null
-          if (!!v) player[k] = v;
-        })
-        this.player$.next( Object.assign({}, player) );    
-      }),
-    ).subscribe();
+    let {game, activeRound} = d || this.gameDict;
+    let player = this.player$.value;
+    let playerSettings = FishbowlHelpers.getPlayerSettings(player.uid, game, activeRound);
+    let update = Object.assign({}, player, playerSettings);
+    this.player$.next( update );
   }
 
 

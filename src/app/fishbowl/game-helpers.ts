@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import { Observable, of, combineLatest, ReplaySubject, } from 'rxjs';
-import { withLatestFrom, map, switchMap, take, share, tap, first } from 'rxjs/operators';
+import { map, take, share, tap, first, debounceTime } from 'rxjs/operators';
 
 import * as dayjs from 'dayjs';
 
@@ -143,14 +143,6 @@ export class GameHelpers {
     let hasManyRounds_af = this.db.list<GamePlayRound>('/rounds',
       ref=>ref.orderByChild('gameId').equalTo(gameId)
     );
-    
-
-    // // game with no rounds built?
-    // let games$ = games.snapshotChanges().pipe(
-    //   FishbowlHelpers.pipeSnapshot2Data(),
-    //   FishbowlHelpers.pipeSort('gameTime'),
-    // )
-    // games$.subscribe( (v)=>console.log("games$:", v));
 
     let hasManyRounds$ = hasManyRounds_af.valueChanges().pipe(
       // or use Helpful.sortByIds() on uids
@@ -165,19 +157,30 @@ export class GameHelpers {
     )
     .subscribe(HOT_game$);  // "hot" observable
 
-    // NOTE: only emits when rounds change
-    // DOES NOT emit when game changes
-    let gameDict$:Observable<GameDict> = hasManyRounds_af.valueChanges().pipe(
-      withLatestFrom( HOT_game$ ),
+    // NOTE: COLD observable, emits when game or rounds change
+    let gameDict$:Observable<GameDict> = combineLatest(
+      hasManyRounds_af.valueChanges().pipe(
+        debounceTime(100),      // loadGameRounds() will update 3 rounds "together"
+        tap( (r)=>{
+          console.log("121: gameDict$ emits rounds=",r)
+        })
+      ),
+      HOT_game$.pipe( 
+        tap( (g)=>{
+          console.log("121: gameDict$ emits game=",g)
+        })
+      ),
+    ).pipe(
       map( ([rounds,g])=>{
+        console.warn("\t>>> 121: gameDict$ combineLatest() emits g, rounds=", g, rounds)
         let uidLookup:GameDict = {
-          [gameId]: g
+          [gameId]: g,
+          'game': g,
         };
         if (!g.rounds) return uidLookup;
 
-        let gamePlay$: Observable<GamePlayState>;
         Object.entries(g.rounds).forEach( ([k,v])=>{
-          let round = rounds.find( r=>r.round==v)
+          let round = rounds.find( r=>r.round==v && g.rounds[r.uid])
           uidLookup[k] = round;
           if (k==g.activeRound){
             uidLookup['activeRound'] = round
@@ -185,12 +188,13 @@ export class GameHelpers {
         });
         return uidLookup;
       }),
+      share(),
     )
     return {
       gameId,
-      game$: HOT_game$,
-      hasManyRounds$, // sorted
-      gameDict$, // by key
+      game$: HOT_game$,   // same as gameDict.game
+      hasManyRounds$,     // sorted
+      gameDict$,          // by key
     }
   }
 
@@ -199,37 +203,30 @@ export class GameHelpers {
       gameId = gameDict.activeRound ? gameDict.activeRound.gameId : Object.keys(gameDict)[0];
     }
     let rid = game.activeRound || gameId;
-    let gamePlay$ = of(rid).pipe(
-      switchMap( rid=>{
-        if (rid) {
-          // GamePlayRound hasOne GamePlayWatch, use SAME rid
-          let HOT_gamePlay$ = new ReplaySubject<GamePlayState>(1);
-          this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges()
-          .pipe( 
-            // TODO: sort gamePlay.log desc
-            // this is a COLD observable, does not emit until subscribed
-          ).subscribe(HOT_gamePlay$)
-          return HOT_gamePlay$;
-        }
-        else 
-          return of({} as GamePlayState )
-      })
+    let HOT_gamePlay$ = new ReplaySubject<GamePlayState>(1);
+    console.warn("123: gameWatch.gamePlay$ has changed!!! uid=", rid);
 
-    );
-    let gameLog$ = of(gameId).pipe(
-      switchMap( gameId=>{
-        if (gameId) 
-        // GamePlayRound hasOne GamePlayLog, use SAME gameId
-          return this.db.object<GamePlayLog>(`/gameLogs/${gameId}`).valueChanges()
-          .pipe( 
-            // TODO: sort gamePlayLog.values desc
-            share() 
-          )
-        else 
-          return of({} as GamePlayLog )
-      })
-    );    
-    return { uid:rid, gamePlay$, gameLog$}
+    let gamePlay$:Observable<GamePlayState>
+    if (rid) {
+      console.warn("\t123: INNER. subscribe(HOT_gamePlay$) uid=", rid)
+      this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges().subscribe(HOT_gamePlay$)
+      gamePlay$ = HOT_gamePlay$;
+    }
+    else {
+      gamePlay$ = of(null)
+    }
+
+    let gameLog$:Observable<GamePlayLog>
+    if (gameId) {
+      gameLog$ = this.db.object<GamePlayLog>(`/gameLogs/${gameId}`).valueChanges()
+      .pipe( 
+        share() 
+      )
+    }
+    else {
+      gameLog$ = of({} as GamePlayLog )
+    }
+    return {uid:rid, gamePlay$, gameLog$}
   }
 
   /**
