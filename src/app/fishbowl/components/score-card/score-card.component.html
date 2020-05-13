@@ -1,0 +1,32 @@
+<div class="score-card">
+
+  <!-- <ion-item-divider class="ion-margin-top">
+  </ion-item-divider> -->
+  <ion-grid class="ion-no-padding" *ngIf="(gamePlay$ | async) as gamePlay">
+    <ion-row class="ion-no-padding wide">
+      <ion-col>
+        <ion-label class="inline-text-wrap">
+          <ion-text>Score Card</ion-text>
+          <ion-badge class="ion-margin-horizontal" *ngIf="lastResult"
+          [color]="lastResult.teamIndex ? 'success' : 'tertiary'"
+          >{{lastResult.playerName}} &mdash; {{lastResult.teamName}}</ion-badge>
+        </ion-label>
+      </ion-col>
+    </ion-row>
+    <ion-row class="ion-no-padding wide">
+      <ion-col size="6" *ngFor="let log of ( getLog(gamePlay) | keyvalue)">
+        <ion-item >
+          <ion-icon slot="start" 
+            [name]="log.value.result ? 'checkbox' : 'close-circle'" 
+            [color]="log.value.result ? 'success' : 'danger'"></ion-icon>
+          <ion-label  class="ion-text-wrap">{{ (isModerator || log.value.result )? log.value.word : '[PASS]' }}</ion-label>
+          <ion-toggle class="pass-ok-toggle" *ngIf="isModerator"
+            slot="end" color="success"
+            [checked]="log.value.result" 
+            (ionChange)="toggleChange(log, $event)"></ion-toggle>
+        </ion-item>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+
+</div>

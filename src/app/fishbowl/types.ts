@@ -62,6 +62,7 @@ export interface WordResult {
   result: boolean;
   word: string;
   time?: number;
+  modifiedBy?: string;
 }
 
 /**

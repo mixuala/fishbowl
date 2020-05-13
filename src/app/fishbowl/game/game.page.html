@@ -169,7 +169,15 @@
 
 
                 </ng-container>
-              </ion-list>                  
+              </ion-list>
+              
+              <app-score-card 
+                [gamePlay$]="gamePlay$"
+                asModerator="true"
+                [game$]="gameWatch?.game$"
+                [player$]="player$"
+                (onGameLogChanged)="doGameLogChangedByModerator($event)"
+              ></app-score-card>
 
 
             </div>
@@ -372,23 +380,7 @@
               </div>
 
               <div class="round-scores" *ngIf="activeRound">
-                <ion-item-divider class="ion-margin-top">
-                  <ion-note>round scores</ion-note>
-                </ion-item-divider>
-                <ion-grid class="ion-no-padding" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
-
-                  <ion-row class="ion-no-padding wide">
-                    <ion-col size="6" *ngFor="let log of (gamePlay.log | keyvalue)">
-                      <ion-item >
-                        <ion-icon slot="start" 
-                          [name]="log.value.result ? 'checkbox' : 'close-circle'" 
-                          [color]="log.value.result ? 'success' : 'danger'"></ion-icon>
-                        <ion-label  class="ion-text-wrap">{{log.value.result ? log.value.word : '[PASS]' }}</ion-label>
-                      </ion-item>
-                    </ion-col>
-                  </ion-row>
-
-                </ion-grid>
+                <app-score-card [gamePlay$]="gamePlay$"></app-score-card>
               </div>
               
               <div  class="timer-controls ion-margin-bottom" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">

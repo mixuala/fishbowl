@@ -1,0 +1,50 @@
+
+.inline-text-wrap > * {
+  vertical-align: middle;
+}
+
+.score-card {
+
+  ion-row.wide {
+    ion-col {
+      & > * {
+        --min-height: 36px;
+        --inner-padding-top: 0;
+        --inner-padding-bottom:0;
+      }
+      ion-item {
+        --padding-start: 6px;
+        ion-icon[slot=start] {
+          margin-inline-end: 6px;
+        }
+        ion-label {
+          margin-inline-end:0;
+        }
+      }
+      ion-icon {
+        margin-top: 6px;
+        margin-bottom: 6px;
+      }
+      ion-label {
+        margin-top: 6px;
+        margin-bottom: 5px;
+      }
+    }
+    ion-col:nth-child(even) {
+      ion-item {
+        --inner-padding-end: 0;
+      }
+    }
+  }
+
+  .pass-ok-toggle {
+    --background: rgba(var(--ion-color-danger-rgb), 0.4);
+    --handle-background: var(--ion-color-danger);
+  }
+
+}
+
+
+.team-round.spotlight {
+  background-color: rgba(var(--ion-color-success-rgb), 0.5);
+}

@@ -1177,6 +1177,14 @@ export class GamePage implements OnInit {
     })
   }
 
+  doGameLogChangedByModerator(changed: GamePlayLogEntries) {
+    if (!this.isModerator()) return;
+
+    this.gameHelpers.pushGamePlayLogUpdate(this.gamePlayWatch, changed, this.playerId).then( ()=>{
+      console.log( "126: doGameLogChangedByModerator, changed=", changed)
+    })
+  }
+
   /**
    * orchestrate the timed sequence to complete the playerRound
    * [before]

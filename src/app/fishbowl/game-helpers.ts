@@ -357,6 +357,20 @@ export class GameHelpers {
     });
   }
 
+  pushGamePlayLogUpdate(watch:GamePlayWatch, update:GamePlayLogEntries, playerId:string):Promise<void>{
+    // push to cloud
+    let waitFor = [];
+    Object.entries(update).forEach( ([k,v])=>{
+      let partial = Object.assign({}, v, {modifiedBy: playerId});
+      let path = `/gamePlay/${watch.uid}/log/${k}`;
+      let one = this.db.database.ref().child(path).update( partial ).then( ()=>{
+        console.warn(">>> 126: pushGamePlayLogUpdate(), moderator update=", partial, path)
+      });
+      waitFor.push( one );
+    });
+    return Promise.all(waitFor).then( ()=>{return} );
+  }
+
   requestCheckIn(gameId:string){
     let gamePlayState:GameAdminState = {
       gameId,
