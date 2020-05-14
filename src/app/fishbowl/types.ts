@@ -78,6 +78,8 @@ export interface GameAdminState {
   timestamp?: number | Object;
   changedKeys?: string[];
   doPlayerUpdate?: boolean; 
+  // UX state variables
+  doPlayerWelcome?: boolean;
   doCheckIn?: boolean;
   checkInComplete?: boolean;
   // admin states 

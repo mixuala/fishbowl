@@ -19,6 +19,7 @@ export class HelpComponent implements OnInit {
    * @param options
    */
   public static dismissed:any = {}; // check before modal.present()
+  public static last:HTMLIonModalElement;
 
   public static  
   async presentModal(modalCtrl:ModalController, options:any={}):Promise<HTMLIonModalElement>{
@@ -33,9 +34,15 @@ export class HelpComponent implements OnInit {
       // showBackdrop: true,
     };
     options = Object.assign( defaults, options);
-    let done$ = new Subject<boolean>();      
+    let done$ = new Subject<boolean>(); 
 
     return Promise.resolve()
+    .then( ()=>{
+      if (!!HelpComponent.last) {
+        console.warn('121: HelpComponent.last.dismiss');
+        return HelpComponent.last && HelpComponent.last.dismiss(true);
+      }
+    })
     .then( ()=>{
 
     /**
@@ -64,17 +71,19 @@ export class HelpComponent implements OnInit {
           tap(()=>modal.dismiss())
         ).subscribe();
       }
-      await modal.present();
-      await modal.onWillDismiss()
-      .then( async (resp)=>{
-        done$.next(true);
-        options.onWillDismiss && options.onWillDismiss(resp); 
+      modal.present().then( async ()=>{
+        await modal.onWillDismiss()
+        .then( async (resp)=>{
+          done$.next(true);
+          options.onWillDismiss && options.onWillDismiss(resp); 
+        })
+        await modal.onDidDismiss()
+        .then( async (resp)=>{
+          options.onDidDismiss && options.onDidDismiss(resp);
+          let {template} = modal.componentProps;
+        });
       })
-      await modal.onDidDismiss()
-      .then( async (resp)=>{
-        options.onDidDismiss && options.onDidDismiss(resp);
-        let {template} = modal.componentProps;
-      })
+      HelpComponent.last = modal;
       return modal;
     })
     .catch( err=>{

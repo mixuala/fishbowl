@@ -480,7 +480,7 @@ export class GamePage implements OnInit {
       }
       return this.gameHelpers.DEV_resetGame(this.gameId, game, this.gameDict, !hard)
       .then( ()=>{
-        this.gameHelpers.initGameAdminState(this.gamePlayWatch, {doPlayerWelcome: true});
+        this.gameHelpers.initGameAdminState(this.gameDict.gamePlayWatch, {doPlayerWelcome: true});
       })
     });
   }
@@ -490,16 +490,58 @@ export class GamePage implements OnInit {
    */
   async requestCheckIn(gameId:string){
     if (!this.isModerator()) return;
-
-    await this.gameHelpers.requestCheckIn(this.gameId);
+    let update = { 
+      doCheckIn: true,
+      checkInComplete: false,
+    }
+    await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
     this.stash.showCheckInDetails = true;
   }
+
+/**
+   * cloud action, trigger on gamePlay.doCheckIn==true, GameAdminState
+   */ 
+  showWelcomeInterstitial(game:Game, gamePlay:GamePlayState) {
+    this.player$.pipe(
+      filter( p=>!!p.displayName),
+      take(1),
+      tap( (player)=>{
+        let playerId =  player.uid;
+        let playerName = game.players && game.players[playerId];
+        let hasEntry = game.entries && !!game.entries[playerId];
+        let gameTitle = game.label;
+        let entryLink = ['/app/game', this.gameId, 'player'];
+        let chatRoom = game.chatRoom;
+        // hasEntry = false;
+
+        console.warn("121: showWelcome Interstitial")
+        HelpComponent.presentModal(this.modalCtrl, {
+          template:'player-welcome',
+          once:false,
+          gameTitle, chatRoom,
+          playerName, hasEntry, entryLink,
+          backdropDismiss: false,
+          // duration: status===false ? null : ALREADY_CHECKED_IN_DISMISS,
+          swipeToClose: false,
+          dismiss: (v)=>{ 
+            if (this.isModerator()) v=true;
+            if (v==true) this.modalCtrl.dismiss('entry')
+          }
+        }).then( ()=>{
+          this.audio.play('click') 
+        });
+      })
+    ).subscribe();
+  }  
 
   /**
    * cloud action, trigger on gamePlay.doCheckIn==true, GameAdminState
    */ 
   showCheckInInterstitial(status:string | boolean) {
-    const ALREADY_CHECKED_IN_DISMISS = 5000;
+    // if (!!status) return;
+
+    console.warn("121: showCheckInInterstitial(), status=", status)
+    const ALREADY_CHECKED_IN_DISMISS = 10000;
     this.player$.pipe(
       filter( p=>!!p.displayName),
       take(1),
@@ -513,11 +555,14 @@ export class GamePage implements OnInit {
           swipeToClose: true,
           playerReady: (res)=>{
             this.modalCtrl.dismiss(res);
+            let sound = res ? 'ok' : 'pass';
+            this.audio.play(sound);
             let checkIn = {[player.uid]: res ? player.displayName : false };
-            // console.log( "player checked in: ", checkIn)
             this.gameHelpers.pushCheckIn(this.gameId, checkIn);
           },
           dismiss: (v)=>{ return status }
+        }).then( ()=>{
+          this.audio.play('click') 
         });
       })
     ).subscribe();

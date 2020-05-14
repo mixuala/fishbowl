@@ -12,7 +12,7 @@
 
 ion-grid.center-grid {
 
-  background-color: rgba(0,0,0,0.3);
+  background-color: rgba(0,0,0,0.6);
 
   margin: 0px;
   &, & > ion-row {
@@ -26,101 +26,124 @@ ion-grid.center-grid {
   }
 
 }
-ion-grid.center-grid {
-  ion-card.interstitial {
-    // background-color: var(--ion-color-light);
-    background-color: white;
 
-    .game-summary, .round-scores {
-      .on-the-spot {
-        background-color: var(--ion-color-success);
-        // color: var(--ion-color-light);
-        border-radius: 4px;
-        ion-note {
-          color: var(--ion-color-dark);
-        }
-      }
+// in-game interstitials
+ion-card.interstitial {
+  // background-color: var(--ion-color-light);
+  background-color: white !important;
 
-    }
-
-
-
-
-    .game-summary {
-      .header {
-        margin: 16px 0;
-        ion-item {
-          --padding-start: 0;
-          --padding-end: 0;
-        }
-      }
-      .round1, .round2, .round3 {
-        margin-bottom: 4px;
-      }
-      .total {
-        margin: 16px 0;
-        padding-top: 16px;
-        padding-bottom: 16px;
-        ion-col > * {
-          font-size: 1.4em;
-        }
+  .game-summary, .round-scores {
+    .on-the-spot {
+      background-color: var(--ion-color-success);
+      // color: var(--ion-color-light);
+      border-radius: 4px;
+      ion-note {
+        color: var(--ion-color-dark);
       }
     }
-
 
   }
 
-  .player-round-complete {
-    .round-scores {
-      .team-name {
-        border-radius: 4px;
-      }
-    }
 
-    ion-row.wide {
-      ion-col {
-        & > * {
-          --min-height: 36px;
-          --inner-padding-top: 0;
-          --inner-padding-bottom:0;
-        }
-        ion-item {
-          --padding-start: 6px;
-          ion-icon[slot=start] {
-            margin-inline-end: 6px;
-          }
-          ion-label {
-            margin-inline-end:0;
-          }
-        }
-        ion-icon {
-          margin-top: 6px;
-          margin-bottom: 6px;
-        }
-        ion-label {
-          margin-top: 6px;
-          margin-bottom: 5px;
-        }
-      }
-      ion-col:nth-child(even) {
-        ion-item {
-          --inner-padding-end: 0;
-        }
+
+
+  .game-summary {
+    .header {
+      margin: 16px 0;
+      ion-item {
+        --padding-start: 0;
+        --padding-end: 0;
       }
     }
-    
+    .round1, .round2, .round3 {
+      margin-bottom: 4px;
+    }
+    .total {
+      margin: 16px 0;
+      padding-top: 16px;
+      padding-bottom: 16px;
+      ion-col > * {
+        font-size: 1.4em;
+      }
+    }
   }
+
 
 }
 
-.check-in {
-  // background-color: var(--ion-color-dark) !important;
-  background-color: black !important;
-  .hero {
-    margin: 40px 20px 40px;
-    .player-name{
-      font-size: 2.5em;
+.player-round-complete {
+  .round-scores {
+    .team-name {
+      border-radius: 4px;
     }
   }
+
+  ion-row.wide {
+    ion-col {
+      & > * {
+        --min-height: 36px;
+        --inner-padding-top: 0;
+        --inner-padding-bottom:0;
+      }
+      ion-item {
+        --padding-start: 6px;
+        ion-icon[slot=start] {
+          margin-inline-end: 6px;
+        }
+        ion-label {
+          margin-inline-end:0;
+        }
+      }
+      ion-icon {
+        margin-top: 6px;
+        margin-bottom: 6px;
+      }
+      ion-label {
+        margin-top: 6px;
+        margin-bottom: 5px;
+      }
+    }
+    ion-col:nth-child(even) {
+      ion-item {
+        --inner-padding-end: 0;
+      }
+    }
+  }
+  
+}
+
+
+
+
+ion-card.pre-game {
+  background-color: black !important;
+  .title {
+    h1 {
+      margin: 8px 0px;
+    }
+  }
+
+  ion-card-content {
+    min-height: 320px;
+    padding-top: 26px;
+    padding-bottom: 26px;
+    .content-header {
+      margin-bottom: 32px;
+    }
+    .hero {
+      margin: 32px 20px;
+      .player-name{
+        font-size: 2.5em;
+      }
+    }
+  }
+
+
+  .player-welcome {
+
+  }
+  .check-in {
+  }  
+
 }
 
