@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
-import { Observable, of, combineLatest, ReplaySubject, } from 'rxjs';
-import { map, take, share, tap, first, debounceTime } from 'rxjs/operators';
+import * as firebase from 'firebase/app';
+
+import { Observable, of, combineLatest, ReplaySubject, Subject, } from 'rxjs';
+import { map, take, share, tap, first, debounceTime, pairwise, startWith, takeUntil } from 'rxjs/operators';
 
 import * as dayjs from 'dayjs';
 
@@ -13,6 +15,7 @@ import {
   SpotlightPlayer, WordResult, Scoreboard,
   PlayerListByUids, PlayerByUids, TeamRosters, CheckInByUids, 
 } from './types';
+
 
 
 /* Firebase dbRef cheat sheet:
@@ -198,35 +201,92 @@ export class GameHelpers {
     }
   }
 
-  getGamePlay(gameId: string, game:Game, gameDict:GameDict):GamePlayWatch{
-    if (!gameId) {
-      gameId = gameDict.activeRound ? gameDict.activeRound.gameId : Object.keys(gameDict)[0];
-    }
+  /**
+   * 
+   * NOTE: automatically completes existing Subscriptions when gameId|game.activeRound changes
+   * @param gameId 
+   * @param game 
+   * @returns {
+   *  uid: gameID or roundId being watched
+   *  gamePlay$:  HOT gamePlay passed through pairwise() with extra attrs
+   *              - changedKeys: only keys where value is truthy and != old value
+   *              - timestamp
+   *              - resolves to {} when requesting empty db key
+   *  gameLog$: 
+   *              - resolves to {} when requesting empty db key
+   *              - TODO: resolve to null
+   * }
+   */
+  _memo_GamePlayWatch: {
+    watch: GamePlayWatch,
+    done$: Subject<void>
+  }
+  getGamePlay(gameId: string, game:Game):GamePlayWatch{
     let rid = game.activeRound || gameId;
-    let HOT_gamePlay$ = new ReplaySubject<GamePlayState>(1);
-    console.warn("123: gameWatch.gamePlay$ has changed!!! uid=", rid);
 
-    let gamePlay$:Observable<GamePlayState>
-    if (rid) {
-      console.warn("\t123: INNER. subscribe(HOT_gamePlay$) uid=", rid)
-      this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges().subscribe(HOT_gamePlay$)
-      gamePlay$ = HOT_gamePlay$;
+    /**
+     * memoize results
+     */
+    let isFresh = this._memo_GamePlayWatch && this._memo_GamePlayWatch.watch.uid == rid;
+    if (isFresh) {
+      console.warn("120: >> reuse CACHED gamePlayWatch uid=", rid);
+      return this._memo_GamePlayWatch.watch;
     }
-    else {
-      gamePlay$ = of(null)
+    if (this._memo_GamePlayWatch && this._memo_GamePlayWatch.done$) {
+      // complete gamePlay$, gameLog$
+      console.warn("120: >> TEARDOWN old gamePlayWatch uid=", this._memo_GamePlayWatch.watch.uid);
+      this._memo_GamePlayWatch.done$.next();
     }
+    /**
+     * end memoize
+     */    
+    
+    
+    this._memo_GamePlayWatch = {
+      watch: null,
+      done$: new Subject(),
+    }
+    let HOT_gamePlay$ = new ReplaySubject<GamePlayState>(1);
+    
+    console.warn("121: 0>> gameWatch.gamePlay$ has changed!!! uid=", rid);
+    this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges().pipe(
+      takeUntil(this._memo_GamePlayWatch.done$),
+      startWith(undefined),
+      pairwise(),
+      tap( v=>console.log("120: gamePlay$ > pairwise", v[0], v[1])), 
+      map( ([prev, gamePlay])=>{
+        if (prev===undefined && gamePlay) 
+          console.log( "120: ===>>> gamePlay isFirst==true, rid=", rid)
+        if (gamePlay){
+          // gamePlay==null after RESET, from valueChanges() on empty key
+          let changedKeys = Object.keys(gamePlay).filter( k=>{
+            if (gamePlay[k]===false) return false;
+            if (prev==null) return true;
+            return gamePlay[k]!==prev[k];
+          });
+          console.warn( `121: ===>>> getGamePlay changedKeys=` , changedKeys)
+          gamePlay.changedKeys = changedKeys;
+        }
+        return gamePlay || {}
+      }),
+    )
+    .subscribe(HOT_gamePlay$);
+
+    let gamePlay$ = HOT_gamePlay$.asObservable();
 
     let gameLog$:Observable<GamePlayLog>
     if (gameId) {
       gameLog$ = this.db.object<GamePlayLog>(`/gameLogs/${gameId}`).valueChanges()
-      .pipe( 
+      .pipe(
+        takeUntil(this._memo_GamePlayWatch.done$),
         share() 
       )
     }
     else {
       gameLog$ = of({} as GamePlayLog )
     }
-    return {uid:rid, gamePlay$, gameLog$}
+    this._memo_GamePlayWatch.watch = {uid:rid, gamePlay$, gameLog$};
+    return this._memo_GamePlayWatch.watch;
   }
 
   /**
@@ -238,7 +298,7 @@ export class GameHelpers {
    * @param gameDict 
    * @param gameId 
    */
-  async loadNextRound(gameId: string, gameDict:GameDict, gamePlay$:Observable<GamePlayState> )
+  async loadNextRound(gameId: string, gameDict:GameDict)
     : Promise<{rid:string, activeRound:GamePlayRound}>
   {
     let game = gameDict[gameId] as Game;
@@ -320,7 +380,12 @@ export class GameHelpers {
 
 
 
-
+  /**
+   * init GamePlay for activeRound
+   * @param rid 
+   * @param teamCount 
+   * @param lastGamePlay 
+   */
   initGamePlayState(rid: string, teamCount:number, lastGamePlay:Partial<GamePlayState>):Promise<void>{
     let spotlight = lastGamePlay && lastGamePlay.spotlight || {
       teamIndex: -1,  
@@ -338,46 +403,105 @@ export class GameHelpers {
       remaining: [],
       isTicking: false,
     }
-    return this.db.list<GamePlayState>('/gamePlay').update(rid, gamePlayState)
+    let watch = {uid:rid} as GamePlayWatch;
+    return this.pushGamePlayState( watch, gamePlayState)
     .then( v=>{
       console.log("GameHelper.createGamePlayState() GamePlayState=", gamePlayState)
     });
   }
 
-  pushGamePlayState(watch:GamePlayWatch, gamePlay:Partial<GamePlayState>, ...changes):Promise<void>{
-    // push to cloud
-    let fields = changes.length ? [].concat(...changes) : null;
-    let update = Helpful.cleanProperties(gamePlay, fields);
-    return this.db.list<GamePlayState>('/gamePlay').update(watch.uid, update)
-    .then( v=>{
-      console.log("1> GameHelper.pushGamePlayState() update=", update)
-    });
-  }
 
-  pushGamePlayLogUpdate(watch:GamePlayWatch, update:GamePlayLogEntries, playerId:string):Promise<void>{
-    // push to cloud
-    let waitFor = [];
-    Object.entries(update).forEach( ([k,v])=>{
-      let partial = Object.assign({}, v, {modifiedBy: playerId});
-      let path = `/gamePlay/${watch.uid}/log/${k}`;
-      let one = this.db.database.ref().child(path).update( partial ).then( ()=>{
-        console.warn(">>> 126: pushGamePlayLogUpdate(), moderator update=", partial, path)
-      });
-      waitFor.push( one );
-    });
-    return Promise.all(waitFor).then( ()=>{return} );
-  }
 
-  requestCheckIn(gameId:string){
-    let gamePlayState:GameAdminState = {
-      gameId,
-      doCheckIn: true,
-      checkInComplete: false,
+  /**
+   * init GameAdminState to begin game
+   * @param gameId 
+   * @param watch 
+   */
+  // gamePlay is null after RESET
+  initGameAdminState(watch:GamePlayWatch, gamePlay:Partial<GameAdminState>={}){
+    let reset:GameAdminState = {
+      gameId: watch.uid,
+      doPlayerWelcome: false,
     }
-    this.db.list<GameAdminState>('/gamePlay').update(gameId, gamePlayState).then( ()=>{
+    let update = Object.assign({}, reset, gamePlay)
+    this.pushGamePlayState(watch, update).then( ()=>{
       console.info( "GameAdminState created, testing doCheckIn()", )
     });
+  }  
+
+  pushGamePlayState(watch:GamePlayWatch, gamePlay:Partial<GamePlayState>, ...changes):Promise<void>{
+    // push to cloud, add timestamp
+    const USE_SERVER_TIMESTAMP = false;
+    console.info("120: =========>>> pushGamePlayState ",gamePlay)
+    let fields = changes.length ? [].concat(...changes) : null;
+    let update = Object.assign(Helpful.cleanProperties(gamePlay, fields), {
+      timestamp: USE_SERVER_TIMESTAMP ? firebase.database.ServerValue.TIMESTAMP : Date.now(),
+    });
+    return this.db.list<GamePlayState>('/gamePlay').update(watch.uid, update)
+    .then( v=>{
+      console.log("120: GameHelper.pushGamePlayState() COMPLETE update=", update)
+    });
   }
+
+
+  /**
+   * push moderator corrections to the GamePlay.log
+   * @param watch 
+   * @param correction corrected by Moderator
+   * @param playerId moderatorId
+   */
+  pushGamePlayLogUpdate(
+    watch:GamePlayWatch, correction:GamePlayLogEntries, 
+    playerId:string,
+    roundEntries: { [word:string]: boolean}
+  ):Promise<any>{
+    // push to cloud
+    let _patch_gamePlay_remaining = (
+      corrected:Partial<WordResult>, 
+      remaining:number[],
+      roundEntries: { [word:string]: boolean}
+    ):number[]=>{
+      // patch next.remaining
+      let available = !corrected.result;
+      let word = corrected.word;
+      // TODO: need round.entries
+      let wordIndex = Object.keys(roundEntries).findIndex( k=>k==word);
+      if (available && ~wordIndex) {
+        remaining = remaining.concat(wordIndex);
+      }
+      else if (!available && ~wordIndex) {
+        remaining = remaining.filter( v=>v!=wordIndex)
+      }
+      return remaining;
+    }
+
+    return new Promise( resolve=>{
+      watch.gamePlay$.pipe( 
+        first(), 
+        ).subscribe( gamePlay=>{
+          let now = Date.now();
+          let remaining = gamePlay.remaining;
+          Object.entries(correction).forEach( ([k,v],i)=>{
+            //NOTE: by resetting the key to "now", the scorecard will sort the corrected entry to the last position
+            let oldResult = gamePlay.log[k];
+            gamePlay.log[-1*(now+i)] = Object.assign({}, gamePlay.log[k], oldResult, v, {modifiedBy: playerId});
+            delete gamePlay.log[k];
+            remaining = _patch_gamePlay_remaining(v, remaining, roundEntries);
+          });
+          console.warn("TODO: need to update next.remaining")
+          let update = { 
+            log: gamePlay.log,
+            remaining,
+          }
+          this.pushGamePlayState(watch, update).then( ()=>{
+            console.warn(">>> 126: pushGamePlayLogUpdate(), moderator update=", update);
+            resolve(update);
+          });
+      })
+    })
+  }
+
+
 
   copyTeams(rid: string, teams:TeamRosters){
     // do BEFORE beginGameRound()
@@ -620,9 +744,11 @@ export class GameHelpers {
       return !(round && round.complete);
     }).reduce( (o,v)=>(o[v[0]]=v[1],o),{});
 
+    let _isPushId = (v)=>v.startsWith('-');
+
     return Promise.resolve()
     .then( ()=>{
-      let removeIds = Object.keys(gameDict).filter( k=>k!='activeRound')
+      let removeIds = Object.keys(gameDict).filter( k=>_isPushId(k))
       if (onlyUnplayed) {
         let unplayedKeys = Object.keys(unplayed);
         removeIds = removeIds.filter( id=>!(unplayedKeys.find(rid=>rid==id)));
@@ -633,12 +759,12 @@ export class GameHelpers {
         checkIn: Object.keys(game.moderators).reduce( (o,k)=>(o[k]=false,o),{}),   // default moderator are hidden
         rounds: onlyUnplayed ? unplayed : null,
       }
-      let resetRound = {
-        startTimeDesc: null,
-        entries: null,
-        complete: false,
-        players: null,
-      }
+      // let resetRound = {
+      //   startTimeDesc: null,
+      //   entries: null,
+      //   complete: false,
+      //   players: null,
+      // }
       removeIds.forEach( uid=>{
         if (uid==gameId)
           this.db.object<Game>(`/games/${uid}`).update(resetGame)
@@ -646,6 +772,7 @@ export class GameHelpers {
           // this.db.object<GamePlayRound>(`/rounds/${uid}`).update(resetRound)
           this.db.object<GamePlayRound>(`/rounds/${uid}`).remove()
         }
+        console.warn("120: ==> resetGame, gamePlay.uid=", uid)
         this.db.object<GamePlayState>(`/gamePlay/${uid}`).remove();
         this.db.object<GamePlayLog>(`/gameLogs/${uid}`).remove();
       })

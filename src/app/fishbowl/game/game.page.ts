@@ -5,8 +5,8 @@ import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularf
 import { Storage } from  '@ionic/storage';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, BehaviorSubject, of, from, interval, } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, pairwise, first, filter, startWith, withLatestFrom, } from 'rxjs/operators';
+import { Observable, Subject, BehaviorSubject, of, from, interval, pipe, } from 'rxjs';
+import { map, tap, switchMap, take, takeWhile, first, filter, withLatestFrom, } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -23,6 +23,7 @@ import {
   SpotlightPlayer, WordResult, Scoreboard,
   PlayerListByUids, PlayerByUids, TeamRosters, 
 } from '../types';
+
 
 
 
@@ -46,7 +47,7 @@ export class GamePage implements OnInit {
   public gameId: string;
   public game: Game;
   public activeRound: GamePlayRound;
-  public gamePlay$: Observable<GamePlayState>;
+  public gamePlay$: Observable<GamePlayState>;      // for async pipes
   public scoreboard:Scoreboard;
   
 
@@ -56,7 +57,7 @@ export class GamePage implements OnInit {
     3: "act it out (\"Charades\")"
   }
 
-  // from ionViewWillEnter
+  // from ionViewWillEnter() > watchGame()
   public loadGame$(gameId):Observable<GameDict>{
     this.gameWatch = this.gameHelpers.getGameWatch( gameId );
     let {gameDict$, game$} = this.gameWatch;
@@ -69,34 +70,58 @@ export class GamePage implements OnInit {
         this.game = d.game;
         this.activeRound = d.activeRound; 
       }),
-      startWith(null),
-      pairwise(),
-      map( ([prev, cur])=>{
-        let isActiveRoundChanged = prev==null || prev.activeRound!=cur.activeRound;
-        if (isActiveRoundChanged) {
-          // TODO: refactor, delete param cur.game
-          if (this.stash.watchGamePlay) {
-            this.stash.watchGamePlay.unsubscribe();
-            this.stash.watchGamePlay = null;
-          }
-          // use Object.assign()?
-          console.log("0: ### reset this.gamePlayWatch")
-          this.gamePlayWatch = this.gameHelpers.getGamePlay(gameId, cur.game, cur); 
-        }
-        return cur;
+      map( (gameDict)=>{
+        gameDict.gamePlayWatch = this.gameHelpers.getGamePlay(gameId, gameDict.game);
+        return gameDict;
+      }),
+    );
+  }
+
+  private pipeCloudEventLoop_Bkg(player:Player, gameDict:GameDict) {
+    let game = gameDict.game;                  // closure
+    let round = gameDict.activeRound;          // closure
+    return pipe(
+      tap( (gamePlay:GamePlayState)=>{
+        console.warn("121: watchGamePlay changed=", gamePlay && gamePlay.changedKeys)
+
+        let changed = gamePlay.changedKeys || [];
+        if (changed.includes('spotlight')) {
+          this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
+          this.stash.onTheSpot = (this.spotlight.uid === player.uid);
+        }        
+        let isThrottling = this.throttleTimeAndWordEvents(gamePlay);        
+        this.doGamePlayUx(gamePlay);
+      }),
+    );
+  }
+  
+  private pipeCloudEventLoop_Foreground(player:Player, gameDict:GameDict) {
+    let game = gameDict.game;                  // closure
+    let round = gameDict.activeRound;          // closure
+    return pipe(
+      tap( (gamePlay:GamePlayState)=>{
+        if (!this.stash.isActivePage)
+          return
+
+        this.doGamePlayExtras(gamePlay);
+        this.doInterstitialsWithScoreboard(
+          gamePlay, game, round, player,
+        );
+        this.doInterstitialsPreGame(
+          gamePlay, game,
+        );
       }),
     );
   }
 
   private doInterstitialsWithScoreboard(
-    // res:[GamePlayState, GamePlayState],
-    changed: Partial<GamePlayState>,
     gamePlay: GamePlayState,
     game: Game,
     round: GamePlayRound,
     player: Player,
 
   ) {
+    let changed = gamePlay.changedKeys || [];
 
     const TIME={
       BUZZER_ANIMATION_COMPLETE: 2000,
@@ -123,7 +148,7 @@ export class GamePage implements OnInit {
      */
     Promise.resolve(this.scoreboard)
     .then( (scoreboard)=>{
-      if (changed.log) {
+      if (changed.includes('log')) {
         return this.gameHelpers.scoreRound$(
           this.gamePlayWatch, 
           teamNames, 
@@ -136,7 +161,7 @@ export class GamePage implements OnInit {
       return scoreboard
     })
     .then( (scoreboard)=>{
-      if (changed.playerRoundComplete && gamePlay.playerRoundComplete) {
+      if (changed.includes('playerRoundComplete')) {
 
         // guard: playerRoundComplete=true
         if (!round) throw new Error("round should not be empty when playerRoundComplete==true")
@@ -175,7 +200,7 @@ export class GamePage implements OnInit {
       else return scoreboard;
     })
     .then( (scoreboard)=>{
-      if (changed.gameRoundComplete && gamePlay.gameRoundComplete) {
+      if (changed.includes('gameRoundComplete')) {
 
         // guard: roundComplete=true
         // NOTE: playerRoundComplete==true when gameRoundComplete=true
@@ -223,53 +248,74 @@ export class GamePage implements OnInit {
   }
 
 
+
   /**
    * these interstitials do NOT depend on the scoreboard
    */
   private doInterstitialsPreGame(
-    changed: Partial<GamePlayState>,
-    cur: GamePlayState,
+    gamePlay: GamePlayState,
     game: Game,
   ) {
+    let changed = gamePlay.changedKeys || [];
+
+    console.warn("121: doInterstitialsPreGame(), changed=", changed)
     let dontWait = Promise.resolve()
-    .then( ()=>{
-      if (changed.checkInComplete==true) {
-        // ???: dismiss remaining checkInInterstitials?
+    .then( ()=>{   
+      if (changed.includes('doGameOver')) {
+        // gameOver interstitial
+      }  
+    })
+    .then( ()=>{   
+      if (changed.includes('doBeginGameRound')) {
+        // beginGameRound Interstitial
       }
     })
     .then( ()=>{
-      if (changed.doCheckIn==true) {
-        game.checkIn = game.checkIn || {};
+      if (changed.includes('checkInComplete')) {
+        // ???: dismiss remaining checkInInterstitials?
+      }
+    })
+    .then( async ()=>{
+      if (changed.includes('doCheckIn')) {
         let status = game.checkIn && game.checkIn[this.playerId]
         this.showCheckInInterstitial(status);
+        return Promise.reject('skip')
+      }    
+    })
+    .then( ()=>{
+      let doPlayerWelcome = changed.includes('doPlayerWelcome');
+      doPlayerWelcome = doPlayerWelcome && !gamePlay.checkInComplete
+      if (doPlayerWelcome) {
+        this.showWelcomeInterstitial(game, gamePlay);
+        return Promise.reject('skip')
       }
-    });
+    })
+    .catch( (err)=>{
+      if (err=="skip") return Promise.resolve()
+    })
   }
 
   private doGamePlayUx( 
-    changed: Partial<GamePlayState>,
-    cur: GamePlayState,
+    gamePlay: GamePlayState,
   ){
-    
+    let changed = gamePlay.changedKeys || [];
 
     // in order of priority
-    if (changed.isTicking && cur.isTicking) {
+    if (changed.includes('isTicking')) {
       this.audio.play("click");
       console.info( "*** detect timer Start, sound=click");
       return;
     }
-    else if (changed.timerPausedAt) {
-      let sound = cur.timerPausedAt ? "pause" : "click";
+    else if (changed.includes('timerPausedAt')) {
+      let sound = gamePlay.timerPausedAt ? "pause" : "click";
       this.audio.play(sound);
       console.info( "*** detect timer PAUSE, sound=", sound);
       return;
     }
 
-    if (changed.log) {
-      let curEntries = cur.log && Object.keys(cur.log).length || 0;
-      // [OK]: TEST detect new word action when we don't look at prevEntries
-      let lastKey = Object.keys(cur.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
-      let sound = cur.log[-lastKey].result ? 'ok' : 'pass';
+    if (changed.includes('log')) {
+      let lastKey = Object.keys(gamePlay.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
+      let sound = gamePlay.log[-lastKey].result ? 'ok' : 'pass';
       this.audio.play(sound);
       // console.info( "*** doGamePlayUx(): detect timer WORD action by change in gamePlay.log", sound);
       return;
@@ -277,13 +323,14 @@ export class GamePage implements OnInit {
   }
 
   private doGamePlayExtras( 
-    changed: Partial<GamePlayState>,
-    cur: GamePlayState,
+    gamePlay: GamePlayState,
   ){
-    if (!!changed.remaining) {
-      this.stash.wordsRemaining = FishbowlHelpers.getRemaining(cur);
+    let changed = gamePlay.changedKeys || [];
+
+    if (changed.includes('remaining')) {
+      this.stash.wordsRemaining = FishbowlHelpers.getRemaining(gamePlay);
     }
-    if (!!changed.doPlayerUpdate) {
+    if (changed.includes('doPlayerUpdate')) {
       this.setGamePlayer();
     }
 
@@ -432,6 +479,9 @@ export class GamePage implements OnInit {
         if (!resp) return;
       }
       return this.gameHelpers.DEV_resetGame(this.gameId, game, this.gameDict, !hard)
+      .then( ()=>{
+        this.gameHelpers.initGameAdminState(this.gamePlayWatch, {doPlayerWelcome: true});
+      })
     });
   }
 
@@ -529,12 +579,6 @@ export class GamePage implements OnInit {
     // do gamePlay update FIRST to avoid duplicate doCheckIn screen.
     let doFirst = await this.gameHelpers.pushGamePlayState( {uid: this.gameId} as GamePlayWatch, update)
 
-    // reload this.gamePlay$
-    // ???: is this necessary? we do not change gamePlay until beginNextGameRound()
-    if (this.stash.watchGamePlay) {
-      this.stash.watchGamePlay.unsubscribe();
-      this.stash.watchGamePlay = null;
-    }
     return Promise.all(waitFor).then( ()=>true);
   }
 
@@ -552,7 +596,7 @@ export class GamePage implements OnInit {
     // find activeRound or initialize/begin next round
     return this.gameHelpers.loadNextRound(
       this.gameId, 
-      this.gameDict, this.gamePlayWatch.gamePlay$
+      this.gameDict
     )
     .then( async (res)=>{
       let isGameComplete = !res;
@@ -610,119 +654,91 @@ export class GamePage implements OnInit {
   // called AFTER ngOnInit, before page transition begins
   ionViewWillEnter() {
     // const dontWait = HelpComponent.presentModal(this.modalCtrl, {template:'intro', once:false});
-
+    this.stash.isActivePage = true;
     this.gameId = this.activatedRoute.snapshot.paramMap.get('uid');
-    if (this.gameDict && this.gameDict[this.gameId]) {
-      // continue with current game
-    } else {
-      // release old game, should be handled by takeWhile();
-      console.info(" 0>>> ***** ionViewWillEnter(): load ******")
-      this.watchGame(this.gameId);
+    let wasCached = this.watchGame(this.gameId);
+    if (wasCached) {
+      // just replay missing gamePlay events, ONCE
+      this.gameDict.gamePlayWatch.gamePlay$.pipe( 
+        first(), 
+        this.pipeCloudEventLoop_Foreground( this.player$.value, this.gameDict), 
+      )
+      .subscribe( gamePlay=>{ 
+        console.warn("120: REPLAY missed gamePlay events", gamePlay.changedKeys, gamePlay)
+      })
     }
   }
+
+
+  ionViewWillLeave() {
+    this.stash.isActivePage = false;
+    // close modals
+  }
+
 
   /**
-   * throttle LOCAL events, triggered on cloud state, 
-   *  - sets 
-   *  - prevent duplicate actions from moderator/spotlight
    * 
-   * 
-   * @param changed 
+   * @param gameId 
+   * @return true if cached
    */
-  throttleTimeAndWordEvents(changed:Partial<GamePlayState>=null):boolean {
-    const THROTTLE_TIMER_AND_WORD_ACTIONS = 700;
-    if (changed) {
-      let isThrottling = this.stash.throttleTimeAndWordEvents;
-      let doThrottle = changed.isTicking || !!changed.word;
-      if (!isThrottling && doThrottle) {
-        // throttle LOCAL actions after cloud emits
-        this.stash.throttleTimeAndWordEvents = true;
-        setTimeout( ()=>this.stash.throttleTimeAndWordEvents=false
-          , THROTTLE_TIMER_AND_WORD_ACTIONS
-        )
-      }
+  watchGame(gameId:string):boolean{
+    let isCached = this.gameDict && this.gameDict[this.stash.watchingGamePlayId];
+    if (isCached) {
+      return true;
     }
-    return this.stash.throttleTimeAndWordEvents;
-  }
+    else {
+      this.stash.watchingGamePlayId = null;
+    }
 
-  watchGame(gameId:string){
-    if (this.stash.watchGameId == gameId) return;
+
     /**
      * this is the MAIN game listener for cloud players
      */
-    this.stash.watchGameId = gameId;
-    let game:Game;
-    let round:GamePlayRound;
     this.loadGame$(gameId).pipe(
       // takeUntil(this.done$),  // ??
       takeWhile( (d)=>!!d[gameId]),
       tap( d=>{
-        game = d.game;                  // closure
-        round = d.activeRound;          // closure
-      }),
-      tap( d=>{
+        let game = d.game;                  // closure
+
         this.setGamePlayer(d);
         this.stash.playersSorted = Helpful.sortObjectEntriesByValues(game.players) as Array<[string,string]>
         this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
-        this.watchGamePlay(gameId, d);
+        let wasCached = this.watchGamePlay(gameId, d);
       }),
     ).subscribe(null,null,
       ()=>{
-        if (this.stash.watchGameId!=gameId) this.stash.watchGameId = null;
         console.info(">>> ***** loadGame$(): subscriber COMPLETE ******")
       }
     );
-    
   }
 
-  watchGamePlay(gameId: string, d:GameDict){
-    if (this.stash.watchGamePlay) {
-      // not watching after game reset
-      return;
+  /**
+   * 
+   * 
+   * @param gameId 
+   * @param d 
+   * @returns true if Subscription was already cached
+   */
+  watchGamePlay(gameId: string, d:GameDict):boolean{
+    console.warn("120: \t\twatchGamePlay for uid=", d.gamePlayWatch.uid);
+
+    if (this.stash.watchingGamePlayId == d.gamePlayWatch.uid) {
+      return true;
     }
 
-    // console.log("1: ### reset this.gamePlay$")
+    this.gamePlayWatch = d.gamePlayWatch;
     this.gamePlay$ = this.gamePlayWatch.gamePlay$;
     let game = d.game;                  // closure
     let round = d.activeRound;          // closure
-    this.stash.watchGamePlay = this.gamePlayWatch.gamePlay$.pipe(
-      takeWhile( ()=>!!this.gameDict[this.gameId]),
-      startWith(null),
-      pairwise(),
-      map( (gamePlayChange)=>{
-        let [prev, cur] = gamePlayChange;
-        let isFirst = prev===null
-        cur = cur || {} as GamePlayState;
-        let changed = isFirst ? cur : Object.keys(cur).filter( k=>cur[k]!==prev[k]).reduce( (o,k)=>(o[k]=cur[k],o), {}) as GamePlayState;
-        if (isFirst) {
-          // HACK: don't trigger doCheckIn from 
-          // changed.doCheckIn = false;
-        }
-        console.log( `===>>> loadGame() gamePlay changed=` , changed)
-        return [changed, cur]
-      }),
-      tap( res=>{
-        let [changed, gamePlay] = res;
 
-        if (changed.spotlight) {
-          this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
-          this.stash.onTheSpot = (this.spotlight.uid === this.playerId);
-        }        
-        let isThrottling = this.throttleTimeAndWordEvents(changed);        
-        this.doGamePlayUx(changed, gamePlay);
-        this.doGamePlayExtras(changed, gamePlay);
-        this.doInterstitialsWithScoreboard(
-          changed, gamePlay, game, round,
-          this.player$.value,
-        );
-        this.doInterstitialsPreGame(
-          changed, gamePlay, game,
-        );
-      })
-      
+    this.stash.watchingGamePlayId = d.gamePlayWatch.uid;
+    this.gamePlayWatch.gamePlay$.pipe(
+      // automatcally completes when game.activeRound changes
+      this.pipeCloudEventLoop_Bkg( this.player$.value, d), 
+      this.pipeCloudEventLoop_Foreground( this.player$.value, d), 
     ).subscribe(null,null,
       ()=>{
-        this.stash.watchGamePlay = null;
+        this.stash.watchingGamePlayId = null;
         console.info(">>> ***** watchGamePlay(): subscriber COMPLETE ******")
       }
     );
@@ -740,11 +756,6 @@ export class GamePage implements OnInit {
     let playerSettings = FishbowlHelpers.getPlayerSettings(player.uid, game, activeRound);
     let update = Object.assign({}, player, playerSettings);
     this.player$.next( update );
-  }
-
-
-  ionViewDidLeave() {
-    this.stash.watchingGameId = false;
   }
 
   // Helpers
@@ -857,6 +868,31 @@ export class GamePage implements OnInit {
         else this.startTimer(gamePlay, duration);
       })
     ).subscribe();
+  }
+
+
+  /**
+   * throttle LOCAL events, triggered on cloud state, 
+   *  - sets 
+   *  - prevent duplicate actions from moderator/spotlight
+   * 
+   * 
+   * @param changed 
+   */
+  throttleTimeAndWordEvents(changed:Partial<GamePlayState>=null):boolean {
+    const THROTTLE_TIMER_AND_WORD_ACTIONS = 700;
+    if (changed) {
+      let isThrottling = this.stash.throttleTimeAndWordEvents;
+      let doThrottle = changed.isTicking || !!changed.word;
+      if (!isThrottling && doThrottle) {
+        // throttle LOCAL actions after cloud emits
+        this.stash.throttleTimeAndWordEvents = true;
+        setTimeout( ()=>this.stash.throttleTimeAndWordEvents=false
+          , THROTTLE_TIMER_AND_WORD_ACTIONS
+        )
+      }
+    }
+    return this.stash.throttleTimeAndWordEvents;
   }
 
   /**
@@ -1178,11 +1214,13 @@ export class GamePage implements OnInit {
     })
   }
 
-  doGameLogChangedByModerator(changed: GamePlayLogEntries) {
+  doGameLogChangedByModerator(correction: GamePlayLogEntries) {
     if (!this.isModerator()) return;
 
-    this.gameHelpers.pushGamePlayLogUpdate(this.gamePlayWatch, changed, this.playerId).then( ()=>{
-      console.log( "126: doGameLogChangedByModerator, changed=", changed)
+    let entries = this.gameDict.activeRound && this.gameDict.activeRound.entries;
+    this.gameHelpers.pushGamePlayLogUpdate(this.gamePlayWatch, correction, this.playerId, entries)
+    .then( (res)=>{
+      console.log( "126: doGameLogChangedByModerator, changed=", res)
     })
   }
 

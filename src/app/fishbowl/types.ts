@@ -75,7 +75,8 @@ export interface GameAdminState {
   // key: Game.uid
   // checkIn is NOT connected to an active round
   gameId: string;         // backref for cleanup
-  // UX state variables
+  timestamp?: number | Object;
+  changedKeys?: string[];
   doPlayerUpdate?: boolean; 
   doCheckIn?: boolean;
   checkInComplete?: boolean;
@@ -136,9 +137,10 @@ export enum RoundEnum {
 }
 
 export interface GameDict {
-  [uid: string]: Game | GamePlayRound;
+  [uid: string]: Game | GamePlayRound | GamePlayWatch;
+  game: Game;
   activeRound?: GamePlayRound;
-  game?: Game;
+  gamePlayWatch?: GamePlayWatch; 
 }
 
 export interface GameWatch {
