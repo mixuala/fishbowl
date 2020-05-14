@@ -722,6 +722,30 @@ export class GamePage implements OnInit {
 
 
   /**
+   * throttle LOCAL events, triggered on cloud state, 
+   *  - sets 
+   *  - prevent duplicate actions from moderator/spotlight
+   * 
+   * 
+   * @param changed 
+   */
+  throttleTimeAndWordEvents(changed:Partial<GamePlayState>=null):boolean {
+    const THROTTLE_TIMER_AND_WORD_ACTIONS = 700;
+    if (changed) {
+      let isThrottling = this.stash.throttleTimeAndWordEvents;
+      let doThrottle = changed.isTicking || !!changed.word;
+      if (!isThrottling && doThrottle) {
+        // throttle LOCAL actions after cloud emits
+        this.stash.throttleTimeAndWordEvents = true;
+        setTimeout( ()=>this.stash.throttleTimeAndWordEvents=false
+          , THROTTLE_TIMER_AND_WORD_ACTIONS
+        )
+      }
+    }
+    return this.stash.throttleTimeAndWordEvents;
+  }
+
+  /**
    * 
    * @param gameId 
    * @return true if cached
@@ -915,31 +939,6 @@ export class GamePage implements OnInit {
     ).subscribe();
   }
 
-
-  /**
-   * throttle LOCAL events, triggered on cloud state, 
-   *  - sets 
-   *  - prevent duplicate actions from moderator/spotlight
-   * 
-   * 
-   * @param changed 
-   */
-  throttleTimeAndWordEvents(changed:Partial<GamePlayState>=null):boolean {
-    const THROTTLE_TIMER_AND_WORD_ACTIONS = 700;
-    if (changed) {
-      let isThrottling = this.stash.throttleTimeAndWordEvents;
-      let doThrottle = changed.isTicking || !!changed.word;
-      if (!isThrottling && doThrottle) {
-        // throttle LOCAL actions after cloud emits
-        this.stash.throttleTimeAndWordEvents = true;
-        setTimeout( ()=>this.stash.throttleTimeAndWordEvents=false
-          , THROTTLE_TIMER_AND_WORD_ACTIONS
-        )
-      }
-    }
-    return this.stash.throttleTimeAndWordEvents;
-  }
-
   /**
    * push gamePlay.timer to cloud, timer actually starts from cloud event loop
    * - called by onTimerClick()
@@ -950,7 +949,7 @@ export class GamePage implements OnInit {
    * @param duration 
    */
   private startTimer(gamePlay: GamePlayState, duration=null){
-    if (this.stash.throttleTimeAndWordEvents) return;
+    if (this.throttleTimeAndWordEvents()) return;
     if (!gamePlay) {
       return console.warn("error: round is not loaded");
     }
@@ -1019,7 +1018,7 @@ export class GamePage implements OnInit {
   }
 
   private pauseTimer(gamePlay):boolean{
-    if (this.stash.throttleTimeAndWordEvents) return;
+    if (this.throttleTimeAndWordEvents()) return;
     if (!gamePlay.isTicking) return;
 
     // role guard
@@ -1158,7 +1157,7 @@ export class GamePage implements OnInit {
 
 
   private wordAction( gamePlay: GamePlayState, action:string ){
-    if (this.stash.throttleTimeAndWordEvents) return;
+    if (this.throttleTimeAndWordEvents()) return;
     // role guard
     let isOnTheSpot = this.stash.onTheSpot;
     if (!(isOnTheSpot || this.isModerator())) return;
