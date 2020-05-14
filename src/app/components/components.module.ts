@@ -5,6 +5,8 @@ import { IonicModule } from '@ionic/angular';
 import { PipesModule } from '../pipes/pipes.module';
 import { ShellModule } from '../shell/shell.module';
 
+import {RouterModule} from '@angular/router';
+
 import { CheckboxWrapperComponent } from './checkbox-wrapper/checkbox-wrapper.component';
 import { ShowHidePasswordComponent } from './show-hide-password/show-hide-password.component';
 import { CountdownTimerComponent } from './countdown-timer/countdown-timer.component';
@@ -19,6 +21,7 @@ import { HelpComponent } from './help/help.component';
     ShellModule,
     IonicModule,
     PipesModule,
+    RouterModule,
   ],
   declarations: [
     CheckboxWrapperComponent,
