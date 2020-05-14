@@ -406,12 +406,18 @@ export class GamePage implements OnInit {
 
   }
 
+  ngOnDestroy(){
+    this.gameId = null;  
+    // complete subscription on this.loadGame$ 
+    //    => completes gamePlayWatch.gamePlay$ and gameLog$
+  }
+
   /**
    * player$ is set from AuthService.getCurrentUser$() and doGamePlayExtras() => setGamePlayer()
    */
   loadPlayer$():Observable<Player> {
     return this.authService.getCurrentUser$().pipe(
-      // takeUntil(this.done$),
+      takeWhile( ()=>this.gameId!==null),
       switchMap( u=>{
         if (!!u) return of(u);
         return from(this.authService.doAnonymousSignIn());
