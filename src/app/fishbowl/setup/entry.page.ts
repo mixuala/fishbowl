@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LoadingController, IonButton } from '@ionic/angular';
-import { Validators, FormGroup, FormControl } from '@angular/forms';
+import { Validators, FormGroup, FormControl, ValidatorFn, AbstractControl } from '@angular/forms';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
@@ -42,7 +42,8 @@ export class EntryPage implements OnInit {
   public entryForm: FormGroup;
   validation_messages = {
     'name':[
-      { type: 'required', message: 'Please enter your name.' },
+      { type: 'required', message: 'Please enter your game name.' },
+      { type: 'unique', message: 'Wow, that name is already taken. You better choose another.' },
       { type: 'pattern', message: 'Your word must be letters and numbers only.' }
     ],
     'word': [
@@ -78,7 +79,8 @@ export class EntryPage implements OnInit {
     this.entryForm = new FormGroup({
       'name': new FormControl('', Validators.compose([
         Validators.required,
-        Validators.pattern('^[a-zA-Z0-9_.+-\\s]+$')
+        Validators.pattern('^[a-zA-Z0-9_.+-\\s]+$'),
+        uniqueNameValidator(this),
       ])),
       'word_1': new FormControl('', validEntry),
       'word_2': new FormControl('', validEntry),
@@ -198,4 +200,14 @@ export class EntryPage implements OnInit {
     );
   }
 
+}
+
+
+export function uniqueNameValidator(context:any): ValidatorFn {
+  return (control: AbstractControl): {[key: string]: any} | null => {
+    let game:Game = context.game;
+    let name = control.value as string;
+    const isTaken = game && Object.values(game.players).map(v=>v.trim().toLowerCase()).includes(name.trim().toLowerCase());
+    return isTaken ? {'unique': {value: control.value}} : null;
+  };
 }

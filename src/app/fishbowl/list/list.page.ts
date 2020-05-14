@@ -171,6 +171,9 @@ export class ListPage implements OnInit {
     if (game.players && game.players[this.player.uid]) {
       this.router.navigate(['/app/game', game.uid]);
     }
+    else if( game.activeGame) {
+      this.router.navigate(['/app/game', game.uid]);
+    }
     else {
       this.router.navigate(['/app/game', game.uid, 'player']);
     }
