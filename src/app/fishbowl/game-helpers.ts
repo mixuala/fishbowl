@@ -160,19 +160,12 @@ export class GameHelpers {
     )
     .subscribe(HOT_game$);  // "hot" observable
 
-    // NOTE: COLD observable, emits when game or rounds change
-    let gameDict$:Observable<GameDict> = combineLatest(
+    let HOT_gameDict$ = new ReplaySubject<GameDict>(1);
+    combineLatest(
       hasManyRounds_af.valueChanges().pipe(
         debounceTime(100),      // loadGameRounds() will update 3 rounds "together"
-        tap( (r)=>{
-          console.log("121: gameDict$ emits rounds=",r)
-        })
       ),
-      HOT_game$.pipe( 
-        tap( (g)=>{
-          console.log("121: gameDict$ emits game=",g)
-        })
-      ),
+      HOT_game$,
     ).pipe(
       map( ([rounds,g])=>{
         console.warn("\t>>> 121: gameDict$ combineLatest() emits g, rounds=", g, rounds)
@@ -191,13 +184,12 @@ export class GameHelpers {
         });
         return uidLookup;
       }),
-      share(),
-    )
+    ).subscribe(HOT_gameDict$);  // "hot" observable
     return {
       gameId,
       game$: HOT_game$,   // same as gameDict.game
       hasManyRounds$,     // sorted
-      gameDict$,          // by key
+      gameDict$: HOT_gameDict$,          // by key
     }
   }
 
