@@ -264,6 +264,14 @@ export class Helpful {
     }, {});
   }
 
+  public static  
+  zip(rows:any[], empty=null){
+    let longest = rows.reduce( (res, arr)=>{
+      return arr.length>res.length ? arr : res;
+    },[]);
+    return [...longest].map((_,c) => rows.map(row => row[c] || empty))
+  }
+
   public static cleanProperties(o, keys?:string[]){
     let whitelist = Object.keys(o).filter( k=>!k.startsWith('_'));
     if (keys)

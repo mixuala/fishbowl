@@ -281,92 +281,130 @@ export class GameHelpers {
     return this._memo_GamePlayWatch.watch;
   }
 
+
+
+
+
+  copyTeams(rid: string, teams:TeamRosters){
+    // do BEFORE beginGameRound()
+    let updateRound = { 
+      teams,
+    } as GamePlayRound;
+    return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound);   
+  }
+
+  beginRound(rid: string):Promise<void>{
+    // updateRound in beginGameRound()
+    let updateRound = { 
+      startTimeDesc: -Date.now(),
+      complete: false
+    } as GamePlayRound;
+    return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound);   
+  }
+
   /**
    * set game.activeRound to the next round, begin with `round1`
-   * - called AFTER doCheckIn
-   * - team assignments are now visible, allow player/moderator changes
-   * - call beginGameRound() to begin game play
-   * - activeRound != round has begun
+   * - called AFTER doCheckIn, adjustTeamRosters()
+   *  - expects: 
+   *    - gamePlayState from prev round, copy timerDuration and spotlight
+   *    - teamRosters to be set by adjustTeamRosters()
+   *    - 
+   * - sets:
+   *    - game.activeRound, trigger gameDict$ emit
+   *    - inits /gamePlay/[rid], copy timerDuration and spotlight from prev round gamePlay
+   *    - does NOT update round
+   *    - copy teams from prev round, DEPRECATE
+   *    - set gameDict.activeRound locally, DEPRECATE
+   * 
+   * - next:
+   *  - gameHelpers.beginRound(rid) to set round.startTime, round.complete
+   * 
    * @param gameDict 
-   * @param gameId 
    */
   async loadNextRound(gameId: string, gameDict:GameDict)
     : Promise<{rid:string, activeRound:GamePlayRound}>
   {
-    let game = gameDict[gameId] as Game;
+    // from beginNextGameRound(): calls
+    //  => loadNextRound() [here]
+    //  => beginRound(rid): {startTimeDesc, complete:false }
 
-    // find next round and make active
-    let sortedRids = Object.entries(game.rounds).sort( (a,b)=>a[1]-b[1] ).map( v=>v[0]);
-    let foundIndex = sortedRids.findIndex( rid=>{
-      // find the next round that is not complete
-      return !(gameDict[rid] as GamePlayRound).complete;
-    });
-    if (foundIndex==-1){
+    let roundIndex = FishbowlHelpers.getRoundIndex(gameDict);
+    if (!roundIndex) {
       // gameOver, all rounds complete
       return Promise.resolve(null);
     }
-
-    let activeRoundId = sortedRids[foundIndex];
-    let activeRound = gameDict[activeRoundId] as GamePlayRound;
-    let lastRound = foundIndex>0 && gameDict[sortedRids[foundIndex-1 ]]  as GamePlayRound;
+    let nextRoundId = roundIndex.next;
+    let activeRound = gameDict[nextRoundId] as GamePlayRound;
+    
 
     let waitFor:Promise<void>[] = [];
     let updateGame = { 
-      activeRound: activeRoundId 
+      activeRound: nextRoundId 
     } as Game;
     waitFor.push(
       // update Game
         this.db.object<Game>(`/games/${gameId}`).update(updateGame) 
     );
 
-    // beginNextGameRound() calls
-    //  => loadNextRound() [here]
-    //    ??? => allow state for moderator actions on next round, e.g. adjust teams
-    //  => beginRound(rid): {startTimeDesc, complete:false }
 
-
-
-    // game.activeRound == null, gamePlay$ emits from game.activeRound
     /**
-     * NOTE: completePlayerRound 
-     *          => nexPlayer()
-     *          => completeGameRound, if lastWord=true
-     * expect spotlight to be on the correct player, so just copy from lastGamePlay
+     * initialize gamePlay for next round with timerDuration and spotlight from LAST gamePlay
+     *  - expects spotlight to be on the correct player
      */
 
-    let lastRid = foundIndex>0 && sortedRids[foundIndex-1];
-    let prom = Promise.resolve()
+    let self = this;
+    let promise = Promise.resolve()
     .then( ()=>{
-      if (lastRid) {
-        return this.db.object<GamePlayState>(`/gamePlay/${lastRid}`).valueChanges().pipe(
+      let teamCount = Object.keys(activeRound.teams).length
+      if (roundIndex.prev) {
+        return this.db.object<GamePlayState>(`/gamePlay/${roundIndex.prev}`).valueChanges().pipe(
           take(1),
-        ).toPromise().then( (v)=>{
-          console.log("last gamePlay=",v)
-          return v
+        ).toPromise().then( (copyFrom)=>{
+          // copy state from LAST GamePlayState to NEXT GamePlayState
+          let gamePlay = Object.assign( {},
+            this.initGamePlayState(nextRoundId, teamCount, copyFrom), 
+            {
+              gameId,
+              doPlayerUpdate: true,           // update teamName, if changed
+          });
+          return gamePlay
         })
       }
+      else {
+        let gamePlay = Object.assign( {},
+          this.initGamePlayState(nextRoundId, teamCount), 
+          {
+            gameId,
+            doPlayerUpdate: true,           // update teamName, if changed
+        });
+        return gamePlay
+      }
     })
-    .then( (lastGamePlay)=>{
-      // update GamePlayState
-      return this.initGamePlayState(activeRoundId, Object.keys(activeRound.teams).length, lastGamePlay) 
-    }) 
-    waitFor.push( prom );
+    .then( (gamePlay)=>{
+      // wait for updated gameDict.gamePlayWatch?
+      let watch = {uid:nextRoundId} as GamePlayWatch;
+      return this.pushGamePlayState( watch, gamePlay)
+      .then( v=>{
+        console.log("GameHelper.createGamePlayState() GamePlayState=", gamePlay)
+      });
+    })
+    waitFor.push( promise );
 
 
+    // MOVE to adjustTeams(): 
+    // WARNNING: do NOT copy teams, teamRosters adjusted BEFORE begin Next Round
+    let lastRound = gameDict[ roundIndex.prev ]  as GamePlayRound;
     if (lastRound) {
       waitFor.push(
         // update activeRound.teams
-        this.copyTeams( activeRoundId, lastRound.teams)
+        this.copyTeams( nextRoundId, lastRound.teams)
       )
     }
 
+
     return Promise.all( waitFor )
     .then( ()=>{
-      // update gameDict locally, but it should happen in the cloud after beginRound()
-      // deprecate
-      gameDict.activeRound = gameDict[activeRoundId] as GamePlayRound;
-      // update cloud
-      return Promise.resolve({activeRound, rid: activeRoundId})
+      return {activeRound, rid: nextRoundId};
     });
   }
 
@@ -378,7 +416,7 @@ export class GameHelpers {
    * @param teamCount 
    * @param lastGamePlay 
    */
-  initGamePlayState(rid: string, teamCount:number, lastGamePlay:Partial<GamePlayState>):Promise<void>{
+  initGamePlayState(rid: string, teamCount:number, lastGamePlay:Partial<GamePlayState>=null):Partial<GamePlayState>{
     let spotlight = lastGamePlay && lastGamePlay.spotlight || {
       teamIndex: -1,  
       playerIndex: new Array(teamCount).fill(0),
@@ -395,11 +433,7 @@ export class GameHelpers {
       remaining: [],
       isTicking: false,
     }
-    let watch = {uid:rid} as GamePlayWatch;
-    return this.pushGamePlayState( watch, gamePlayState)
-    .then( v=>{
-      console.log("GameHelper.createGamePlayState() GamePlayState=", gamePlayState)
-    });
+    return gamePlayState;
   }
 
 
@@ -493,24 +527,6 @@ export class GameHelpers {
     })
   }
 
-
-
-  copyTeams(rid: string, teams:TeamRosters){
-    // do BEFORE beginGameRound()
-    let updateRound = { 
-      teams,
-    } as GamePlayRound;
-    return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound);   
-  }
-
-  beginRound(rid: string):Promise<void>{
-    // updateRound in beginGameRound()
-    let updateRound = { 
-      startTimeDesc: -Date.now(),
-      complete: false
-    } as GamePlayRound;
-    return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound);   
-  }
       
   moveSpotlight(
     watch:GamePlayWatch, 
@@ -714,7 +730,34 @@ export class GameHelpers {
   /**
    * moderator/admin methods
    */
-
+  pushTeamRosters( gameDict:GameDict, teams:TeamRosters): Promise<void>{
+    let activeRoundId = gameDict.game.activeRound;
+    if (!activeRoundId) {
+      let {prev, next} = FishbowlHelpers.getRoundIndex(gameDict)
+      activeRoundId = next;
+    }
+    // update gamePlay.spotlight.playerIndex
+    return gameDict.gamePlayWatch.gamePlay$.pipe(
+      first(),
+    ).toPromise()
+    .then( gamePlay=>{
+      let teamCount = Object.keys(teams).length;
+      let spotlight = gamePlay && gamePlay.spotlight || {
+        teamIndex: -1,  
+        playerIndex: new Array(teamCount).fill(0),
+      };
+      Object.entries(teams).forEach( ([teamName,playerIds], i)=>{
+        if (spotlight.playerIndex[i]>playerIds.length-1) spotlight.playerIndex[i]=0;
+      });
+      
+      let waitFor=[
+        this.db.object<GamePlayRound>(`/rounds/${activeRoundId}`).update( {teams} ),
+        this.pushGamePlayState( gameDict.gamePlayWatch, {spotlight} ),
+      ];
+      return Promise.all(waitFor)
+    })
+    .then( ()=>{return} );
+  }
 
   /***
    * DEV methods

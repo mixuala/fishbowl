@@ -70,7 +70,7 @@
               </ion-list>
 
 
-              <ion-list class="game-check-in wide">
+              <ion-list class="game-check-in wide toggle-hide">
                 <ion-item lines="none">
                   <ion-label>Player Check-In</ion-label>
                   <ion-toggle color="tertiary" [checked]="stash.showCheckInDetails"
@@ -101,9 +101,27 @@
                 </ng-container>                
               </ion-list>
 
+              <ion-list class="team-rosters wide toggle-hide">
+                <ion-item lines="none">
+                  <ion-label>Team Rosters</ion-label>
+                  <ion-toggle color="tertiary" [checked]="stash.showTeamRosters"
+                  (click)="toggleStashClick('showTeamRosters', $event)"></ion-toggle>
+                </ion-item>
+                
+
+                <ng-container *ngIf="stash.showTeamRosters">
+                  <app-team-roster
+                    [gameDict$]="gameWatch?.gameDict$"
+                    asModerator="true"
+                    [player$]="player$"
+                    (onChange)="doTeamRostersChangedByModerator($event)"
+                  ></app-team-roster>
+                </ng-container>                
+              </ion-list>              
 
 
-              <ion-list class="game-controls-container wide" *ngIf="true">
+
+              <ion-list class="game-controls-container wide toggle-hide">
                 <ion-item lines="none">
                   <ion-label>Game Controls</ion-label>
                   <ion-toggle color="tertiary" [checked]="stash.showModeratorGameControls"
@@ -116,7 +134,7 @@
                       [class.on-the-spot]="stash.onTheSpot" 
                       >
                       <ion-icon name="person" slot="start"></ion-icon>
-                      {{spotlight?.label}}
+                      {{spotlight?.playerName}}
                   </ion-button>
                   <div class="teleprompter"  *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
   
@@ -178,8 +196,6 @@
                 [player$]="player$"
                 (onChange)="doGameLogChangedByModerator($event)"
               ></app-score-card>
-
-
             </div>
 
             <ng-template #preGameAdmin>
@@ -248,10 +264,11 @@
                   <ion-row  class="ion-no-padding">
 
                     <ion-col size=5>
-                        <ion-label>
-                          <ion-note>player</ion-note> 
+                        <ion-label class="inline-text-wrap">
+                          <ion-text>player</ion-text>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{player.displayName}}</ion-badge>
                         </ion-label>
-                        <ion-badge color="light" class="ion-padding-horizontal">{{player.displayName}}</ion-badge>
+                                                
                     </ion-col>
                     <ion-col size=5>
                         <ion-label>
@@ -340,7 +357,7 @@
                       [class.on-the-spot]="stash.onTheSpot" 
                       >
                         <ion-icon name="person" slot="start"></ion-icon>
-                        {{spotlight?.label}}
+                        {{spotlight?.playerName}}
                       </ion-button>
                     </ion-col></ion-row>
                   </ion-grid>

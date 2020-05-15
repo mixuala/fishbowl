@@ -6,6 +6,7 @@ import { PipesModule } from '../../pipes/pipes.module';
 import { ShellModule } from '../../shell/shell.module';
 
 import { ScoreCardComponent } from './score-card/score-card.component';
+import { TeamRosterComponent } from './team-roster/team-roster.component';
 
 @NgModule({
   imports: [
@@ -16,14 +17,14 @@ import { ScoreCardComponent } from './score-card/score-card.component';
     PipesModule,
   ],
   declarations: [
-    ScoreCardComponent,
+    ScoreCardComponent, TeamRosterComponent,
   ],
   exports: [
     ShellModule,
-    ScoreCardComponent,
+    ScoreCardComponent, TeamRosterComponent,
   ],
   entryComponents: [
-    ScoreCardComponent,
+    ScoreCardComponent, TeamRosterComponent,
   ],
 })
 export class FishbowlComponentsModule {}

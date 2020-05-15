@@ -77,17 +77,16 @@ export class GamePage implements OnInit {
     );
   }
 
-  private pipeCloudEventLoop_Bkg(player:Player, gameDict:GameDict) {
-    let game = gameDict.game;                  // closure
-    let round = gameDict.activeRound;          // closure
+  private pipeCloudEventLoop_Bkg(player:Player) {
     return pipe(
-      tap( (gamePlay:GamePlayState)=>{
+      tap( ([gamePlay, d])=>{
         console.warn("121: watchGamePlay changed=", gamePlay && gamePlay.changedKeys)
+        let round = d.activeRound;          // closure
 
         let changed = gamePlay.changedKeys || [];
         if (changed.includes('spotlight')) {
           this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
-          this.stash.onTheSpot = (this.spotlight.uid === player.uid);
+          this.stash.onTheSpot = this.spotlight && this.spotlight.uid === player.uid;
         }        
         let isThrottling = this.throttleTimeAndWordEvents(gamePlay);        
         this.doGamePlayUx(gamePlay);
@@ -95,11 +94,11 @@ export class GamePage implements OnInit {
     );
   }
   
-  private pipeCloudEventLoop_Foreground(player:Player, gameDict:GameDict) {
-    let game = gameDict.game;                  // closure
-    let round = gameDict.activeRound;          // closure
+  private pipeCloudEventLoop_Foreground(player:Player) {
     return pipe(
-      tap( (gamePlay:GamePlayState)=>{
+      tap( ([gamePlay, d])=>{
+        let game = d.game;                  // closure
+        let round = d.activeRound;          // closure
         if (!this.stash.isActivePage)
           return
 
@@ -581,12 +580,14 @@ export class GamePage implements OnInit {
 
     let existingRoundEnums = Object.values(this.game.rounds || {});
 
+    let teams: TeamRosters;
     let rounds = [RoundEnum.Taboo, RoundEnum.OneWord, RoundEnum.Charades]
       .filter( e=>existingRoundEnums.find( ex=>ex==e )==null )
       .map( (round)=>{
-      let gameRound = FishbowlHelpers.buildGamePlayRound(this.gameId, this.game, round );
-      gameRound.uid = this.db.createPushId();
-      return gameRound;
+        let gameRound = FishbowlHelpers.buildGamePlayRound(this.gameId, this.game, round, teams );
+        teams = Object.assign({}, gameRound.teams); // copy teams between rounds
+        gameRound.uid = this.db.createPushId();
+        return gameRound;
     });
 
     // update Game, use AngularFire ref
@@ -644,40 +645,41 @@ export class GamePage implements OnInit {
     if (!this.game) return
     if (!this.isModerator()) return;
 
-    // find activeRound or initialize/begin next round
-    return this.gameHelpers.loadNextRound(
-      this.gameId, 
-      this.gameDict
-    )
+    return Promise.resolve()
+    .then( ()=>{
+      /**
+       * optional: allow moderator to adjust teams
+       * BEFORE calling beginRound
+       */
+
+
+    })
+    .then( (res)=>{
+      // find activeRound or initialize/begin next round
+      return this.gameHelpers.loadNextRound(
+        this.gameId, 
+        this.gameDict
+      );
+    })
     .then( async (res)=>{
       let isGameComplete = !res;
       if (isGameComplete) {
         return Promise.reject("gameComplete"); // => completeGame()
       }
-      else {
-        let {rid, activeRound} = res;
-
-        /**
-         * optional: allow moderator to adjust teams
-         * BEFORE calling beginRound
-         */
-
-
-      }
       return res;
     })
     .then( (res)=>{
+      // TODO: wait for gameWatch.gameDict$ emit?
       let {rid, activeRound} = res;
-      // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
-      let update = {
-        gameId: this.gameId,
-        doPlayerUpdate: true,           // handle in doGamePlayExtras()
-      } as Partial<GamePlayState>
-      this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update).then( ()=>{
-        this.gameHelpers.beginRound(rid);
-      })
+      this.gameHelpers.beginRound(rid);
       return res;
+    })
+    .then( ()=>{   
+      // beginGameRoundInterstitial
     }) 
+    .then( ()=>{   
+      // nextPlayerRound
+    })
     .catch( err=>{
       if (err=="gameComplete") {
         return this.completeGame().then( ()=>null);
@@ -712,9 +714,9 @@ export class GamePage implements OnInit {
       // just replay missing gamePlay events, ONCE
       this.gameDict.gamePlayWatch.gamePlay$.pipe( 
         first(), 
-        this.pipeCloudEventLoop_Foreground( this.player$.value, this.gameDict), 
+        this.pipeCloudEventLoop_Foreground( this.player$.value), 
       )
-      .subscribe( gamePlay=>{ 
+      .subscribe( (gamePlay:GamePlayState)=>{ 
         console.warn("120: REPLAY missed gamePlay events", gamePlay.changedKeys, gamePlay)
       })
     }
@@ -778,7 +780,7 @@ export class GamePage implements OnInit {
         this.setGamePlayer(d);
         this.stash.playersSorted = Helpful.sortObjectEntriesByValues(game.players) as Array<[string,string]>
         this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
-        let wasCached = this.watchGamePlay(gameId, d);
+        this.watchGamePlay(gameId, d);
       }),
     ).subscribe(null,null,
       ()=>{
@@ -794,12 +796,8 @@ export class GamePage implements OnInit {
    * @param d 
    * @returns true if Subscription was already cached
    */
-  watchGamePlay(gameId: string, d:GameDict):boolean{
+  watchGamePlay(gameId: string, d:GameDict){
     console.warn("120: \t\twatchGamePlay for uid=", d.gamePlayWatch.uid);
-
-    if (this.stash.watchingGamePlayId == d.gamePlayWatch.uid) {
-      return true;
-    }
 
     this.gamePlayWatch = d.gamePlayWatch;
     this.gamePlay$ = this.gamePlayWatch.gamePlay$;
@@ -807,10 +805,14 @@ export class GamePage implements OnInit {
     let round = d.activeRound;          // closure
 
     this.stash.watchingGamePlayId = d.gamePlayWatch.uid;
-    this.gamePlayWatch.gamePlay$.pipe(
+    if (this.stash.doneWatchingGamePlay) 
+      this.stash.doneWatchingGamePlay.unsubscribe();
+
+    this.stash.doneWatchGamePlay = this.gamePlayWatch.gamePlay$.pipe(
+      withLatestFrom( this.gameWatch.gameDict$ ),
       // automatcally completes when game.activeRound changes
-      this.pipeCloudEventLoop_Bkg( this.player$.value, d), 
-      this.pipeCloudEventLoop_Foreground( this.player$.value, d), 
+      this.pipeCloudEventLoop_Bkg( this.player$.value), 
+      this.pipeCloudEventLoop_Foreground( this.player$.value), 
     ).subscribe(null,null,
       ()=>{
         this.stash.watchingGamePlayId = null;
@@ -1227,8 +1229,7 @@ export class GamePage implements OnInit {
   
         // get spotlight for WordResult to credit point for the proper team
         let spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
-        let teamName = spotlight.teamName;
-        let playerName = spotlight.label;
+        let {playerName, teamName} = spotlight;
   
         let now = Date.now();
         let log:GamePlayLogEntries = gamePlay.log || {};
@@ -1272,6 +1273,12 @@ export class GamePage implements OnInit {
     .then( (res)=>{
       console.log( "126: doGameLogChangedByModerator, changed=", res)
     })
+  }
+
+  doTeamRostersChangedByModerator(teams:TeamRosters) {
+    if (!this.isModerator()) return;
+
+    this.gameHelpers.pushTeamRosters(this.gameDict, teams);
   }
 
   /**

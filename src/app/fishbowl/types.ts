@@ -128,8 +128,9 @@ export interface TeamRosters {
 
 export interface SpotlightPlayer {
   uid: string;
-  label: string;
+  playerName: string;
   teamName: string;
+  teamIndex?: number;
 }
 
 export enum RoundEnum {

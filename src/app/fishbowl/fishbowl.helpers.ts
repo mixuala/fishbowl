@@ -9,7 +9,8 @@ import {
   SpotlightPlayer, 
   GamePlayState,
   GamePlayLogEntries,
-  PlayerByUids
+  PlayerByUids,
+  GameDict
 } from './types';
 import { Helpful} from '../services/app.helpers';
 
@@ -46,9 +47,9 @@ export class FishbowlHelpers {
   }
 
   static
-  buildGamePlayRound(gameId: string, game:Game, type:RoundEnum): GamePlayRound{
+  buildGamePlayRound(gameId: string, game:Game, type:RoundEnum, teams:TeamRosters=null): GamePlayRound{
     let teamNames = game.teamNames;
-    if (!teamNames) teamNames = ['blue team', 'red team'];    // DEV
+    if (!teamNames) teamNames = ['mahi mahi', 'yoko ono']
     let combined = Object.assign({}, game.players, game.checkIn)
     let checkedInPlayers:PlayerByUids = Object.entries(combined).reduce( (o, [pid, v])=>{
       if (typeof v=='boolean' && v===false) 
@@ -63,7 +64,7 @@ export class FishbowlHelpers {
       }
       return o;
     } ,{});
-    let teams = FishbowlHelpers.assignTeams(checkedInPlayers, teamNames);
+    teams = teams || FishbowlHelpers.assignTeams(checkedInPlayers, teamNames);
 
 
     return {
@@ -76,6 +77,46 @@ export class FishbowlHelpers {
       entries,
       players: checkedInPlayers,
     }
+  }
+
+  static 
+  getRoundIndex(gameDict:GameDict):{next:string, prev:string} {
+    // find next round and make active
+    let game = gameDict.game;
+    if (!game.rounds) return null;
+    let sortedRids = Object.entries(game.rounds).sort( (a,b)=>a[1]-b[1] ).map( v=>v[0]);
+    let foundIndex = sortedRids.findIndex( rid=>{
+      // find the next round that is not complete
+      return gameDict[rid] && !(gameDict[rid] as GamePlayRound).complete;
+    });
+    if (!~foundIndex) return null;
+    return { 
+      next: sortedRids[foundIndex],
+      prev: foundIndex==0 ? null : sortedRids[foundIndex-1]
+    }
+  }
+
+  /**
+   * adjust team rosters BEFORE gameHelpers.loadNextRound()
+   * lifecycle:
+   *  - beginNextGameRound() 
+   *    => [HERE]
+   *    => gameHelpers.loadNextRound()
+   *    => gameHelpers.beginRound(rid);
+   * 
+   * @param gameDict 
+   * @param reset 
+   */
+  static
+  getLatestRoster(gameDict: GameDict):Partial<GamePlayRound> {
+    let roundIndex = FishbowlHelpers.getRoundIndex(gameDict);
+    if (!roundIndex) {
+      // gameOver, all rounds complete
+      return null;
+    }
+    // copy teams from prev round, if available
+    let copyFrom = gameDict[roundIndex.prev || roundIndex.next] as GamePlayRound;
+    return Helpful.pick( copyFrom, 'teams', 'players' );
   }
 
   static
@@ -105,9 +146,9 @@ export class FishbowlHelpers {
   }
 
   static 
-  getSpotlightPlayer(gamePlay:GamePlayState, round:GamePlayRound):any{
-    if (!round) return {};
-    if (!gamePlay) return {};  // round is complete
+  getSpotlightPlayer(gamePlay:GamePlayState, round:GamePlayRound):SpotlightPlayer{
+    if (!round) return null;
+    if (!gamePlay) return null;  // round is complete
 
 
     let {teams, players} = round;
@@ -115,13 +156,23 @@ export class FishbowlHelpers {
     if (spotlight.teamIndex==-1) {
       // round has not yet begun
       // for gamePlay, call: GameHelpers.loadNextRound()
-      return {};
+      return null;
     }
 
+    if (!teams) {
+      return null
+    }
     let uid = Object.values(teams)[ spotlight.teamIndex ][ spotlight.playerIndex[ spotlight.teamIndex ] ];
+    if (!uid) {
+      throw new Error( "can't find player after moving people around")
+    }
     let label = players[ uid ];
-    let [teamName, found] = Object.entries(round.teams).find( ([name, uids])=>uids.find( v=>v==uid) );
-    return {uid, label, teamName, teamIndex:spotlight.teamIndex};
+    let found = Object.entries(teams).find( ([name, uids])=>{ return uids.find( v=>v==uid) });
+    if (!found) {
+      throw new Error(`cant find next player ${uid}, ${teams}`)
+    }
+    let teamName = found.length && found[0];
+    return {uid, playerName: label, teamName, teamIndex:spotlight.teamIndex};
   }
 
 

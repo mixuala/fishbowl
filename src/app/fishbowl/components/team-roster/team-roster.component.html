@@ -1,0 +1,38 @@
+<div class="team-roster">
+  <ion-grid>
+    <ion-row class="ion-no-padding wide">
+      <ion-col>
+        <ion-label class="inline-text-wrap">
+          <ion-text>Team Rosters</ion-text>
+        </ion-label>
+      </ion-col>
+    </ion-row>
+    <ion-row class="header team ion-align-items-center">
+      <ion-col *ngFor="let teamName of teamNames; let i = index"  
+        [ngClass]="i%2==0 ? 'even' : 'odd'"
+        [class.on-the-spot]="spotlight?.teamName==teamName"
+      >
+      <ion-item [color]="i%2 ? 'success' : 'tertiary'" class="ion-text-center team-name">
+        <ion-label>{{teamName}}</ion-label>
+      </ion-item>
+      </ion-col>
+    </ion-row>
+    <ion-row class="players ion-align-items-center" *ngFor="let rowData of teamRostersAsRows; let row=index">
+      <ion-col *ngFor="let item of rowData; let col=index"
+      [ngClass]="col%2==0 ? 'even' : 'odd'" 
+      [class.on-the-spot]="item && item.displayName==spotlight?.playerName">
+        <ion-button class="player" size="small" *ngIf="item"
+        [color]="col%2 ? 'success' : 'tertiary'" 
+        [disabled]="teamRostersAsRows[1][col]==null"
+        (click)="doPlayerClick(item)" >
+          {{item.displayName}}
+          <ion-icon *ngIf="isModerator"
+          [name]="col%2 ? 'arrow-back-circle' : 'arrow-forward-circle'" 
+          [slot]="col%2 ? 'start' : 'end'"
+          ></ion-icon>
+        </ion-button>
+      </ion-col>
+    </ion-row>
+    {{rowData | json}}
+  </ion-grid>
+</div>

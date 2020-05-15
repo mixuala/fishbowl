@@ -39,8 +39,10 @@ ion-list.wide {
       margin-inline-start: 4px;
     }
   }
+  &.toggle-hide {
+    padding: 0;
+  }
 }
-
 
 .team-round.spotlight {
   background-color: rgba(var(--ion-color-success-rgb), 0.5);
