@@ -10,7 +10,7 @@ import { Player } from '../../../user/role';
 /**
  * usage:
  *    <app-score-card [gamePlay$]="" 
- *      asModerator="true" [game$]="" [player$]="" (onChanged)="pushGameLog($event)"
+ *      asModerator="true" [game$]="" [player$]="" (onChange)="pushGameLog($event)"
  *    ></app-score-card>
  */
 @Component({
@@ -34,7 +34,7 @@ export class ScoreCardComponent implements OnInit {
 
   @Input() asModerator:boolean = false;
 
-  @Output() onGameLogChanged = new EventEmitter<GamePlayLogEntries>();
+  @Output() onChange = new EventEmitter<GamePlayLogEntries>();
 
 
   getLog(gamePlay:GamePlayState) {
@@ -66,7 +66,7 @@ export class ScoreCardComponent implements OnInit {
     } as Partial<WordResult>;
     let logEntry = {[v.key]: update} as GamePlayLogEntries;
     // emit changes immediately
-    this.onGameLogChanged.emit( logEntry );
+    this.onChange.emit( logEntry );
     // console.log("126: >>> update gamePlay.log changes=", logEntry);
     // this.changes = Object.assign({}, this.changes, logEntry);
   }
@@ -100,7 +100,7 @@ export class ScoreCardComponent implements OnInit {
           // console.warn( "\t\t\t###126:0 playerRoundComplete gameLog changes =", changes)
           // setTimeout( ()=>{
           //   console.warn( "\t\t\t###126:1 playerRoundComplete gameLog changes =", changes)
-          //   this.onGameLogChanged.emit( changes );
+          //   this.onChange.emit( changes );
           // }, this.PLAYER_ROUND_COMPLETE_DELAY);
         }
         else if (!!changed.playerRoundBegin) {
