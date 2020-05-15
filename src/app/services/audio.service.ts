@@ -23,6 +23,7 @@ export class AudioService {
     buzz: "assets/audio/54047__guitarguy1985__buzzer.wav",
     click: "assets/audio/448080__breviceps__wet-click.wav", 
     ok: "assets/audio/66717__cj4096__bell.wav",
+    bell: "assets/audio/66717__cj4096__bell.wav",
     pass: "assets/audio/28477__simmfoc__buzz-1.wav",
     dq: "assets/audio/511883__audiopapkin__impact-sfx-017.wav",
     pause: "assets/audio/511883__audiopapkin__impact-sfx-017.wav",
@@ -37,10 +38,10 @@ export class AudioService {
     private nativeAudio: NativeAudio,
   ){
     let initialVolume = 1;
-    this.setVolume(initialVolume);
+    this.setVolume(initialVolume, false);
   }
 
-  preload(key: string, asset: string=null): void {
+  preload(key: string, asset: string=null): boolean {
 
     asset = asset || this.library[key];
 
@@ -69,6 +70,7 @@ export class AudioService {
       });
 
     }
+    return !!asset;
 
   }
 
@@ -78,7 +80,10 @@ export class AudioService {
       return sound.key === key;
     });
 
-    if (!soundToPlay) return
+    if (!soundToPlay) {
+      if (this.preload(key)==false) return
+      return this.play(key);
+    }
 
     if(soundToPlay.isNative){
 
@@ -92,7 +97,7 @@ export class AudioService {
       });
 
     } else {
-
+      console.warn(">>> play sound", soundToPlay.key)
       let sound = new Howl({
         src: [soundToPlay.asset]
       });
