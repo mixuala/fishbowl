@@ -498,9 +498,13 @@ export class GamePage implements OnInit {
         if (!resp) return;
       }
       return this.gameHelpers.DEV_resetGame(this.gameId, game, this.gameDict, !hard)
-      .then( ()=>{
-        this.gameHelpers.initGameAdminState(this.gameDict.gamePlayWatch, {doPlayerWelcome: true});
-      })
+    })
+    .then( ()=>{
+      // bypass throttleTime()
+      return Helpful.waitFor(1000)
+    })
+    .then( ()=>{
+      this.gameHelpers.initGameAdminState(this.gameDict.gamePlayWatch, {doPlayerWelcome: true});
     });
   }
 
@@ -522,7 +526,7 @@ export class GamePage implements OnInit {
    */ 
   showWelcomeInterstitial(game:Game, gamePlay:GamePlayState) {
     this.player$.pipe(
-      filter( p=>!!p.displayName),
+      // filter( p=>!!p.displayName),
       take(1),
       tap( (player)=>{
         let playerId =  player.uid;
@@ -880,9 +884,6 @@ export class GamePage implements OnInit {
       withLatestFrom( this.gameWatch.gameDict$ ),
       // automatcally completes when game.activeRound changes
       throttleTime(100),
-      // tap( ()=>{
-      //   console.warn("120:1 \t\t\twatchGamePlay for uid=", d.gamePlayWatch.uid);
-      // }),
       this.pipeCloudEventLoop_Bkg( this.player$.value), 
       this.pipeCloudEventLoop_Foreground( this.player$.value), 
     ).subscribe(null,null,
@@ -999,6 +1000,13 @@ export class GamePage implements OnInit {
         if (!gamePlay.isTicking) this.startTimer(gamePlay);
       })
     ).subscribe();
+  }
+
+  onTheSpotClick(ev) {
+    let target = ev.target;
+    if (this.stash.onTheSpot) {
+      target.scrollIntoView();
+    }
   }
 
   onTimerClick(duration=null){

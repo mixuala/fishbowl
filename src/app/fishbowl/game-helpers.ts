@@ -338,8 +338,10 @@ export class GameHelpers {
     
 
     let waitFor:Promise<void>[] = [];
+    let playerCount = Object.values(activeRound.teams).reduce( (res,v)=>(res+v.length), 0);
     let updateGame = { 
-      activeRound: nextRoundId 
+      activeRound: nextRoundId,
+      playerCount
     } as Game;
     waitFor.push(
       // update Game

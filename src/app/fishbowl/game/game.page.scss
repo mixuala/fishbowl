@@ -44,8 +44,15 @@ ion-list.wide {
   }
 }
 
+ion-button > a {
+  text-decoration: none;
+}
+
 .team-round.spotlight {
   background-color: rgba(var(--ion-color-success-rgb), 0.5);
+  &.even {
+    background-color: rgba(var(--ion-color-tertiary-rgb), 0.5);
+  }
 }
 
 ion-card-content{
@@ -115,14 +122,40 @@ ion-card-content{
     }
   }  
 
+  .user-controls {
+    ion-row.ion-align-items-center * {
+      vertical-align: middle;
+    }
+  }
+
   .game-summary {
-    .on-the-spot {
-      background-color: var(--ion-color-success);
-      // color: var(--ion-color-light);
-      border-radius: 4px;
-      ion-note {
-        color: var(--ion-color-dark);
+    ion-row.ion-align-items-center * {
+      vertical-align: middle;
+    }
+    .scoreboard {
+      .on-the-spot {
+        background-color: var(--ion-color-success);
+        // color: var(--ion-color-light);
+        border-radius: 4px;
+        ion-note {
+          color: var(--ion-color-dark);
+        }
+        &.even {
+          background-color: var(--ion-color-tertiary);
+        }
       }
+    }
+    .spotlight{
+      &:not(.on-the-spot) {
+        --background: var(--ion-color-medium);
+      }
+      &.on-the-spot{
+        --background: var(--ion-color-success);
+      } 
+      &.on-the-spot.even {
+        --background: var(--ion-color-tertiary);
+      }
+
     }
   }
 
