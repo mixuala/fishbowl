@@ -305,6 +305,34 @@
 
 
 
+
+      <ion-card class="content pre-game team-rosters" padding *ngSwitchCase="'team-rosters'">
+        <ion-item color="tertiary" class="title">
+          <!-- <ion-icon slot="start" size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
+          <ion-avatar slot="start" size="large" >
+            <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
+          </ion-avatar>
+          <ion-label class="ion-text-wrap ion-text-bottom">
+            <h1>
+              Welcome to Fishbowl
+            </h1>
+          </ion-label>
+        </ion-item>   
+
+        <ion-card-content>
+
+          <h1><ion-text color="light">
+            Here are the teams:
+          </ion-text></h1>
+
+          <app-team-roster
+            [gameDict$]="gameDict$"
+          ></app-team-roster>
+
+
+        </ion-card-content>        
+      </ion-card>
+
     </ng-container>
   </ion-col>
   </ion-row>

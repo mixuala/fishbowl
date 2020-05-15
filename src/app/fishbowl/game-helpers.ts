@@ -471,6 +471,18 @@ export class GameHelpers {
 
 
   /**
+   * WARNING: repeats gamePlay for ALL players
+   * @param watch 
+   */
+  repeatGamePlay(watch:GamePlayWatch){
+    watch.gamePlay$.pipe( 
+      first(),
+    ).subscribe( (gamePlay)=>{
+      this.pushGamePlayState( watch, Object.assign({},gamePlay));
+    })
+  } 
+
+  /**
    * push moderator corrections to the GamePlay.log
    * @param watch 
    * @param correction corrected by Moderator
@@ -757,6 +769,15 @@ export class GameHelpers {
       return Promise.all(waitFor)
     })
     .then( ()=>{return} );
+  }
+
+  listenTeamRosters$( gameDict:GameDict):Observable<TeamRosters>{
+    let activeRoundId = gameDict.game.activeRound;
+    if (!activeRoundId) {
+      let {prev, next} = FishbowlHelpers.getRoundIndex(gameDict)
+      activeRoundId = next;
+    }
+    return this.db.object<TeamRosters>(`/rounds/${activeRoundId}/teams`).valueChanges();
   }
 
   /***

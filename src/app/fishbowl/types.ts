@@ -82,6 +82,8 @@ export interface GameAdminState {
   doPlayerWelcome?: boolean;
   doCheckIn?: boolean;
   checkInComplete?: boolean;
+  doTeamRosters?:boolean;
+  teamRostersComplete?:boolean;
   // admin states 
   gameComplete?: boolean;
 }

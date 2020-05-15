@@ -6,7 +6,7 @@ import { Storage } from  '@ionic/storage';
 import * as dayjs from 'dayjs';
 
 import { Observable, Subject, BehaviorSubject, of, from, interval, pipe, } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, first, filter, withLatestFrom, } from 'rxjs/operators';
+import { map, tap, switchMap, take, takeWhile, first, filter, withLatestFrom, throttleTime, } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -269,9 +269,20 @@ export class GamePage implements OnInit {
         // beginGameRound Interstitial
       }
     })
+    .then( async ()=>{
+      if (changed.includes('teamRostersComplete')) {
+        this.modalCtrl.dismiss(true);
+      }    
+    })
+    .then( async ()=>{
+      if (changed.includes('doTeamRosters')) {
+        this.showTeamRostersInterstitial();
+        return Promise.reject('skip')
+      }    
+    })
     .then( ()=>{
       if (changed.includes('checkInComplete')) {
-        // ???: dismiss remaining checkInInterstitials?
+        this.modalCtrl.dismiss(true);
       }
     })
     .then( async ()=>{
@@ -456,16 +467,19 @@ export class GamePage implements OnInit {
    */
 
   doCheckInClick() {
-    this.requestCheckIn(this.gameId);
+    this.beginCheckIn(this.gameId);
     this.stash.showCheckInDetails = true;
   }
   async loadRoundClick(){
     await this.loadGameRounds();
     this.stash.showCheckInDetails = false;
+    this.beginTeamAssignments()
+    
   }
   beginGameRoundClick(){
     this.beginNextGameRound();
   }
+
   resetGameClick(ev){
     let hard = ev.ctrlKey || ev.shiftKey;
     this.doGameReset(hard)
@@ -493,7 +507,7 @@ export class GamePage implements OnInit {
   /**
    * triggered by moderator
    */
-  async requestCheckIn(gameId:string){
+  async beginCheckIn(gameId:string){
     if (!this.isModerator()) return;
     let update = { 
       doCheckIn: true,
@@ -565,7 +579,11 @@ export class GamePage implements OnInit {
             let checkIn = {[player.uid]: res ? player.displayName : false };
             this.gameHelpers.pushCheckIn(this.gameId, checkIn);
           },
-          dismiss: (v)=>{ return status }
+          dismiss: (v)=>{ 
+            if (this.isModerator()) v=true;
+            if (v===true || !!status) 
+              return this.modalCtrl.dismiss();
+          }
         }).then( ()=>{
           this.audio.play('click') 
         });
@@ -635,6 +653,52 @@ export class GamePage implements OnInit {
   }
 
 
+  async beginTeamAssignments(){
+    if (!this.isModerator()) return;
+
+    let update = { 
+      doTeamRosters: true,
+      teamRostersComplete: false,
+    }
+    await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
+    this.stash.showCheckInDetails = false;
+    this.stash.showTeamRosters = true;
+  }
+
+
+
+  showTeamRostersInterstitial(){
+    const TEAM_ROSTER_DISMISS = 30*1000;
+    let gameDict = this.gameDict;
+    let done = this.gameHelpers.listenTeamRosters$(gameDict).subscribe(()=>{
+      this.audio.play('click');
+    })
+    this.player$.pipe(
+      filter( p=>!!p.displayName),
+      take(1),
+      tap( player=>{
+        let dontWait = HelpComponent.presentModal(this.modalCtrl, {
+          template:'team-rosters',
+          once:false,
+          playerName: player.displayName,
+          backdropDismiss: false,
+          // duration: TEAM_ROSTER_DISMISS,
+          swipeToClose: true,
+          gameDict$: this.gameWatch.gameDict$,
+          onDidDismiss: ()=>{
+            done.unsubscribe();
+          },
+          dismiss: (v)=>{
+            if (this.isModerator()) v=true;
+            if (v===true) return this.modalCtrl.dismiss();
+           }
+        }).then( ()=>{
+          this.audio.play('ok') 
+        });
+      })
+    ).subscribe();
+  }
+
   /**
    * begin gameRound, get game.activeRound and set startTime and moveSpotlight() to first player
    * NOTE: 
@@ -647,12 +711,11 @@ export class GamePage implements OnInit {
 
     return Promise.resolve()
     .then( ()=>{
-      /**
-       * optional: allow moderator to adjust teams
-       * BEFORE calling beginRound
-       */
-
-
+      let update = {
+        doTeamRosters: false,
+        teamRostersComplete: true 
+      }
+      return this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update)
     })
     .then( (res)=>{
       // find activeRound or initialize/begin next round
@@ -797,12 +860,17 @@ export class GamePage implements OnInit {
    * @returns true if Subscription was already cached
    */
   watchGamePlay(gameId: string, d:GameDict){
-    console.warn("120: \t\twatchGamePlay for uid=", d.gamePlayWatch.uid);
+    console.warn("120:0 \t\twatchGamePlay for uid=", d.gamePlayWatch.uid);
+    let isCached = this.stash.watchingGamePlayId == d.gamePlayWatch.uid;
+    if (isCached) {
+      return true;
+    }
+    else {
+      this.stash.watchingGamePlayId = null;
+    }
 
     this.gamePlayWatch = d.gamePlayWatch;
     this.gamePlay$ = this.gamePlayWatch.gamePlay$;
-    let game = d.game;                  // closure
-    let round = d.activeRound;          // closure
 
     this.stash.watchingGamePlayId = d.gamePlayWatch.uid;
     if (this.stash.doneWatchingGamePlay) 
@@ -811,6 +879,10 @@ export class GamePage implements OnInit {
     this.stash.doneWatchGamePlay = this.gamePlayWatch.gamePlay$.pipe(
       withLatestFrom( this.gameWatch.gameDict$ ),
       // automatcally completes when game.activeRound changes
+      throttleTime(100),
+      // tap( ()=>{
+      //   console.warn("120:1 \t\t\twatchGamePlay for uid=", d.gamePlayWatch.uid);
+      // }),
       this.pipeCloudEventLoop_Bkg( this.player$.value), 
       this.pipeCloudEventLoop_Foreground( this.player$.value), 
     ).subscribe(null,null,

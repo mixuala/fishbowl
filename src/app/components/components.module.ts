@@ -13,6 +13,7 @@ import { CountdownTimerComponent } from './countdown-timer/countdown-timer.compo
 import { CounterInputComponent } from './counter-input/counter-input.component';
 import { RatingInputComponent } from './rating-input/rating-input.component';
 import { HelpComponent } from './help/help.component';
+import { FishbowlComponentsModule } from '../fishbowl/components/components.module';
 
 @NgModule({
   imports: [
@@ -22,6 +23,7 @@ import { HelpComponent } from './help/help.component';
     IonicModule,
     PipesModule,
     RouterModule,
+    FishbowlComponentsModule,
   ],
   declarations: [
     CheckboxWrapperComponent,
