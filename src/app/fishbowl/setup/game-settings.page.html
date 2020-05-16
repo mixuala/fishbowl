@@ -38,12 +38,17 @@
                 </ion-label>
               </ion-chip>            
 
+              
+              <form [formGroup]="entryForm" (ngSubmit)="doSubmit()">
+                
+                
+                <div formGroupName="game" *ngIf="isModerator()">
 
-            <form [formGroup]="entryForm" (ngSubmit)="doSubmit()">
-
-
-              <div formGroupName="game" *ngIf="isModerator()">
-
+                  <ion-item lines="none" class="ion-text-right">
+                    <ion-label><ion-text color="tertiary"> Public </ion-text></ion-label>
+                    <ion-toggle color="success" formControlName="public"></ion-toggle>
+                  </ion-item>
+                  
                 <ion-item class="input-item">
                   <ion-label position="stacked">Game Title</ion-label>
                   <ion-input type="text" placeholder="A super-fun title" formControlName="label" clearInput autocapitalize="words" inputmode="text"></ion-input>

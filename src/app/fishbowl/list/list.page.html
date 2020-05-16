@@ -24,7 +24,10 @@
               <ion-card-title>
                 <!-- <ion-icon size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
                 {{game.label}}
-                <ion-badge  *ngIf="game.activeGame" color="success" class="is-live ion-float-right">live</ion-badge>
+                <div class="ion-float-right inline-text-wrap">
+                  <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
+                  <ion-badge  *ngIf="game.activeGame" color="success" class="is-live">live</ion-badge>
+                </div>
               </ion-card-title>
             </ion-card-header>
               

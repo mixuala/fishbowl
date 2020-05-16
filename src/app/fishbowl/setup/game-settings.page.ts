@@ -97,6 +97,7 @@ export class GameSettingsPage implements OnInit {
         // Validators.required,
         Validators.pattern(urlRegex),
       ])),
+      'public': new FormControl(''),
     })
     
     this.entryForm = new FormGroup({
@@ -186,7 +187,7 @@ export class GameSettingsPage implements OnInit {
 
   loadData(game:Partial<Game>={}){
 
-    let gameData = Helpful.pick(game, 'label', 'gameTime', 'chatRoom', 'teamNames', ) as Partial<Game>;
+    let gameData = Helpful.pick(game, 'label', 'gameTime', 'chatRoom', 'teamNames', 'public' ) as Partial<Game>;
     let name = game.players && game.players[this.player.uid] || this.player.displayName || "";
     let formData = {
       name,
@@ -196,6 +197,7 @@ export class GameSettingsPage implements OnInit {
         label: gameData.label, 
         startTime: gameData.gameTime,
         chatRoom: gameData.chatRoom,
+        public: gameData.public,
       }
     }
     this.stash.pickDatetime = {
@@ -256,6 +258,7 @@ export class GameSettingsPage implements OnInit {
       label: "",
       gameTime: dayjs().add(1,'hour').startOf('hour').toDate().getTime(),
       chatRoom: "",
+      public: false,
       moderators: {
         [this.player.uid]: true
       }
@@ -276,7 +279,10 @@ export class GameSettingsPage implements OnInit {
     let timezoneOffset = new Date(startTime).getTimezoneOffset();
     let teamNames = [formData.teamA, formData.teamB];
     
-    let update = {players, playerCount, label, gameTime:startTime,  timezoneOffset, chatRoom , teamNames} as Partial<Game>;
+    let update = {players, playerCount, label, 
+      gameTime:startTime,  timezoneOffset, chatRoom , teamNames, 
+      public: formData.game.public
+    } as Partial<Game>;
 
     let gameId = this.activatedRoute.snapshot.paramMap.get('uid');
     if (gameId=="new"){

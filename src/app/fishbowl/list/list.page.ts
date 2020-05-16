@@ -4,8 +4,8 @@ import { LoadingController, ModalController, } from '@ionic/angular';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, of, from, throwError } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
+import { Observable, Subject, of, from, BehaviorSubject } from 'rxjs';
+import { map, tap, switchMap, take, filter } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -15,8 +15,7 @@ import { Helpful } from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers'
 import { GameHelpers } from '../game-helpers';
 import { 
-  Game, GameWatch, GameDict, RoundEnum,
-  PlayerListByUids, TeamRosters,  
+  Game, GameWatch, GameDict, RoundEnum,  
 } from '../types';
 
 declare let window;
@@ -35,6 +34,8 @@ export class ListPage implements OnInit {
   public listen$ : Subject<boolean> = new Subject<boolean>();
   public games$: Observable<Game[]>;
   public player: Player;
+  public playerId: string;
+  private player$ = new BehaviorSubject<Player>(null);
 
   constructor(
     private  activatedRoute: ActivatedRoute,
@@ -70,7 +71,7 @@ export class ListPage implements OnInit {
     ).subscribe();
     
     let loading = await this.presentLoading();
-    this.games$ = this.gameHelpers.getGames$();
+    this.games$ = this.gameHelpers.getGames$(this.player$);
 
     let invite = this.activatedRoute.snapshot.queryParamMap.get('invite');
     invite = invite || this.activatedRoute.snapshot.paramMap.get('uid');
@@ -123,22 +124,20 @@ export class ListPage implements OnInit {
     return this.authService.getCurrentUser$().pipe(
       switchMap( u=>{
         if (!!u) return of(u);
-
         return from(this.authService.doAnonymousSignIn());
-
-        // email/passwd signIn with DEV user
-        console.log( `DEV: auto-login to default app user.`);
-        return this.authService.doLogin({email:'test@test.com', password:'hellow'})
-
       }),
-      map( u=>{
+      switchMap( u=>{
+        this.playerId = u.uid;      // only change here
+
         let p:Player = {
           uid: u.uid,
           name: u.displayName,
           gamesPlayed: 0,
           isAnonymous: u.isAnonymous,
         }
-        return p;
+        this.player$.next(p);
+
+        return this.player$.asObservable();
       })
     );
   }

@@ -1,8 +1,9 @@
 import { SnapshotAction, AngularFireObject } from 'angularfire2/database';
 import { pipe, Observable, } from 'rxjs';
-import { map, tap, } from 'rxjs/operators';
+import { map, tap, withLatestFrom, } from 'rxjs/operators';
 import * as dayjs from 'dayjs';
 
+import { Helpful} from '../services/app.helpers';
 import { 
   Game, GamePlayRound, RoundEnum,
   PlayerListByUids, TeamRosters,
@@ -12,7 +13,7 @@ import {
   PlayerByUids,
   GameDict
 } from './types';
-import { Helpful} from '../services/app.helpers';
+import { Player } from '../user/role';
 
 export class FishbowlHelpers {
 
@@ -314,6 +315,21 @@ export class FishbowlHelpers {
         });
         return sa instanceof Array ? res : res.pop();
       }),
+    )
+  }
+
+  static
+  pipeGameIsPublished(player$: Observable<Player>) {
+    return pipe(
+      withLatestFrom(player$),
+      map( (res)=>{
+        let games = res[0] as Game[];
+        let p = res[1] as Player;
+        return games.filter( g=>{
+          if (g.public) return true;
+          if (g.moderators[p.uid]==true) return true;
+        })
+      })
     )
   }
 

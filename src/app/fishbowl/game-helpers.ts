@@ -9,6 +9,7 @@ import * as dayjs from 'dayjs';
 
 import { Helpful } from '../services/app.helpers';
 import { FishbowlHelpers } from './fishbowl.helpers';
+import { Player } from '../user/role';
 import { 
   Game, GameWatch, GameDict, GameAdminState, RoundEnum,
   GamePlayWatch, GamePlayState, GamePlayRound, GamePlayLogEntries, GamePlayLog,
@@ -127,12 +128,13 @@ export class GameHelpers {
   ) {
   }
 
-  getGames$(daysAgo=7):Observable<Game[]>{
+  getGames$(player$:Observable<Player>, daysAgo=7):Observable<Game[]>{
     let d = dayjs().subtract(daysAgo, 'day').startOf('day').toDate();
     return this.db.list<Game>('games', 
       ref=>ref.orderByChild('gameTime').startAt( d.getTime() )
     ).snapshotChanges().pipe(
       FishbowlHelpers.pipeSnapshot2Data(),
+      FishbowlHelpers.pipeGameIsPublished(player$),
       FishbowlHelpers.pipeSort('gameTime')
     )
   }
