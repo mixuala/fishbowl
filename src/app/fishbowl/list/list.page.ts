@@ -88,11 +88,14 @@ export class ListPage implements OnInit {
     this.games$.pipe(
       filter( ()=>this.stash.listen),
       map( (games, i)=>{
+        games.forEach( g=>{
+          g.activeGame = g.activeGame || g.gameTime < Date.now();
+        })
         if (!invite) return games;
         return games.filter( g=>g.uid==invite)
       }),
       tap( (gameList:Game[])=>{
-        console.log( "games=", gameList);
+        // console.log( "games=", gameList);
         this._moveExpiredGamesToNextWeek(gameList)
       }),
       tap( ()=>{

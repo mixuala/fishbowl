@@ -17,6 +17,8 @@
   [class.even]="spotlight?.teamIndex%2==0"
   >
     <ion-row class="ion-justify-content-center">
+
+        <!-- moderator-control-panel -->
         <ion-col size="12" size-sm="8" size-md="6"  *ngIf="isModerator()">
           <ion-card class="moderator-control-panel">
             <ion-card-header color="dark">      
@@ -133,7 +135,7 @@
                 
                 <ng-container *ngIf="stash.showModeratorGameControls">
                   <ion-button expand="block" class="spotlight" size="small"
-                      [color]="spotlight.teamIndex ? 'success' : 'tertiary'"
+                      [color]="spotlight?.teamIndex ? 'success' : 'tertiary'"
                       [class.on-the-spot]="stash.onTheSpot" 
                       >
                       <ion-icon name="person" slot="start"></ion-icon>
@@ -225,9 +227,9 @@
 
 
 
-
-        <ion-col size="12" size-sm="8" size-md="6">
-          <ion-card  *ngIf="game">
+        <!--  game-control-panel -->
+        <ion-col size="12" size-sm="8" size-md="6" *ngIf="isPlayerRegistered; else getPlayerRegistration">
+          <ion-card>
             <ion-card-header color="tertiary">      
               <ion-card-title>
                 {{game.label}}
@@ -253,7 +255,7 @@
                 </div>
               </div>
 
-            <ion-list class="ion-no-padding">
+            <!-- <ion-list class="ion-no-padding"> -->
 
               <div  *ngIf="stash.activeGame">
 
@@ -268,13 +270,13 @@
 
                     <ion-col size=5>
                         <ion-label class="inline-text-wrap">
-                          <ion-text>player</ion-text>
+                          <ion-note>player</ion-note>
                           <ion-badge color="light" class="ion-padding-horizontal">{{player.displayName}}</ion-badge>
                         </ion-label>
                                                 
                     </ion-col>
                     <ion-col size=5>
-                        <ion-label>
+                        <ion-label class="inline-text-wrap">
                           <ion-note>team</ion-note> 
                         </ion-label>
                         <ion-badge color="light" class="ion-padding-horizontal">{{player.teamName}}</ion-badge>
@@ -290,7 +292,6 @@
 
                   </ion-row>
                 </ion-grid>
-
               </div>                  
             
               <div class="game-summary">
@@ -301,7 +302,7 @@
                   <ion-grid>
                     <ion-row>
                       <ion-col>
-                        <ion-button expand="block" color="success">
+                        <ion-button expand="block" color="success" class="taller">
                           <ion-icon name="videocam" slot="start"></ion-icon>
                           <a [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">Open Video Chat Room</a>
                         </ion-button>
@@ -433,10 +434,90 @@
               </div>
           
 
-            </ion-list>
+            <!-- </ion-list> -->
             </ion-card-content>
           </ion-card>
         </ion-col>
+
+
+
+
+        <!-- game-new-player -->
+        <ng-template #getPlayerRegistration>
+          <ion-col size="12" size-sm="8" size-md="6" *ngIf="game">
+            <ion-card>
+              <ion-card-header color="tertiary">      
+                <ion-card-title>
+                  {{game.label}}
+                </ion-card-title>
+                <ion-card-subtitle>
+                  Fishbowl
+                </ion-card-subtitle>
+              </ion-card-header>
+                
+              <ion-card-content>
+
+                <div class="game-countdown"  *ngIf="!stash.activeGame">
+                  <ion-item-divider class="ion-margin-top">
+                    <ion-note>countdown to game time</ion-note>
+                  </ion-item-divider>
+                  <div class="game-time ion-text-center">
+                    <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"
+                    (onBuzz)="onGameTime($event)"
+                    ></app-countdown-timer>
+                    <ion-text  color="dark">
+                      Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
+                    </ion-text>
+                  </div>
+                </div>
+
+                <div class="game-summary">
+                  <ion-item-divider class="ion-margin-top">
+                    <ion-note>Get Started</ion-note>
+                  </ion-item-divider>
+
+                  <ion-grid>
+                    <ion-row>
+                      <ion-col>
+                        <ion-button expand="block" color="tertiary" class="taller"
+                        routerDirection="forward" [routerLink]="['/app/game', gameId, 'player']">
+                          <ion-icon name="list-outline" slot="start"></ion-icon>
+                          Create Game Entry
+                        </ion-button>
+                      </ion-col>
+                    </ion-row>
+                    <ion-row *ngIf="stash.activeGame">
+                      <ion-col>
+                        <ion-button expand="block" color="success" class="taller">
+                          <ion-icon name="videocam" slot="start"></ion-icon>
+                          <a [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">Open Video Chat Room</a>
+                        </ion-button>
+                      </ion-col>
+                    </ion-row>
+                    <ion-row class="hide-under-spotlight">
+                      <ion-col size=6>
+                        <ion-item>
+                          <ion-label><ion-note>round</ion-note></ion-label>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{activeRound?.round || "––"}}</ion-badge>
+                        </ion-item>
+                      </ion-col>
+                      <ion-col size=6>
+                        <ion-item>
+                          <ion-label>
+                            <ion-note>players</ion-note> 
+                          </ion-label>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{game.playerCount}}</ion-badge>
+                        </ion-item>
+                      </ion-col>
+                    </ion-row>
+                  </ion-grid>
+                </div>
+
+                
+              </ion-card-content>
+            </ion-card>
+          </ion-col>
+        </ng-template>
     </ion-row>
   </ion-grid>
 

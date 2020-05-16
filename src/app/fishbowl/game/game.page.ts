@@ -79,8 +79,9 @@ export class GamePage implements OnInit {
 
   private pipeCloudEventLoop_Bkg(player:Player) {
     return pipe(
-      tap( ([gamePlay, d])=>{
-        console.warn("121: watchGamePlay changed=", gamePlay && gamePlay.changedKeys)
+      tap( (res:[GamePlayState, GameDict])=>{
+        if (!res) return;
+        let [gamePlay, d] = res;
         let round = d.activeRound;          // closure
 
         let changed = gamePlay.changedKeys || [];
@@ -96,7 +97,9 @@ export class GamePage implements OnInit {
   
   private pipeCloudEventLoop_Foreground(player:Player) {
     return pipe(
-      tap( ([gamePlay, d])=>{
+      tap( (res:[GamePlayState, GameDict])=>{
+        if (!res) return;
+        let [gamePlay, d] = res;
         let game = d.game;                  // closure
         let round = d.activeRound;          // closure
         if (!this.stash.isActivePage)
@@ -271,7 +274,7 @@ export class GamePage implements OnInit {
     })
     .then( async ()=>{
       if (changed.includes('teamRostersComplete')) {
-        this.modalCtrl.dismiss(true);
+        this.modalCtrl.dismiss(true).catch(()=>{});
       }    
     })
     .then( async ()=>{
@@ -282,7 +285,7 @@ export class GamePage implements OnInit {
     })
     .then( ()=>{
       if (changed.includes('checkInComplete')) {
-        this.modalCtrl.dismiss(true);
+        this.modalCtrl.dismiss(true).catch(()=>{});
       }
     })
     .then( async ()=>{
@@ -375,6 +378,7 @@ export class GamePage implements OnInit {
   public gameRef:AngularFireObject<Game>;
   public playerId: string;
   public player: Player;
+  public isPlayerRegistered: boolean;
   private player$ = new BehaviorSubject<Player>(null);
   public spotlight:SpotlightPlayer;
 
@@ -537,7 +541,6 @@ export class GamePage implements OnInit {
         let chatRoom = game.chatRoom;
         // hasEntry = false;
 
-        console.warn("121: showWelcome Interstitial")
         HelpComponent.presentModal(this.modalCtrl, {
           template:'player-welcome',
           once:false,
@@ -548,7 +551,8 @@ export class GamePage implements OnInit {
           swipeToClose: false,
           dismiss: (v)=>{ 
             if (this.isModerator()) v=true;
-            if (v==true) this.modalCtrl.dismiss('entry')
+            if (v==true) this.modalCtrl.dismiss();
+            this.modalCtrl.dismiss();
           }
         }).then( ()=>{
           this.audio.play('click') 
@@ -565,6 +569,7 @@ export class GamePage implements OnInit {
 
     console.warn("121: showCheckInInterstitial(), status=", status)
     const ALREADY_CHECKED_IN_DISMISS = 10000;
+    let isCheckedIn = !!status;
     this.player$.pipe(
       filter( p=>!!p.displayName),
       take(1),
@@ -581,9 +586,12 @@ export class GamePage implements OnInit {
             let sound = res ? 'ok' : 'pass';
             this.audio.play(sound);
             let checkIn = {[player.uid]: res ? player.displayName : false };
-            this.gameHelpers.pushCheckIn(this.gameId, checkIn);
+            this.gameHelpers.pushCheckIn(this.gameId, checkIn).then( ()=>{
+              isCheckedIn = true;
+            });
           },
           dismiss: (v)=>{ 
+            if (isCheckedIn) v=true;
             if (this.isModerator()) v=true;
             if (v===true || !!status) 
               return this.modalCtrl.dismiss();
@@ -779,11 +787,12 @@ export class GamePage implements OnInit {
     let wasCached = this.watchGame(this.gameId);
     if (wasCached) {
       // just replay missing gamePlay events, ONCE
-      this.gameDict.gamePlayWatch.gamePlay$.pipe( 
+      this.gameDict.gamePlayWatch.gamePlay$.pipe(
+        withLatestFrom( this.gameWatch.gameDict$ ),
         first(), 
         this.pipeCloudEventLoop_Foreground( this.player$.value), 
       )
-      .subscribe( (gamePlay:GamePlayState)=>{ 
+      .subscribe( ([gamePlay,_]:[GamePlayState, any])=>{ 
         console.warn("120: REPLAY missed gamePlay events", gamePlay.changedKeys, gamePlay)
       })
     }
@@ -844,7 +853,7 @@ export class GamePage implements OnInit {
       tap( d=>{
         let game = d.game;                  // closure
 
-        this.setGamePlayer(d);
+        this.isPlayerRegistered = this.setGamePlayer(d);
         this.stash.playersSorted = Helpful.sortObjectEntriesByValues(game.players) as Array<[string,string]>
         this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
         this.watchGamePlay(gameId, d);
@@ -897,7 +906,12 @@ export class GamePage implements OnInit {
   /**
    * break main UI/UX Subscribers into smaller functional units
    */
-  setGamePlayer(d:GameDict=null) {
+  /**
+   * 
+   * @param d 
+   * @returns isRegistered
+   */
+  setGamePlayer(d:GameDict=null):boolean {
     // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
     // OR, every gameWatch.gameDict$ emit
 
@@ -906,6 +920,7 @@ export class GamePage implements OnInit {
     let playerSettings = FishbowlHelpers.getPlayerSettings(player.uid, game, activeRound);
     let update = Object.assign({}, player, playerSettings);
     this.player$.next( update );
+    return game.entries && !!game.entries[player.uid];
   }
 
   // Helpers

@@ -48,6 +48,12 @@ ion-button > a {
   text-decoration: none;
 }
 
+ion-col > ion-button.taller {
+  --padding-top: var(--ion-padding, 16px);
+  --padding-bottom: var(--ion-padding, 16px);
+  height: 100%;
+}
+
 .team-round.spotlight {
   background-color: rgba(var(--ion-color-success-rgb), 0.5);
   &.even {
