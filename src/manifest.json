@@ -1,9 +1,9 @@
 {
-  "name": "Fishbowl",
+  "name": "Fishbowl-the-Game",
   "description": "The shelter-in-place game for all ages",
   "short_name": "Fishbowl",
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
+  "theme_color": "#00AFFF",
+  "background_color": "#000000",
   "display": "standalone",
   "orientation": "portrait",
   "scope": "/",

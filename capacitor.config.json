@@ -1,6 +1,6 @@
 {
-  "appId": "com.ionicthemes.ionic5fullapp",
-  "appName": "Ionic5FullApp",
+  "appId": "app.web.fishbowl-the-game",
+  "appName": "Fishbowl-the-Game",
   "bundledWebRuntime": false,
   "npmClient": "npm",
   "webDir": "www",

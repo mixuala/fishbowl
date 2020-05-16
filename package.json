@@ -1,7 +1,7 @@
 {
-  "name": "Fishbowl",
+  "name": "Fishbowl-the-Game",
   "description": "The most advanced and complete Mobile & PWA Ionic starter app template",
-  "version": "0.1",
+  "version": "0.3",
   "author": "github:mixuala",
   "contributors": [
     "Dayana <dayana@startapplabs.com>",
@@ -37,6 +37,7 @@
     "core-js": "^2.5.7",
     "dayjs": "1.8.0",
     "firebase": "^7.14.1",
+    "firebase-functions": "^3.6.1",
     "google-libphonenumber": "^3.2.1",
     "howler": "^2.1.3",
     "minimist": "^1.2.5",

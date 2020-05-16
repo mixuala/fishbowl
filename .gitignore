@@ -37,3 +37,5 @@ UserInterfaceState.xcuserstate
 
 .firebase
 release/
+src/environments/environment.ts
+src/environments/environment.prod.ts
