@@ -132,52 +132,45 @@
             <ion-label slot="start">
               <ion-note>game summary</ion-note>
             </ion-label>
-            <!-- <div slot="end">
-              <ion-note>duration</ion-note>
-              <ion-badge color="light" class="ion-padding-horizontal">{{gameSummary.duration | date:"mm:ss"}}</ion-badge>
-            </div> -->
           </ion-item-divider>
 
           <ion-grid>
             <ion-row class="header wide">
-              <ion-col size="6">
-                <ion-item lines="full"
-                [color]="winnersByRound['total']==gameSummary.teamNames[0] && 'success'" 
-                >
-                  <ion-icon name="people-circle-outline" slot="start" class="ion-hide-sm-down"></ion-icon>
-                  <ion-label class="ion-text-wrap">
+              <ion-col size="6" class="even inline-text-wrap">
+                  <ion-icon name="people-circle-outline" class="ion-hide-sm-down"></ion-icon>
+                  <ion-badge color="tertiary" class="ion-float-right">
                     {{gameSummary.teamNames[0]}} 
-                  </ion-label>
-                </ion-item>
+                  </ion-badge>
               </ion-col>
-              <ion-col size="6">
-                <ion-item lines="full" class="ion-no-padding"
-                [color]="winnersByRound['total']==gameSummary.teamNames[1] && 'success'" >
-                  <ion-label class="ion-text-wrap">
+              <ion-col size="6" class="odd inline-text-wrap">
+                  <ion-badge color="success">
                     {{gameSummary.teamNames[1]}}
-                  </ion-label>
+                  </ion-badge>
                   <ion-icon name="people-circle-outline" class="ion-float-right ion-hide-sm-down"></ion-icon>
-                </ion-item>
               </ion-col>
             </ion-row>
             <ion-row class="wide"
               *ngFor="let kv of (gameSummary.scoreboard | keyvalue); let i=index"
               [className]="kv.key"
             >
-              <ion-col size="6"
-                [class.on-the-spot]="winnersByRound[kv.key]==gameSummary.teamNames[0]">
+              <ion-col size="6">
                 <ion-note>{{kv.key}}</ion-note>
-                <ion-badge class="ion-float-right ion-padding-horizontal ion-margin-horizontal">
+                <ion-badge class="ion-float-right ion-padding-horizontal ion-margin-horizontal even" 
+                [color]="winnersByRound[kv.key]==gameSummary.teamNames[0] ? 'tertiary' : 'dark'">
                   {{(kv.value[gameSummary.teamNames[0]])?.points || 0}} 
                 </ion-badge>
               </ion-col>
-              <ion-col size="6"
-                [class.on-the-spot]="winnersByRound[kv.key]==gameSummary.teamNames[1]"
-              >
+              <ion-col size="6">
                 <ion-note class="ion-float-right">{{kv.key}}</ion-note>
-                <ion-badge class="ion-float-left ion-padding-horizontal ion-margin-horizontal">
+                <ion-badge class="ion-float-left ion-padding-horizontal ion-margin-horizontal odd" 
+                [color]="winnersByRound[kv.key]==gameSummary.teamNames[1] ? 'success' : 'dark'">
                   {{(kv.value[gameSummary.teamNames[1]])?.points || 0}} 
                 </ion-badge>
+              </ion-col>
+            </ion-row>
+            <ion-row *ngIf="gameSummary.roundNo==3">
+              <ion-col>
+                <ion-button color="success" expand="block" size="large">GAME OVER</ion-button>
               </ion-col>
             </ion-row>
           </ion-grid>

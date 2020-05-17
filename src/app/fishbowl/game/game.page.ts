@@ -145,7 +145,7 @@ export class GamePage implements OnInit {
     }
 
     /**
-     * these intertitials must wait for the scoreboard to update
+     * these interstitials must wait for the scoreboard to update
      */
     Promise.resolve(this.scoreboard)
     .then( async (scoreboard)=>{
@@ -195,19 +195,17 @@ export class GamePage implements OnInit {
       }
       return scoreboard;
     })
-    .then( (scoreboard)=>{
+    .then( async (scoreboard)=>{
       if (changed.includes('gameRoundComplete')) {
         // guard: roundComplete=true
         // NOTE: playerRoundComplete==true when gameRoundComplete=true
         let teamNames = game.teamNames;
         let winnersByRound = Object.keys(scoreboard).reduce( (o, round)=>{ 
-          let team0 = scoreboard[round][teamNames[0]];
-          let team1 = scoreboard[round][teamNames[1]];
-          if (team0 && team1){
-            if (team0.point > (team1.point || 0)) o[round]=teamNames[0];
-            if (team1.point > (team0.point || 0)) o[round]=teamNames[1];
-          } 
-          else o[round]==null;
+          let team0 = scoreboard[round][teamNames[0]] || {};
+          let team1 = scoreboard[round][teamNames[1]] || {};
+          o[round]==null;
+          if ((team0.points || 0) > (team1.points  || 0)) o[round]=teamNames[0];
+          if ((team1.points || 0) > (team0.points  || 0)) o[round]=teamNames[1];
           return o;
         }, {});
 
@@ -217,33 +215,25 @@ export class GamePage implements OnInit {
           duration: Date.now()+round.startTimeDesc,          
           scoreboard,
         }
+        let duration = TIME.GAME_ROUND_DISMISS;
+        if (round.round==3) duration *=2;       // GAME OVER
         console.log("2: gameRoundComplete=true", winnersByRound, gameSummary)
-    
-        return this.gamePlayWatch.gameLog$.pipe(
-          take(1),
-        ).toPromise()
-        .then( gameLog=>{
-          let interstitial = {
-            template: "game-round-complete", 
-            once:false,
-            duration: TIME.GAME_ROUND_DISMISS,
-            gameSummary,
-            winnersByRound,
-            onDidDismiss: (v)=>{
-              console.info('round-complete dismissed')
-              return true;
-            }
-          }
-          return HelpComponent.presentModal(this.modalCtrl, interstitial)
-          .then( (dismissed)=>{
-            console.warn("12:  2>>>  INTERSITIAL: gameRoundComplete dismissed with: ", dismissed)
-            // AFTER dismissal, pass to next Interstitial
-            // changed.includes('gameRoundComplete')
-            return scoreboard;
-          })       
-        });
+
+        let interstitial = {
+          template: "game-round-complete", 
+          once:false,
+          gameSummary,
+          winnersByRound,
+          onDidDismiss: (v)=>{
+            console.info('round-complete dismissed')
+            return true;
+          },
+          // dismiss:()=>{},
+          duration,
+        }
+        await HelpComponent.presentModal(this.modalCtrl, interstitial);
       }
-      else return scoreboard;
+      return scoreboard;
     })
   }
 
