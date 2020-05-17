@@ -197,7 +197,7 @@ export class GameSettingsPage implements OnInit {
         label: gameData.label, 
         startTime: gameData.gameTime,
         chatRoom: gameData.chatRoom,
-        public: gameData.public,
+        public: !!gameData.public,
       }
     }
     this.stash.pickDatetime = {
