@@ -8,7 +8,7 @@
         <ion-label class="inline-text-wrap">
           <ion-text>Score Card</ion-text>
           <ion-badge class="ion-margin-horizontal" *ngIf="lastResult"
-          [color]="lastResult.teamIndex ? 'success' : 'tertiary'"
+          [color]="teamIndex ? 'success' : 'tertiary'"
           >{{lastResult.playerName}} &mdash; {{lastResult.teamName}}</ion-badge>
         </ion-label>
       </ion-col>

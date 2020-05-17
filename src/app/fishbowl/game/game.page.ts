@@ -148,20 +148,19 @@ export class GamePage implements OnInit {
      * these intertitials must wait for the scoreboard to update
      */
     Promise.resolve(this.scoreboard)
-    .then( (scoreboard)=>{
-      if (changed.includes('log')) {
-        return this.gameHelpers.scoreRound$(
+    .then( async (scoreboard)=>{
+      if (changed.includes('log') || !scoreboard) {
+        scoreboard = await this.gameHelpers.scoreRound$(
           this.gamePlayWatch, 
           teamNames, 
           merge
-        ).toPromise().then( (score)=>{
-          this.scoreboard = score;
-          return score;
-        })
+        ).toPromise();
+        this.scoreboard = scoreboard;
       }
       return scoreboard
     })
-    .then( (scoreboard)=>{
+    .then( async (scoreboard)=>{
+
       if (changed.includes('playerRoundComplete')) {
         // guard: playerRoundComplete=true
         if (!round) throw new Error("round should not be empty when playerRoundComplete==true")
@@ -176,33 +175,25 @@ export class GamePage implements OnInit {
           scoreboard,
         }
 
-        console.log("2: playerRoundComplete=true", scoreboard)
-
 
         // flash player round complete interstitial
         let interstitial = {
           template: "player-round-complete", 
           once:false,
-          duration: TIME.PLAYER_ROUND_DISMISS,
           gamePlay: gamePlayCopy,
           gameSummary,
           getRemaining: FishbowlHelpers.getRemaining,
           onDidDismiss: (v)=>{
             console.info('player-round complete dismissed')
-          }
+          },
+          // dismiss:()=>{},
+          duration: TIME.PLAYER_ROUND_DISMISS,
         }
-        return Helpful.waitFor(TIME.BUZZER_ANIMATION_COMPLETE)
-        .then( ()=>{
-          return HelpComponent.presentModal(this.modalCtrl, interstitial)
-          .then( (dismissed)=>{
-            console.warn("12:  2>>>  INTERSITIAL: playerRoundComplete dismissed with: ", dismissed)
-            // AFTER dismissal, pass to next Interstitial
-            // changed.includes('gameRoundComplete')
-            return scoreboard;
-          })
-        });
+        await Helpful.waitFor(TIME.BUZZER_ANIMATION_COMPLETE);
+        await HelpComponent.presentModal(this.modalCtrl, interstitial)
+        // wait for dismissal before continuing
       }
-      else return scoreboard;
+      return scoreboard;
     })
     .then( (scoreboard)=>{
       if (changed.includes('gameRoundComplete')) {
@@ -267,7 +258,6 @@ export class GamePage implements OnInit {
   ) {
     let changed = gamePlay.changedKeys || [];
 
-    console.warn("121: doInterstitialsPreGame(), changed=", changed)
     let dontWait = Promise.resolve()
     .then( ()=>{   
       if (changed.includes('doGameOver')) {
@@ -277,7 +267,7 @@ export class GamePage implements OnInit {
     .then( ()=>{   
       if (changed.includes('doBeginGameRound') && gamePlay.doBeginGameRound>0) {
         // beginGameRound Interstitial
-        this.showRoundInterstitial(gamePlay.doBeginGameRound);
+        this.showBeginGameRoundInterstitial(gamePlay.doBeginGameRound);
         return Promise.reject('skip')
       }
     })
@@ -575,7 +565,6 @@ export class GamePage implements OnInit {
   showCheckInInterstitial(status:string | boolean) {
     // if (!!status) return;
 
-    console.warn("121: showCheckInInterstitial(), status=", status)
     const ALREADY_CHECKED_IN_DISMISS = 10000;
     let isCheckedIn = !!status;
     this.player$.pipe(
@@ -720,7 +709,7 @@ export class GamePage implements OnInit {
   }
 
 
-  showRoundInterstitial(round:number){
+  showBeginGameRoundInterstitial(round:number){
     const BEGIN_ROUND_DISMISS = 8000;
     let dontWait = HelpComponent.presentModal(this.modalCtrl, {
       template:'begin-game-round',
@@ -866,8 +855,8 @@ export class GamePage implements OnInit {
    */
   throttleTimeAndWordEvents(changed:Partial<GamePlayState>=null):boolean {
     const THROTTLE_TIMER_AND_WORD_ACTIONS = 700;
+    let isThrottling = !!this.stash.throttleTimeAndWordEvents;
     if (changed) {
-      let isThrottling = this.stash.throttleTimeAndWordEvents;
       let doThrottle = changed.isTicking || !!changed.word;
       if (!isThrottling && doThrottle) {
         // throttle LOCAL actions after cloud emits
@@ -877,6 +866,7 @@ export class GamePage implements OnInit {
         )
       }
     }
+    return isThrottling;
     return this.stash.throttleTimeAndWordEvents;
   }
 
@@ -1174,7 +1164,7 @@ export class GamePage implements OnInit {
   }
 
   private pauseTimer(gamePlay):boolean{
-    if (this.throttleTimeAndWordEvents()) return;
+    if (this.throttleTimeAndWordEvents(gamePlay)) return;
     if (!gamePlay.isTicking) return;
 
     // role guard
@@ -1220,7 +1210,9 @@ export class GamePage implements OnInit {
    *    when trigged externally, e.g. gameRoundComplete when player gets last word
    */
   async onTimerDone(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
-    const ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS = 5000;
+    if (this.throttleTimeAndWordEvents({isTicking:true})) return;
+
+    const ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS = 3000;
     if (!this.gameDict.activeRound) 
       return;
 
@@ -1271,7 +1263,7 @@ export class GamePage implements OnInit {
       ).toPromise()
       .then( (doPlayerRoundComplete)=>{
         if (doPlayerRoundComplete) {
-          console.log("0: ******* completePlayerRound, from onTimerDone() OVERTIME, clearTimer=false")
+          // console.log("1:  ******* completePlayerRound, from onTimerDone() OVERTIME, clearTimer=false")
           return this.completePlayerRound(false);
         }
         else {
@@ -1420,7 +1412,6 @@ export class GamePage implements OnInit {
    * onTimerDone() or FishbowlHelpers.nextWord() is empty 
    */
   async completePlayerRound(gameRoundComplete=false):Promise<void>{
-    console.log("3: ******* completePlayerRound, roundComplete=", gameRoundComplete)
     let isOnTheSpot = this.stash.onTheSpot;
     if (!(isOnTheSpot || this.isModerator())) return;
 

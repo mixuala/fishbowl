@@ -468,9 +468,9 @@ export class GameHelpers {
       timestamp: USE_SERVER_TIMESTAMP ? firebase.database.ServerValue.TIMESTAMP : Date.now(),
     });
     return this.db.list<GamePlayState>('/gamePlay').update(watch.uid, update)
-    .then( v=>{
-      console.log("120: GameHelper.pushGamePlayState() COMPLETE update=", update)
-    });
+    // .then( v=>{
+    //   console.log(">>> GameHelper.pushGamePlayState() COMPLETE update=", update)
+    // });
   }
 
 

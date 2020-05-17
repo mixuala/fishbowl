@@ -23,6 +23,7 @@ export class ScoreCardComponent implements OnInit {
   public PLAYER_ROUND_COMPLETE_DELAY = 1000;
   public isModerator = false;
   public lastResult:WordResult;
+  public teamIndex: number;       // used for color coding result
   private changes:GamePlayLogEntries = {};
   private done:Subscription;
 
@@ -94,21 +95,17 @@ export class ScoreCardComponent implements OnInit {
 
         if (!!changed.playerRoundComplete) {
           let changes = Object.assign({}, this.changes);
-          this.doReset();
-          // (NOT USED) nowposting changes to gamePlay in REAL TIME, so the spotlight player can see updates
-          // WARNING: must emit before gamePlay.gameRoundComplete
-          // console.warn( "\t\t\t###126:0 playerRoundComplete gameLog changes =", changes)
-          // setTimeout( ()=>{
-          //   console.warn( "\t\t\t###126:1 playerRoundComplete gameLog changes =", changes)
-          //   this.onChange.emit( changes );
-          // }, this.PLAYER_ROUND_COMPLETE_DELAY);
+          return this.doReset();
         }
         else if (!!changed.playerRoundBegin) {
-          return this.doReset()
+          return this.doReset();
         }
         if (changed.log) {
           let keys = Object.keys(changed.log);
           this.lastResult = changed.log[ keys[keys.length-1] ];
+        }
+        if (changed.spotlight) {
+          this.teamIndex = changed.spotlight.teamIndex 
         }
       })
     ).subscribe();
