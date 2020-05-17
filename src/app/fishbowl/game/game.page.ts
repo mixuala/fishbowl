@@ -46,7 +46,6 @@ export class GamePage implements OnInit {
   private gameDict:GameDict;
   public gameId: string;
   public game: Game;
-  public activeRound: GamePlayRound;
   public gamePlay$: Observable<GamePlayState>;      // for async pipes
   public scoreboard:Scoreboard;
   
@@ -68,7 +67,6 @@ export class GamePage implements OnInit {
       tap( d=>{
         this.gameDict = d;
         this.game = d.game;
-        this.activeRound = d.activeRound; 
       }),
       map( (gameDict)=>{
         gameDict.gamePlayWatch = this.gameHelpers.getGamePlay(gameId, gameDict.game);
@@ -737,7 +735,8 @@ export class GamePage implements OnInit {
 
 
   /**
-   * begin gameRound, get game.activeRound and set startTime and moveSpotlight() to first player
+   * begin gameRound, get game.activeRound and set startTime 
+   * - moveSpotlight() to first player
    * NOTE: 
    *  - call GameHelpers.loadNextRound() called after loadRounds()
    * @param round 
@@ -745,14 +744,20 @@ export class GamePage implements OnInit {
   async beginNextGameRound():Promise<GamePlayRound>{
     if (!this.game) return
     if (!this.isModerator()) return;
-
+    
+    let roundIndex = FishbowlHelpers.getRoundIndex(this.gameDict);
+    let isFirstRound = roundIndex.prev==null;
     return Promise.resolve()
     .then( ()=>{
-      let update = {
-        doTeamRosters: false,
-        teamRostersComplete: true 
+      // NOTE: gameDict.activeRound == null
+      if (isFirstRound) {
+        // before round 1
+        let update = {
+          doTeamRosters: false,
+          teamRostersComplete: true,
+        }
+        return this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update)
       }
-      return this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update)
     })
     .then( (res)=>{
       // find activeRound or initialize/begin next round
@@ -768,17 +773,29 @@ export class GamePage implements OnInit {
       }
       return res;
     })
-    .then( (res)=>{
-      // TODO: wait for gameWatch.gameDict$ emit?
+    .then( async (res)=>{
+      await Helpful.waitFor(1000);
+      let update = {
+        doBeginGameRound: this.gameDict.activeRound.round
+      }
+      // trigger showRoundInterstitial()
+      await this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update)
+      return res
+    })
+    .then( async (res)=>{
       let {rid, activeRound} = res;
-      this.gameHelpers.beginRound(rid);
+      // just updates state info for Round
+      await this.gameHelpers.beginRound(rid);
       return res;
     })
     .then( ()=>{   
-      // beginGameRoundInterstitial
-    }) 
-    .then( ()=>{   
-      // nextPlayerRound
+      // ONLY for round 1
+      if (isFirstRound) {
+        return this.nextPlayer();
+      } else {
+        // clean up: gamePlay for last round
+        let dontWait = this.db.list<GamePlayState>('/gamePlay').remove(roundIndex.prev)
+      }
     })
     .catch( err=>{
       if (err=="gameComplete") {
@@ -790,13 +807,13 @@ export class GamePage implements OnInit {
 
   // called from game-controls
   // tested OK
-  nextPlayer(nextTeam=true){
+  nextPlayer(nextTeam=true):Promise<void>{
     if (!this.stash.activeGame) return;
 
     let game = this.gameDict[this.gameId] as Game;
     let round = this.gameDict.activeRound;
     let defaultDuration = this.initialTimerDuration
-    this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam, defaultDuration});
+    return this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam, defaultDuration});
   }
 
 
@@ -1086,18 +1103,16 @@ export class GamePage implements OnInit {
     let isOnTheSpot = this.stash.onTheSpot;
     if (!(isOnTheSpot || this.isModerator())) return;
 
+    // load round
+    let rid = this.game.activeRound;
+    let round = this.gameDict.activeRound;
     if (gamePlay.playerRoundComplete) {
       // BUG: this is not getting reset properly
       let msg = "startTimer called with playerRoundComplete"
       throw new Error(msg);
     }
 
-    // load round
-    let rid = this.game.activeRound;
-    let round = this.gameDict.activeRound;
     
-
-    // if (!isOnTheSpot) return;
     let timeOnClock = duration || gamePlay.timerDuration || this.initialTimerDuration;
     
     let update = {
@@ -1117,7 +1132,7 @@ export class GamePage implements OnInit {
         Object.assign( update, next);   // add next word to GamePlayState
         if (next.remaining.length==0){
           console.warn("INVALID STATE: playerRound should not begin with next.remaining.length=0")
-          return this.completeGameRound(this.activeRound);
+          return this.completeGameRound(round);
         }
 
         console.info("\t>>>> playerRoundWillBegin()");
@@ -1370,7 +1385,7 @@ export class GamePage implements OnInit {
         return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
         .then( async ()=>{
           let isLastWord = next.remaining.length==0;
-          let isDone = this.activeRound && (isLastWord || isOvertime);
+          let isDone = round && (isLastWord || isOvertime);
           if (isDone) {
             // state: player got last word BEFORE Timer expired
             if (!isOvertime) {
@@ -1413,7 +1428,7 @@ export class GamePage implements OnInit {
     if (!(isOnTheSpot || this.isModerator())) return;
 
     // only active player pushes updates to the cloud
-    let activeRound = this.activeRound;
+    let activeRound = this.gameDict.activeRound;
     let rid = this.game.activeRound;
 
     let playerRoundComplete = true;
@@ -1439,18 +1454,19 @@ export class GamePage implements OnInit {
       return this.db.list<GamePlayState>('/gamePlay').update(rid, update)
       // NOTE: Handle UX response in doShowInterstitials()
     })
-    .then( ()=>{
+    .then( async ()=>{
       // event: playerRoundDidComplete
-      console.info("\t>>>> playerRoundDidComplete()");
+      console.info("12: \t>>>> playerRoundDidComplete()");
       // NOTE: Handle UX response in doShowInterstitials()
-      return Helpful.waitFor(1000)
+      await Helpful.waitFor(5000)
+      return this.nextPlayerRound(); // calls moveSpotlight()
     })
-    .then( ()=>{
-      return this.nextPlayerRound();
-    })
-    .then( ()=>{
+    .then( async ()=>{
       if (gameRoundComplete) {
-        return this.completeGameRound(this.activeRound)
+        console.info("12: \t>>>> DELAY 5000 BEFOREgame Round WILL Complete()");
+        await Helpful.waitFor(5000)
+        console.info("12: \t>>>> game Round WILL Complete()");
+        return this.completeGameRound(this.gameDict.activeRound)
       }
     });
   }
@@ -1466,7 +1482,7 @@ export class GamePage implements OnInit {
 
 
     // reset gamePlay for next playerRound
-    let activeRound = this.activeRound;
+    let activeRound = this.gameDict.activeRound;
     let rid = this.game.activeRound;
 
     // only active player pushes updates to the cloud
@@ -1486,25 +1502,25 @@ export class GamePage implements OnInit {
       return this.db.list<GamePlayState>('/gamePlay').update(rid, updateGamePlay)
     })
     .then( ()=>{
-      console.info("\t>>>> spotlightWillChange()");
+      console.info("12:\t>>>> spotlightWillChange()");
     })
     .then(()=>{
-      this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound).then( ()=>{
-        console.info("\t>>>> spotlightDidChange()");
+      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound).then( ()=>{
+        console.info("12: \t>>>> spotlightDidChange()");
       })
     })
   }
 
   async completeGameRound(round:GamePlayRound){
-
-    let isGameComplete = round.round == 3
+    let isOnTheSpot = this.stash.onTheSpot;
+    if (!(isOnTheSpot || this.isModerator())) return;
+    // guard: only active player pushes updates to the cloud
+    
+    
+    console.info("12:\t>>>> gameRoundWillComplete()");
     let rid = this.game.activeRound;
+    let isGameComplete = round.round == 3
     let waitFor:Promise<void>[] = [];
-
-    // only active player pushes updates to the cloud
-    waitFor.push(
-      this.db.list<GamePlayState>('/gamePlay').remove(rid)
-    );
 
     let updateRound = {
       complete: true,
@@ -1523,10 +1539,10 @@ export class GamePage implements OnInit {
       this.db.object<Game>(`/games/${this.gameId}`).update( updateGame )
     )
 
-    console.info("\t>>>> gameRoundWillComplete()");
+    
     Promise.all(waitFor)
     .then( ()=>{
-      console.info("\t>>>> gameRoundDidComplete()");
+      console.info("12:\t>>>> gameRoundDidComplete()");
     })
     .then( ()=>{
       if (isGameComplete) return this.completeGame();
