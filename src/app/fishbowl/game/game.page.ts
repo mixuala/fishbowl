@@ -268,8 +268,10 @@ export class GamePage implements OnInit {
       }  
     })
     .then( ()=>{   
-      if (changed.includes('doBeginGameRound')) {
+      if (changed.includes('doBeginGameRound') && gamePlay.doBeginGameRound>0) {
         // beginGameRound Interstitial
+        this.showRoundInterstitial(gamePlay.doBeginGameRound);
+        return Promise.reject('skip')
       }
     })
     .then( async ()=>{
@@ -710,6 +712,29 @@ export class GamePage implements OnInit {
       })
     ).subscribe();
   }
+
+
+  showRoundInterstitial(round:number){
+    const BEGIN_ROUND_DISMISS = 8000;
+    let dontWait = HelpComponent.presentModal(this.modalCtrl, {
+      template:'begin-game-round',
+      once:false,
+      backdropDismiss: false,
+      duration: BEGIN_ROUND_DISMISS,
+      swipeToClose: true,
+      round: round,
+      onDidDismiss: ()=>{
+      },
+      dismiss: (v)=>{
+        return this.modalCtrl.dismiss()
+        .then( ()=>{
+          this.audio.play('ok');
+        });
+      }
+    });
+
+  }
+
 
   /**
    * begin gameRound, get game.activeRound and set startTime and moveSpotlight() to first player

@@ -333,6 +333,55 @@
         </ion-card-content>        
       </ion-card>
 
+
+
+
+
+
+      <ion-card class="content pre-game begin-game-round" padding *ngSwitchCase="'begin-game-round'">
+        <ion-item color="tertiary" class="title">
+          <ion-avatar slot="start" size="large" >
+            <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
+          </ion-avatar>
+          <ion-label class="ion-text-wrap ion-text-bottom">
+            <h1>
+              Round {{round}}
+            </h1>
+          </ion-label>
+        </ion-item>   
+
+        <ion-card-content>
+          <h2 class="rules"><ion-text color="medium">Rules for the spotlight:</ion-text></h2>
+          <div class="circle-wrap" >
+            <ion-text color="ion-color-dark">{{round}}</ion-text>
+          </div>
+
+          <ng-container [ngSwitch]="round">
+            <p *ngSwitchCase="1" class="text-align-justify">
+              Give clues, but 
+              <br />
+              <ion-text color="success">don't say</ion-text> any part of  
+              <br /><ion-text color="success bigger">the secret word</ion-text>.
+            </p>
+            <p *ngSwitchCase="2"  class="text-align-center">
+              Your clue can only be
+              <br />
+              <ion-text color="success bigger">one</ion-text> word!
+            </p>
+            <p *ngSwitchCase="3" class="text-align-center">
+              Say nothing &mdash; just 
+              <br />
+              <ion-text color="success bigger">act it out!</ion-text>
+            </p>
+
+          </ng-container>
+
+        </ion-card-content>        
+      </ion-card>
+
+
+
+
     </ng-container>
   </ion-col>
   </ion-row>

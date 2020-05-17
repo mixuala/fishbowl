@@ -145,7 +145,7 @@ ion-card.pre-game {
   }
 
 
-  .player-welcome {
+  &.player-welcome {
     ion-button.taller {
       --padding-top: var(--ion-padding, 16px);
       --padding-bottom: var(--ion-padding, 16px);
@@ -153,7 +153,47 @@ ion-card.pre-game {
     }
   }
   .check-in {
-  }  
+  }
+
+
+  &.begin-game-round {
+    .rules {
+      display: block;
+      margin-bottom: 20px;
+    }
+    .circle-wrap {
+      background-color: var(--ion-color-tertiary);
+      color: var(--ion-color-dark);
+      width: 5em;
+      height: 5em;
+      border-radius: 50%;
+      margin: 0 auto;
+      margin-bottom: 2em;
+      text-align: center;
+      position: relative;
+      ion-text {
+        font-size: 3em;
+        font-weight: 700;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);        
+      }
+    }
+    p {
+      padding: 0 16px;
+      font-size: 1.5em;
+      color:var(--ion-color-light);
+      text-align: center;
+      &.text-align-center {
+        text-align: center;
+      }
+      .bigger {
+        font-size: 1.4em;
+        line-height: 1em;
+      }
+    }
+  }
 
 }
 
