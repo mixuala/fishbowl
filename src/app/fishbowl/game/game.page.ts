@@ -299,6 +299,7 @@ export class GamePage implements OnInit {
       let doPlayerWelcome = changed.includes('doPlayerWelcome');
       doPlayerWelcome = doPlayerWelcome && !gamePlay.checkInComplete
       if (doPlayerWelcome) {
+        this.stash.onTheSpot = null;
         this.showWelcomeInterstitial(game, gamePlay);
         return Promise.reject('skip')
       }
@@ -1101,11 +1102,15 @@ export class GamePage implements OnInit {
 
     // role guard
     let isOnTheSpot = this.stash.onTheSpot;
-    if (!(isOnTheSpot || this.isModerator())) return;
+    let canModeratorStart = this.isModerator() && this.spotlight && this.spotlight.uid
+    if (!(isOnTheSpot || canModeratorStart)) return;
 
     // load round
     let rid = this.game.activeRound;
     let round = this.gameDict.activeRound;
+    if (!rid) return // between rounds
+      
+    
     if (gamePlay.playerRoundComplete) {
       // BUG: this is not getting reset properly
       let msg = "startTimer called with playerRoundComplete"
@@ -1301,6 +1306,8 @@ export class GamePage implements OnInit {
 
   private wordAction( gamePlay: GamePlayState, action:string ){
     if (this.throttleTimeAndWordEvents()) return;
+    if (!gamePlay) return;
+
     // role guard
     let isOnTheSpot = this.stash.onTheSpot;
     if (!(isOnTheSpot || this.isModerator())) return;
@@ -1315,37 +1322,19 @@ export class GamePage implements OnInit {
       // Buttons should be disabled
       return;
     };
+    if (!gamePlay.word) {
+      // seems to hit when word.remaining==0, gameRoundComplete
+      return;
+    }
     
     let isOvertime = gamePlay.isTicking==false;
     let {word} = gamePlay;
     let correct = action=="OK" ? true : false;
     let available = !correct;
-    let round = this.activeRound;
+    let round = this.gameDict.activeRound;
     let update = {} as GamePlayState;
 
     Promise.resolve()
-    .then( ()=>{
-      if (!gamePlay.word) {
-        throw new Error("IMVALID STATE: this loop should never hit")
-        // TODO: move to onPlayerRoundWillBegin()
-        // NOTE: this will never hit:
-        //    onWordActionClick() is disabled until gamePlay.isTicking
-        //    startTimer() calls FishbowlHelpers.nextWord() and pushes to GamePlayState directly
-
-        // load initial word
-        let next = FishbowlHelpers.nextWord( round, gamePlay);
-        Object.assign( update, next);   // add next word to GamePlayState
-        return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
-        .then( async ()=>{
-          // move to a catch block
-          if (next.remaining.length===0 && this.activeRound) {
-            throw new Error("INVALID STATE: playerRound has not begun and no more words.");
-            // await this.onTimerDone( new Date(), false);
-            // return this.completePlayerRound(true);
-          }
-        });
-      }
-    })
     .then( ()=>{ 
       if (gamePlay.word) {
         // onWordActionClick(): serve the next word off gamePlay.remaining

@@ -33,11 +33,14 @@
               <ion-list class="game-controls wide">
                 <ion-item>
                   <ion-button size="small" color="primary" 
-                  [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="doCheckInClick()">Check-In</ion-button>
+                  [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" 
+                  (click)="doCheckInClick()">Check-In</ion-button>
                   <ion-button size="small" color="primary" 
-                  [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="loadRoundClick()">Load Rounds</ion-button>
+                  [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" 
+                  (click)="loadRoundClick()">Load Rounds</ion-button>
                   <ion-button size="small" color="success" slot="end"
-                  [disabled]="!game.rounds || !!game.activeRound || game.complete" (click)="beginGameRoundClick()">Begin Round</ion-button>
+                  [disabled]="!game.rounds || !!game.activeRound || game.complete" 
+                  (click)="beginGameRoundClick()">Begin Round</ion-button>
                 </ion-item>
                 <ion-item>
                   <ion-button size="small" color="tertiary" 

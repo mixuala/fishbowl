@@ -154,7 +154,7 @@ export class FishbowlHelpers {
 
     let {teams, players} = round;
     let {spotlight} = gamePlay;
-    if (spotlight.teamIndex==-1) {
+    if (!spotlight || spotlight.teamIndex==-1) {
       // round has not yet begun
       // for gamePlay, call: GameHelpers.loadNextRound()
       return null;
