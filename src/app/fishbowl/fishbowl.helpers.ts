@@ -213,11 +213,7 @@ export class FishbowlHelpers {
       // if [pass]=>available, unshift index onto remaining
       let [word, available] = Object.entries(lastResult)[0];
       // true: lastResult:word == Object.keys(round.entries)[remaining[0]]
-      let check = Object.keys(round.entries)[remaining[0]] == word;
-      if (!check) {
-        console.warn('CHECK: is this a doubleClick between spotlight/moderator?')
-        throw new Error("lastResult does not match remaining[0]")
-      }
+
       if (available) {
         let index = Object.keys(round.entries).findIndex( w=>w==word);
         if (~index) {

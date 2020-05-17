@@ -162,7 +162,6 @@ export class GamePage implements OnInit {
     })
     .then( (scoreboard)=>{
       if (changed.includes('playerRoundComplete')) {
-
         // guard: playerRoundComplete=true
         if (!round) throw new Error("round should not be empty when playerRoundComplete==true")
 
@@ -194,14 +193,18 @@ export class GamePage implements OnInit {
         return Helpful.waitFor(TIME.BUZZER_ANIMATION_COMPLETE)
         .then( ()=>{
           return HelpComponent.presentModal(this.modalCtrl, interstitial)
-        })
-        .then( ()=>scoreboard )
+          .then( (dismissed)=>{
+            console.warn("12:  2>>>  INTERSITIAL: playerRoundComplete dismissed with: ", dismissed)
+            // AFTER dismissal, pass to next Interstitial
+            // changed.includes('gameRoundComplete')
+            return scoreboard;
+          })
+        });
       }
       else return scoreboard;
     })
     .then( (scoreboard)=>{
       if (changed.includes('gameRoundComplete')) {
-
         // guard: roundComplete=true
         // NOTE: playerRoundComplete==true when gameRoundComplete=true
         let teamNames = game.teamNames;
@@ -240,7 +243,12 @@ export class GamePage implements OnInit {
             }
           }
           return HelpComponent.presentModal(this.modalCtrl, interstitial)
-          .then( ()=>scoreboard )          
+          .then( (dismissed)=>{
+            console.warn("12:  2>>>  INTERSITIAL: gameRoundComplete dismissed with: ", dismissed)
+            // AFTER dismissal, pass to next Interstitial
+            // changed.includes('gameRoundComplete')
+            return scoreboard;
+          })       
         });
       }
       else return scoreboard;
@@ -457,7 +465,7 @@ export class GamePage implements OnInit {
       }),
       tap( p=>{
         this.player = p;
-        console.log("  >>> player ready, name=", this.player)
+        // console.log("  >>> player ready, name=", this.player)
       }),
     );
   }
@@ -504,11 +512,9 @@ export class GamePage implements OnInit {
       }
       return this.gameHelpers.DEV_resetGame(this.gameId, game, this.gameDict, !hard)
     })
-    .then( ()=>{
+    .then( async ()=>{
       // bypass throttleTime()
-      return Helpful.waitFor(1000)
-    })
-    .then( ()=>{
+      await Helpful.waitFor(1000);
       this.gameHelpers.initGameAdminState(this.gameDict.gamePlayWatch, {doPlayerWelcome: true});
     });
   }
@@ -775,7 +781,7 @@ export class GamePage implements OnInit {
       return res;
     })
     .then( async (res)=>{
-      await Helpful.waitFor(1000);
+      await Helpful.waitFor(1000);  // wait for loadNextRound() cloud actions
       let update = {
         doBeginGameRound: this.gameDict.activeRound.round
       }
@@ -1445,16 +1451,13 @@ export class GamePage implements OnInit {
     })
     .then( async ()=>{
       // event: playerRoundDidComplete
-      console.info("12: \t>>>> playerRoundDidComplete()");
+      console.info("\t>>>> playerRoundDidComplete()");
       // NOTE: Handle UX response in doShowInterstitials()
-      await Helpful.waitFor(5000)
       return this.nextPlayerRound(); // calls moveSpotlight()
     })
     .then( async ()=>{
       if (gameRoundComplete) {
-        console.info("12: \t>>>> DELAY 5000 BEFOREgame Round WILL Complete()");
-        await Helpful.waitFor(5000)
-        console.info("12: \t>>>> game Round WILL Complete()");
+        console.info("\t>>>> game Round WILL Complete()");
         return this.completeGameRound(this.gameDict.activeRound)
       }
     });
@@ -1472,6 +1475,7 @@ export class GamePage implements OnInit {
 
     // reset gamePlay for next playerRound
     let activeRound = this.gameDict.activeRound;
+    if (!activeRound) throw new Error( "0: gameDict.activeRound is null.  what state are we in?")
     let rid = this.game.activeRound;
 
     // only active player pushes updates to the cloud
