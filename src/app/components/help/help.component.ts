@@ -21,8 +21,14 @@ export class HelpComponent implements OnInit {
   public static dismissed:any = {}; // check before modal.present()
   public static last:HTMLIonModalElement;
 
-  public static  
-  async presentModal(modalCtrl:ModalController, options:any={}):Promise<HTMLIonModalElement>{
+  /**
+   * 
+   * @param modalCtrl 
+   * @param options 
+   * @returns Promise<any> resolves on modelCtrl.onDidDismiss
+   */
+  public static
+  async presentModal(modalCtrl:ModalController, options:any={}):Promise<any>{
     if (environment.production==false){
       // cancel when DEV
       // return Promise.resolve();
@@ -65,26 +71,30 @@ export class HelpComponent implements OnInit {
     .then( async (modal) => {
       modal.classList.add('help-modal');  
       modal.style.zIndex = '99999';       // force z-index
-      if (options.duration) {
-        interval(options.duration).pipe(
-          takeUntil(done$),
-          tap(()=>modal.dismiss())
-        ).subscribe();
-      }
-      modal.present().then( async ()=>{
-        await modal.onWillDismiss()
-        .then( async (resp)=>{
-          done$.next(true);
-          options.onWillDismiss && options.onWillDismiss(resp); 
+      let waitForDissmissal = new Promise<any>( resolve=>{
+        if (options.duration) {
+          interval(options.duration).pipe(
+            takeUntil(done$),
+            tap(()=>modal.dismiss())
+          ).subscribe();
+        }
+        modal.present()
+        .then( async ()=>{
+          await modal.onWillDismiss()
+          .then( async (resp)=>{
+            done$.next(true);
+            options.onWillDismiss && options.onWillDismiss(resp); 
+          })
+          modal.onDidDismiss()
+          .then( (resp)=>{
+            let result = (options.onDidDismiss) ? options.onDidDismiss(resp) : resp;
+            resolve(result)
+            // let {template} = modal.componentProps;
+          });
         })
-        await modal.onDidDismiss()
-        .then( async (resp)=>{
-          options.onDidDismiss && options.onDidDismiss(resp);
-          let {template} = modal.componentProps;
-        });
-      })
-      HelpComponent.last = modal;
-      return modal;
+        HelpComponent.last = modal;
+      });
+      return waitForDissmissal;
     })
     .catch( err=>{
       if (err=='skip') {
