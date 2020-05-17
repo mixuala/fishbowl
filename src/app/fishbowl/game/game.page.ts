@@ -543,7 +543,7 @@ export class GamePage implements OnInit {
       tap( (player)=>{
         let playerId =  player.uid;
         let playerName = game.players && game.players[playerId];
-        let hasEntry = game.entries && !!game.entries[playerId];
+        let hasEntry = (game.entries && !!game.entries[playerId]) || this.isModerator();
         let gameTitle = game.label;
         let entryLink = ['/app/game', this.gameId, 'player'];
         let chatRoom = game.chatRoom;
@@ -904,7 +904,7 @@ export class GamePage implements OnInit {
       tap( d=>{
         let game = d.game;                  // closure
 
-        this.isPlayerRegistered = this.setGamePlayer(d);
+        this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
         this.stash.playersSorted = Helpful.sortObjectEntriesByValues(game.players) as Array<[string,string]>
         this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
         this.watchGamePlay(gameId, d);
