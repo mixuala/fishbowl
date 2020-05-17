@@ -93,7 +93,7 @@ export class GamePage implements OnInit {
     );
   }
   
-  private pipeCloudEventLoop_Foreground(player:Player) {
+  private pipeCloudEventLoop_Foreground(spotlightPlayer:Player) {
     return pipe(
       tap( (res:[GamePlayState, GameDict])=>{
         if (!res) return;
@@ -103,9 +103,10 @@ export class GamePage implements OnInit {
         if (!this.stash.isActivePage)
           return
 
+        let spotlightPlayer = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
         this.doGamePlayExtras(gamePlay);
         this.doInterstitialsWithScoreboard(
-          gamePlay, game, round, player,
+          gamePlay, game, round, spotlightPlayer,
         );
         this.doInterstitialsPreGame(
           gamePlay, game,
@@ -118,7 +119,7 @@ export class GamePage implements OnInit {
     gamePlay: GamePlayState,
     game: Game,
     round: GamePlayRound,
-    player: Player,
+    spotlightPlayer: SpotlightPlayer,
 
   ) {
     let changed = gamePlay.changedKeys || [];
@@ -168,7 +169,7 @@ export class GamePage implements OnInit {
         let gamePlayCopy = Object.assign({}, gamePlay);
         gamePlayCopy.log = Object.assign({}, gamePlay.log);
         let gameSummary = {
-          player: Helpful.pick(player, 'displayName', 'teamName'),
+          spotlightPlayer,
           game: Helpful.pick(game, 'playerCount', 'teamNames'),
           roundNo: round.round || "––",
           duration: Date.now()+round.startTimeDesc,
@@ -833,6 +834,7 @@ export class GamePage implements OnInit {
     // const dontWait = HelpComponent.presentModal(this.modalCtrl, {template:'intro', once:false});
     this.stash.isActivePage = true;
     this.gameId = this.activatedRoute.snapshot.paramMap.get('uid');
+
     let wasCached = this.watchGame(this.gameId);
     if (wasCached) {
       // just replay missing gamePlay events, ONCE
@@ -936,7 +938,7 @@ export class GamePage implements OnInit {
 
     this.stash.watchingGamePlayId = d.gamePlayWatch.uid;
     if (this.stash.doneWatchingGamePlay) 
-      this.stash.doneWatchingGamePlay.unsubscribe();
+      this.stash.doneWatchingGamePlay.unsubscribe();  
 
     this.stash.doneWatchGamePlay = this.gamePlayWatch.gamePlay$.pipe(
       withLatestFrom( this.gameWatch.gameDict$ ),

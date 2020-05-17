@@ -45,20 +45,14 @@
             </ion-item-divider>
             <ion-grid class="ion-no-padding" *ngIf="gamePlay">
               <ion-row class="header">
-                <ion-col size="6">
-                  <ion-item lines="full">
+                <ion-col class="inline-text-wrap">
+                  <ion-item class="inline-text-wrap">
                     <ion-icon name="person" slot="start" class="ion-hide-sm-down"></ion-icon>
-                    <ion-label class="ion-text-wrap">
-                      {{gameSummary.player.displayName}} 
+                    <ion-label>
+                      {{gameSummary.spotlightPlayer.playerName}}
                     </ion-label>
-                  </ion-item>
-                </ion-col>
-                <ion-col size="6">
-                  <ion-item class="team-name" lines="full">
-                    <ion-label class="ion-text-wrap">
-                      {{gameSummary.player.teamName}}
-                    </ion-label>
-                    <ion-icon name="people-circle-outline" class="ion-float-right ion-hide-sm-down"></ion-icon>
+                    <ion-badge [color]="gameSummary.spotlightPlayer.teamIndex ? 'success' : 'tertiary'" 
+                    class="ion-padding-horizontal">{{gameSummary.spotlightPlayer.teamName}}</ion-badge>
                   </ion-item>
                 </ion-col>
               </ion-row>
@@ -104,13 +98,13 @@
               </ion-row>
 
               <ion-row class="scoreboard wide">
-                <ion-col size="6" [class.on-the-spot]="gameSummary.game.teamNames[0]==gameSummary.player.teamName">
+                <ion-col size="6" [class.on-the-spot]="gameSummary.game.teamNames[0]==gameSummary.spotlightPlayer.teamName">
                   <ion-note>{{gameSummary.game.teamNames[0]}}</ion-note>
                   <ion-badge class="ion-float-right ion-padding-horizontal ion-margin-horizontal">
                     {{(gameSummary.scoreboard.total[gameSummary.game.teamNames[0]])?.points || 0}} 
                   </ion-badge>
                 </ion-col>
-                <ion-col size="6" [class.on-the-spot]="gameSummary.game.teamNames[1]==gameSummary.player.teamName">
+                <ion-col size="6" [class.on-the-spot]="gameSummary.game.teamNames[1]==gameSummary.spotlightPlayer.teamName">
                   <ion-note class="ion-float-right">{{gameSummary.game.teamNames[1]}}</ion-note>
                   <ion-badge class="ion-float-left ion-padding-horizontal ion-margin-horizontal">
                     {{(gameSummary.scoreboard.total[gameSummary.game.teamNames[1]])?.points || 0}}
