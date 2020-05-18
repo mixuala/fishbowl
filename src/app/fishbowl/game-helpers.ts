@@ -566,10 +566,12 @@ export class GameHelpers {
 
 
           let spotlight = Object.assign( {} , gamePlay && gamePlay.spotlight );
-          let teamRosters = Object.values(round.teams);
+          let teamNamesInPlayOrder = round.orderOfPlay;
           let limits = {
-            teamIndex: teamRosters.length,
-            playerIndex: teamRosters.map( v=>v.length)
+            teamIndex: teamNamesInPlayOrder.length,
+            playerIndex: teamNamesInPlayOrder.map( teamName=>{
+              return round.teams[teamName].length
+            })
           }
           if (options.nextTeam!==false){
             // increment team first
@@ -590,7 +592,7 @@ export class GameHelpers {
             spotlight.playerIndex[ i ] += 1;
             if (spotlight.playerIndex[ i ] >= limits.playerIndex[ i ]) spotlight.playerIndex[ i ] = 0;
           }
-          spotlight.teamName =  Object.keys(round.teams)[spotlight.teamIndex];
+          spotlight.teamName = teamNamesInPlayOrder[spotlight.teamIndex];
           // where does gamePlayTimerDuration first get set?
           let timerDuration = gamePlay.timerDuration || options.defaultDuration;
 

@@ -87,20 +87,19 @@
                 
 
                 <ng-container *ngIf="stash.showCheckInDetails">
-                  <ion-item *ngFor="let p of stash.playersSorted">
+                  <ion-item *ngFor="let p of stash.playersSorted" class="player">
                     <ion-icon slot="start" 
                     [color]="checkInAction(p[0], game)=='~done' && 'success'"
                     [name]="checkInAction(p[0], game)=='~done' ? 'checkbox' : 'close-circle-outline'"></ion-icon>
-                    <ion-label [color]="checkInAction(p[0], game)=='~show' && 'medium'" >
+                    <ion-label [color]="!!game.checkIn[p[0]] ? 'dark' : 'medium'" class="name" >
                       {{p[1]}}
                       <ion-note class="ion-float-right" *ngIf="isModerator(p[0])">moderator</ion-note>
                     </ion-label>
-                    <ion-button slot="end" *ngIf="checkInAction(p[0], game)!='~done'"
-                    [color]="checkInAction(p[0], game)=='~hide' ? 'danger' : 'medium'" 
-                    [disabled]="game.activeRound"
+                    <ion-toggle color="success" slot="end"
+                    [disabled]="checkInAction(p[0], game)=='~done'"
+                    [checked]="!!game.checkIn[p[0]]" 
                     (click)="hidePlayerClick(p[0], checkInAction(p[0], game))">
-                      {{game.checkIn[p[0]]===false ? 'un-hide' : 'hide'}}
-                    </ion-button>
+                    ></ion-toggle>
                   </ion-item>
                   <ion-item>
                     <ion-button size="small" color="primary" 
@@ -120,6 +119,7 @@
                 <ng-container *ngIf="stash.showTeamRosters">
                   <app-team-roster
                     [gameDict$]="gameWatch?.gameDict$"
+                    [spotlight]="spotlight"
                     asModerator="true"
                     [player$]="player$"
                     (onChange)="doTeamRostersChangedByModerator($event)"

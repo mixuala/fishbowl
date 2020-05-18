@@ -335,6 +335,12 @@ ion-card-content{
       }
     }
   }
+
+  .game-check-in {
+    .player .name {
+      opacity: 1 !important;
+    }
+  }
 }
 
 

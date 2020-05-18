@@ -1057,9 +1057,9 @@ export class GamePage implements OnInit {
   checkInAction(pid:string, game:Game):string{
     if (!this.isModerator()) return;
 
-    if (!game.checkIn) return '~hide';
+    if (!game.checkIn) return '~show';
     let resp = game.checkIn[pid];
-    if (typeof resp=="undefined") return '~hide';
+    if (typeof resp=="undefined") return '~show';
     if (typeof resp=="string") {
       if (!this.isModerator(pid))
         return '~done';
@@ -1504,7 +1504,9 @@ export class GamePage implements OnInit {
 
     // reset gamePlay for next playerRound
     let activeRound = this.gameDict.activeRound;
-    if (!activeRound) throw new Error( "0: gameDict.activeRound is null.  what state are we in?")
+    if (!activeRound) {
+      console.warn("TODO: nextPlayerRound ECHO: activeRound is already null", this.gameDict)
+    }
     let rid = this.game.activeRound;
 
     // only active player pushes updates to the cloud

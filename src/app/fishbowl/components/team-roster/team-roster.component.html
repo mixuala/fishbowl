@@ -8,7 +8,7 @@
       </ion-col>
     </ion-row>
     <ion-row class="header team ion-align-items-center">
-      <ion-col *ngFor="let teamName of teamNames; let i = index"  
+      <ion-col *ngFor="let teamName of teamNamesInPlayOrder; let i = index"  
         [ngClass]="i%2==0 ? 'even' : 'odd'"
         [class.on-the-spot]="spotlight?.teamName==teamName"
       >
@@ -23,7 +23,7 @@
       [class.on-the-spot]="item && item.displayName==spotlight?.playerName">
         <ion-button class="player" size="small" *ngIf="item"
         [color]="col%2 ? 'success' : 'tertiary'" 
-        [disabled]="isOnlyPlayer(teamNames[col])"
+        [disabled]="isOnlyPlayer(teamNamesInPlayOrder[col])"
         (click)="doPlayerClick(item)" >
           {{item.displayName}}
           <ion-icon *ngIf="isModerator"

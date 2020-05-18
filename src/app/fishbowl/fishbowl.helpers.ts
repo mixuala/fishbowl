@@ -52,13 +52,14 @@ export class FishbowlHelpers {
     let teamNames = game.teamNames;
     if (!teamNames) teamNames = ['mahi mahi', 'yoko ono']
     let combined = Object.assign({}, game.players, game.checkIn)
-    let checkedInPlayers:PlayerByUids = Object.entries(combined).reduce( (o, [pid, v])=>{
-      if (typeof v=='boolean' && v===false) 
-      return o;
-      
+    let checkedInPlayers:PlayerByUids = Object.entries(game.checkIn).reduce( (o, [pid, v])=>{
+      if (typeof v=='boolean' && v===false) {
+        return o; // skip
+      }
       o[pid] = game.players[pid];
       return o;
     },{});
+
     if (Object.entries(checkedInPlayers).length<2) 
       throw new Error("Not Enough Players CheckedIn");
 
@@ -120,7 +121,7 @@ export class FishbowlHelpers {
     }
     // copy teams from prev round, if available
     let copyFrom = gameDict[roundIndex.prev || roundIndex.next] as GamePlayRound;
-    return Helpful.pick( copyFrom, 'teams', 'players' );
+    return Helpful.pick( copyFrom, 'teams', 'players', 'orderOfPlay' );
   }
 
   static
@@ -139,9 +140,10 @@ export class FishbowlHelpers {
     // be careful of state BETWEEN rounds
     if (round && round.teams) {
       // but team assignments happen in AFTER doCheckIn and loadRounds()
-      Object.entries(round.teams).find( ([teamName, players], i)=>{
+      Object.entries(round.teams).find( ([teamName, players])=>{
         if (players.find( uid=>uid==pid)) {
-          Object.assign(playerTeam, {teamId: i, teamName});
+          let teamId = round.orderOfPlay.findIndex( v=>v==teamName)
+          Object.assign(playerTeam, {teamId, teamName});
           return true;
         }
       });
@@ -155,7 +157,7 @@ export class FishbowlHelpers {
     if (!gamePlay) return null;  // round is complete
 
 
-    let {teams, players} = round;
+    let {teams, players, orderOfPlay} = round;
     let {spotlight} = gamePlay;
     if (!spotlight || spotlight.teamIndex==-1) {
       // round has not yet begun
@@ -166,7 +168,8 @@ export class FishbowlHelpers {
     if (!teams) {
       return null
     }
-    let uid = Object.values(teams)[ spotlight.teamIndex ][ spotlight.playerIndex[ spotlight.teamIndex ] ];
+    
+    let uid = teams[  orderOfPlay[spotlight.teamIndex] ][ spotlight.playerIndex[ spotlight.teamIndex ] ];
     if (!uid) {
       throw new Error( "can't find player after moving people around")
     }

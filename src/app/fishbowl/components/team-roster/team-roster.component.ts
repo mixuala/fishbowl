@@ -1,7 +1,7 @@
-import { Component, OnInit, SimpleChange, Input, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, SimpleChange, Input, Output, EventEmitter, } from '@angular/core';
 
 import { Observable, zip, Subject } from 'rxjs';
-import { first, tap, takeUntil, withLatestFrom } from 'rxjs/operators';
+import { first, tap, takeUntil, throttleTime } from 'rxjs/operators';
 
 import { Game, GamePlayState, TeamRosters, GameDict, PlayerByUids, GamePlayRound, SpotlightPlayer, } from '../../types';
 import { Player } from '../../../user/role';
@@ -12,6 +12,7 @@ import { Helpful } from '../../../services/app.helpers';
  * usage:
  *    <app-team-roster 
  *      [gameDict$]="gameWatch?.gameDict$" 
+ *      [spotlight]="spotlight"
  *      asModerator="true" [player$]="player$"
  *      (onChange)="pushTeamRosters($event)"
  *    ></app-team-roster>
@@ -23,15 +24,16 @@ import { Helpful } from '../../../services/app.helpers';
 })
 export class TeamRosterComponent implements OnInit {
 
-  public teamNames: string[];
+  public teamNamesInPlayOrder: string[];
   public teams: TeamRosters;
   public teamRostersAsRows: any[];
-  public spotlight: SpotlightPlayer;
   public isModerator = false;
   private done$:Subject<void>;
   private gameDict:GameDict;
 
   @Input() gameDict$:Observable<GameDict>;
+
+  @Input() spotlight:SpotlightPlayer;         // spotlight.playerName, teamName used for .on-the-spot
   
   @Input() player$:Observable<Player>;
 
@@ -52,14 +54,14 @@ export class TeamRosterComponent implements OnInit {
   mergeRosterWithCheckIns(round:Partial<GamePlayRound>, gameDict: GameDict ):Partial<GamePlayRound>{
     let {players, checkIn} = gameDict.game;
     let combined = Object.assign({}, players, checkIn);
-    let checkedInPlayers:PlayerByUids = Object.entries(combined).reduce( (o, [pid, v])=>{
+    let checkedInPlayers:PlayerByUids = Object.entries(checkIn).reduce( (o, [pid, v])=>{
       if (typeof v=='boolean' && v===false) {
         return o; // skip
       }
       o[pid] = players[pid];
       return o;
     },{});
-
+    
     // remove departing players and add new checkIns
     let checkedInPlayerIds = Object.keys(checkedInPlayers);
     let lastRoundPlayerIds = Object.values(round.teams).reduce( (res, v)=>res.concat(v), [] );
@@ -70,28 +72,17 @@ export class TeamRosterComponent implements OnInit {
       // filter out players who have left game between rounds
       copyTeams[k] = v.filter( pid=>checkedInPlayerIds.includes(pid)).slice()
     });
-    newPlayerIds.forEach( (v,i)=>copyTeams[ i%2 ].push(v) );
+    newPlayerIds.forEach( (v,i)=>copyTeams[ round.orderOfPlay[i%2] ].push(v) );
     return { 
       teams: copyTeams, 
       players: checkedInPlayers,
+      orderOfPlay: round.orderOfPlay,
     };
   }
 
-  getSpotlight(gameDict) {
-    let {activeRound, gamePlayWatch} = gameDict;
-    if (activeRound) {
-      gamePlayWatch.gamePlay$.pipe(
-        takeUntil(this.done$),
-        withLatestFrom(this.gameDict$), 
-      ).subscribe( ([gamePlay, d])=>{
-        let round = d.activeRound;
-        this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round)
-      });
-    }
-  }
-
-  getRostersForDisplay( teams:TeamRosters, players: PlayerByUids ){
-    let rosters = Object.entries(teams).map( ([teamName, playerIds])=>{
+  getRostersForDisplay( teams:TeamRosters, players: PlayerByUids, orderOfPlay:string[] ){
+    let rosters = orderOfPlay.map( (teamName)=>{
+      let playerIds = teams[teamName];
       return playerIds.map( v=>{
         return {
           uid: v,
@@ -99,7 +90,7 @@ export class TeamRosterComponent implements OnInit {
           teamName,
         }
       });
-    });
+    })
     let teamRosters = Helpful.zip( rosters, null)
     return teamRosters
   }
@@ -109,21 +100,22 @@ export class TeamRosterComponent implements OnInit {
     this.done$ = new Subject();
     gameDict$.pipe(
       takeUntil(this.done$),
+      throttleTime(100),
       tap( gameDict=>{
         let rosterData = FishbowlHelpers.getLatestRoster(gameDict);
         if (!rosterData) return
 
-        let {teams, players} = this.mergeRosterWithCheckIns(rosterData, gameDict);
+        let {teams, players, orderOfPlay} = this.mergeRosterWithCheckIns(rosterData, gameDict);
         this.teams = teams;
-        this.teamNames = Object.keys(teams);
-        this.teamRostersAsRows = this.getRostersForDisplay(teams, players);
-        this.getSpotlight(gameDict);
+        this.teamNamesInPlayOrder = orderOfPlay;
+        this.teamRostersAsRows = this.getRostersForDisplay(teams, players, orderOfPlay);
         this.gameDict = gameDict;
       }),
     ).subscribe();
   }
 
-  constructor() {
+  constructor(
+  ) {
     this.done$ = new Subject();
     this.teamRostersAsRows = [];
   }
@@ -149,6 +141,9 @@ export class TeamRosterComponent implements OnInit {
           this.authorize();
           break;
         }
+        case "spotlight":{
+          break;
+        }
       }
     });
   }
@@ -167,8 +162,12 @@ export class TeamRosterComponent implements OnInit {
   switchTeams(item:any){
     if (!this.isModerator) return;
 
-    let rosterData = FishbowlHelpers.getLatestRoster(this.gameDict);
-    let copyTeams = Object.entries(rosterData.teams).reduce( (o, [k,v])=>(o[k]=v.slice(),o), {});
+    let teams = this.teams;
+    if (!teams) {
+      let rosterData = FishbowlHelpers.getLatestRoster(this.gameDict);
+      teams = rosterData.teams
+    }
+    let copyTeams = Object.entries(teams).reduce( (o, [k,v])=>(o[k]=v.slice(),o), {});
     let removeFromTeam = item.teamName;
     let addToTeam = Object.keys(copyTeams).filter( v=>v!=removeFromTeam).shift();
     if (copyTeams[removeFromTeam].length==1) {
