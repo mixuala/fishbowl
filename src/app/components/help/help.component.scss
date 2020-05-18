@@ -125,6 +125,9 @@ ion-card.interstitial {
     .on-the-spot.odd {
       background-color: var(--ion-color-success);
     }
+    ion-badge {
+      min-width: 45px;
+    }
   }
   
 }
