@@ -35,11 +35,8 @@
                 <ion-item-divider></ion-item-divider>
               </div>
 
-
-
             <form [formGroup]="entryForm" (ngSubmit)="doEntry()">
 
-            
               <ion-list class="inputs-list" lines="full">
                 <ion-item class="input-item">
                   <ion-label position="stacked">player name</ion-label>
@@ -51,6 +48,21 @@
                       <ion-icon name="information-circle-outline"></ion-icon>
                       <span>{{ validation.message }}</span>
                     </div>
+                  </ng-container>
+                  <ng-container *ngIf="entryForm.get('name').hasError('unique') && (entryForm.get('name').dirty || entryForm.get('name').touched) && doPlayerEntryLookup()">
+                    <ion-grid><ion-row>
+                      <ion-col>
+                        <ion-text color="tertiary">That name is already taken. Is that your entry?</ion-text>
+                      </ion-col>
+                      </ion-row><ion-row>
+                      <ion-col size="4">
+                        <ion-button color="tertiary" expand="block" (click)="onTakePlayerIdentity(false)"> No </ion-button>
+                      </ion-col>
+                      <ion-col size="8">
+                        <ion-button color="success" expand="block" (click)="onTakePlayerIdentity($event)"> Yes </ion-button>
+                      </ion-col>
+                    </ion-row>
+                    </ion-grid>
                   </ng-container>
                 </div>
 

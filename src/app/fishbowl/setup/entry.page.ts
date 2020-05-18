@@ -43,7 +43,7 @@ export class EntryPage implements OnInit {
   validation_messages = {
     'name':[
       { type: 'required', message: 'Please enter your game name.' },
-      { type: 'unique', message: 'Wow, that name is already taken. You better choose another.' },
+      // { type: 'unique', message: 'Wow, that name is already taken. You better choose another.' },
       { type: 'pattern', message: 'Your word must be letters and numbers only.' }
     ],
     'word': [
@@ -178,6 +178,39 @@ export class EntryPage implements OnInit {
     loading.present();
     return loading;
   }
+
+  doPlayerEntryLookup(name:string=null):[string, string] {
+    if (this.player.isAnonymous==false) return null;
+    if (this.game.activeRound) return null;
+
+    name = this.entryForm.get('name').value;
+    let found = Object.entries(this.game.players).find( ([k,v])=>v.trim().toLowerCase()==name.toLowerCase());
+    return !!found ? found : null;
+  }
+
+  async onTakePlayerIdentity(v:any) {
+    try {
+      if (v==false) throw new Error('cancel');
+      let found = this.doPlayerEntryLookup();
+      if (!found) throw new Error('cancel');
+      let [oldPid, name] = found;
+      if (!this.game.players[oldPid]) throw new Error('cancel');
+      if (this.game.activeRound) throw new Error('cancel');
+      
+      let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
+      let done = await this.gameHelpers.patchPlayerId( gameId, this.game, {
+        old: oldPid, 
+        new: this.player.uid,
+      }).then( ()=>{
+        this.entryForm.reset(this.entryForm.value);
+      });
+      return;
+      // let game$ do the rest
+    } catch (err) {
+      if (err=='cancel')
+        this.entryForm.patchValue({name:""});
+    }
+  }
   
   doEntry(){
     let formData = this.entryForm.value;
@@ -205,9 +238,13 @@ export class EntryPage implements OnInit {
 
 export function uniqueNameValidator(context:any): ValidatorFn {
   return (control: AbstractControl): {[key: string]: any} | null => {
+    if (!context.player) return null;
     let game:Game = context.game;
     let name = control.value as string;
-    const isTaken = game && Object.values(game.players).map(v=>v.trim().toLowerCase()).includes(name.trim().toLowerCase());
-    return isTaken ? {'unique': {value: control.value}} : null;
+    const isTaken = game && Object.entries(game.players).find(([uid,v])=>v.trim().toLowerCase()==(name.trim().toLowerCase()));
+    if (!!isTaken && context.player.uid != isTaken[0]){
+      return {'unique': {value: control.value}}
+    }
+    return null;
   };
 }

@@ -95,6 +95,7 @@ export class GamePage implements OnInit {
   
   private pipeCloudEventLoop_Foreground(spotlightPlayer:Player) {
     return pipe(
+      filter( ()=>this.stash.isActivePage),
       tap( (res:[GamePlayState, GameDict])=>{
         if (!res) return;
         let [gamePlay, d] = res;
@@ -289,7 +290,7 @@ export class GamePage implements OnInit {
       doPlayerWelcome = doPlayerWelcome && !gamePlay.checkInComplete
       if (doPlayerWelcome) {
         this.stash.onTheSpot = null;
-        this.showWelcomeInterstitial(game, gamePlay);
+        this.showWelcomeInterstitial(game);
         return Promise.reject('skip')
       }
     })
@@ -516,7 +517,7 @@ export class GamePage implements OnInit {
 /**
    * cloud action, trigger on gamePlay.doCheckIn==true, GameAdminState
    */ 
-  showWelcomeInterstitial(game:Game, gamePlay:GamePlayState) {
+  showWelcomeInterstitial(game:Game) {
     this.player$.pipe(
       // filter( p=>!!p.displayName),
       take(1),
@@ -531,7 +532,7 @@ export class GamePage implements OnInit {
 
         HelpComponent.presentModal(this.modalCtrl, {
           template:'player-welcome',
-          once:false,
+          once:true,
           gameTitle, chatRoom,
           playerName, hasEntry, entryLink,
           backdropDismiss: false,
@@ -813,18 +814,31 @@ export class GamePage implements OnInit {
     // const dontWait = HelpComponent.presentModal(this.modalCtrl, {template:'intro', once:false});
     this.stash.isActivePage = true;
     this.gameId = this.activatedRoute.snapshot.paramMap.get('uid');
-
-    let wasCached = this.watchGame(this.gameId);
-    if (wasCached) {
+    this.stash.wasCached = this.watchGame(this.gameId);
+  }
+  
+  ionViewDidEnter() {
+    if (this.stash.wasCached) {
       // just replay missing gamePlay events, ONCE
       this.gameDict.gamePlayWatch.gamePlay$.pipe(
         withLatestFrom( this.gameWatch.gameDict$ ),
+        takeWhile( ()=>this.stash.isActivePage ),
         first(), 
         this.pipeCloudEventLoop_Foreground( this.player$.value), 
       )
       .subscribe( ([gamePlay,_]:[GamePlayState, any])=>{ 
         console.warn("120: REPLAY missed gamePlay events", gamePlay.changedKeys, gamePlay)
-      })
+      });
+    }
+    else {
+      this.loadGame$(this.gameId).pipe(
+        first(),
+        tap( (d)=>{
+          if (this.stash.isActivePage && !this.isPlayerRegistered){
+            this.showWelcomeInterstitial(d.game);
+          }
+        })
+      ).subscribe();
     }
   }
 
@@ -883,10 +897,10 @@ export class GamePage implements OnInit {
       takeWhile( (d)=>!!d[gameId]),
       tap( d=>{
         let game = d.game;                  // closure
-
         this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
+        game.activeGame = game.activeGame || game.gameTime < Date.now();
+        this.stash.activeGame = game.activeGame;
         this.stash.playersSorted = Helpful.sortObjectEntriesByValues(game.players) as Array<[string,string]>
-        this.stash.activeGame = game.activeGame || game.gameTime < Date.now();
         this.watchGamePlay(gameId, d);
       }),
     ).subscribe(null,null,
@@ -894,6 +908,7 @@ export class GamePage implements OnInit {
         console.info(">>> ***** loadGame$(): subscriber COMPLETE ******")
       }
     );
+
   }
 
   /**

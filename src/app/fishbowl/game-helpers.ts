@@ -741,6 +741,31 @@ export class GameHelpers {
     return this.db.object<Game>(`/games/${gameId}/checkIn`).update( update )
   }
 
+  async patchPlayerId( gameId: string, game:Game, changeId:{old:string, new:string}): Promise<any>{
+    if (!!game.activeRound) return Promise.reject("ERROR: cannot PatchPlayerid, game as already begun")
+    let update = {}
+    let keys = ['players', 'entries', 'checkIn', 'moderators'];
+    keys.map( k=>{
+      let value = Object.assign({}, game[k]);
+      if (value.hasOwnProperty(changeId.old)) {
+        value[changeId.new] = value[changeId.old];
+        value[changeId.old] = null;
+        update[k] = value;
+      }
+    });
+
+    let waitFor = Object.entries(update).map( ([k,v])=>{
+      return this.db.object<Game>(`/games/${gameId}/${k}`).set( v as any )
+    });
+    return Promise.all(waitFor).then( ()=>{
+      console.warn( "patchPlayerid DONE  ", gameId, update)
+    },
+    (err)=>{
+      console.warn(err)
+    }
+    )
+  }
+
 
 
   /**

@@ -323,7 +323,7 @@ export class FishbowlHelpers {
         let p = res[1] as Player;
         return games.filter( g=>{
           if (g.public) return true;
-          if (g.moderators[p.uid]==true) return true;
+          if (p && g.moderators[p.uid]==true) return true;
         })
       })
     )

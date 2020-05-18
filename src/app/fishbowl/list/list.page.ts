@@ -89,7 +89,7 @@ export class ListPage implements OnInit {
       filter( ()=>this.stash.listen),
       map( (games, i)=>{
         games.forEach( g=>{
-          g.activeGame = g.activeGame || g.gameTime < Date.now();
+          g.activeGame = this.isActive(g);
         })
         if (!invite) return games;
         return games.filter( g=>g.uid==invite)
@@ -163,6 +163,10 @@ export class ListPage implements OnInit {
     return loading;
   }
 
+  isActive( g:Game) {
+    return g.activeGame || g.gameTime < Date.now();
+  }
+
   onGameTime(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
     // reload page
     window.location.href = window.location.href;
@@ -170,15 +174,19 @@ export class ListPage implements OnInit {
   }
   
   join(game, index) {
-    if (game.players && game.players[this.player.uid]) {
-      this.router.navigate(['/app/game', game.uid]);
-    }
-    else if( game.activeGame) {
-      this.router.navigate(['/app/game', game.uid]);
-    }
-    else {
-      this.router.navigate(['/app/game', game.uid, 'player']);
-    }
+    this.player$.pipe(
+      tap( p=>{
+        if (game.players && game.players[p.uid]) {
+          this.router.navigate(['/app/game', game.uid]);
+        }
+        else if( game.activeGame) {
+          this.router.navigate(['/app/game', game.uid]);
+        }
+        else {
+          this.router.navigate(['/app/game', game.uid, 'player']);
+        }
+      })
+    ).subscribe()
   }
 
 }
