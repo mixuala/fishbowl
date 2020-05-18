@@ -843,7 +843,7 @@ export class GamePage implements OnInit {
    * 
    * @param changed 
    */
-  throttleTimeAndWordEvents(changed:Partial<GamePlayState>=null):boolean {
+  throttleTimeAndWordEvents(changed:Partial<GamePlayState>=null, duration:number=null):boolean {
     const THROTTLE_TIMER_AND_WORD_ACTIONS = 700;
     let isThrottling = !!this.stash.throttleTimeAndWordEvents;
     if (changed) {
@@ -852,7 +852,7 @@ export class GamePage implements OnInit {
         // throttle LOCAL actions after cloud emits
         this.stash.throttleTimeAndWordEvents = true;
         setTimeout( ()=>this.stash.throttleTimeAndWordEvents=false
-          , THROTTLE_TIMER_AND_WORD_ACTIONS
+          , duration || THROTTLE_TIMER_AND_WORD_ACTIONS
         )
       }
     }
@@ -1199,9 +1199,25 @@ export class GamePage implements OnInit {
    * @param buzz animate & buzz timer on the local device, default true, false=silent 
    *    when trigged externally, e.g. gameRoundComplete when player gets last word
    */
-  async onTimerDone(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
-    if (this.throttleTimeAndWordEvents({isTicking:true})) return;
+  onTimerDone(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
+    /**
+     * throttle duplicate click from moderator control panel
+     */
+    if (this.onTimerDone.hasOwnProperty('_done')==false){
+      this.onTimerDone["_done"] = {};
+    }
 
+    let done = this.onTimerDone["_done"];
+    let id = t instanceof Date ? t.getTime() : t.seconds;
+    if (done[id]) {
+      // console.warn( "123: 2> THROTTLE: timer id=", id);
+      return;
+    }
+    done[id]=true;
+    this.doTimerDone(buzz);
+  };
+    
+  async doTimerDone(buzz=true) {  
     const ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS = 3000;
     if (!this.gameDict.activeRound) 
       return;
