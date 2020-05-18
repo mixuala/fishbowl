@@ -14,7 +14,7 @@ import { Player, } from '../../user/role';
 import { AudioService } from '../../services/audio.service';
 import { CountdownTimerComponent } from '../../components/countdown-timer/countdown-timer.component';
 import { HelpComponent } from '../../components/help/help.component';
-import { Helpful } from '../../services/app.helpers';
+import { AppConfig, Helpful } from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers';
 import { GameHelpers } from '../game-helpers';
 import { 
@@ -478,6 +478,9 @@ export class GamePage implements OnInit {
 
   resetGameClick(ev){
     let hard = ev.ctrlKey || ev.shiftKey;
+    if (AppConfig.platform.is('mobile')) {
+      hard=true;
+    }
     this.doGameReset(hard)
   }
 
@@ -692,15 +695,16 @@ export class GamePage implements OnInit {
           once:false,
           playerName: player.displayName,
           backdropDismiss: false,
-          // duration: TEAM_ROSTER_DISMISS,
+          duration: TEAM_ROSTER_DISMISS,
           swipeToClose: true,
           gameDict$: this.gameWatch.gameDict$,
           onDidDismiss: ()=>{
             done.unsubscribe();
           },
           dismiss: (v)=>{
-            if (this.isModerator()) v=true;
-            if (v===true) return this.modalCtrl.dismiss();
+            // if (this.isModerator()) v=true;
+            // if (v===true) return this.modalCtrl.dismiss();
+            return this.modalCtrl.dismiss();
            }
         }).then( ()=>{
           this.audio.play('ok') 
@@ -855,6 +859,7 @@ export class GamePage implements OnInit {
 
   ionViewWillLeave() {
     this.stash.isActivePage = false;
+    // console.warn("111: ionViewWillLeave$>>  isActivePage=", this.stash.isActivePage);
     // close modals
   }
 
