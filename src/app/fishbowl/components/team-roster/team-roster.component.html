@@ -23,7 +23,7 @@
       [class.on-the-spot]="item && item.displayName==spotlight?.playerName">
         <ion-button class="player" size="small" *ngIf="item"
         [color]="col%2 ? 'success' : 'tertiary'" 
-        [disabled]="teamRostersAsRows[1][col]==null"
+        [disabled]="isOnlyPlayer(teamNames[col])"
         (click)="doPlayerClick(item)" >
           {{item.displayName}}
           <ion-icon *ngIf="isModerator"

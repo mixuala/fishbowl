@@ -24,6 +24,7 @@ import { Helpful } from '../../../services/app.helpers';
 export class TeamRosterComponent implements OnInit {
 
   public teamNames: string[];
+  public teams: TeamRosters;
   public teamRostersAsRows: any[];
   public spotlight: SpotlightPlayer;
   public isModerator = false;
@@ -113,6 +114,7 @@ export class TeamRosterComponent implements OnInit {
         if (!rosterData) return
 
         let {teams, players} = this.mergeRosterWithCheckIns(rosterData, gameDict);
+        this.teams = teams;
         this.teamNames = Object.keys(teams);
         this.teamRostersAsRows = this.getRostersForDisplay(teams, players);
         this.getSpotlight(gameDict);
@@ -123,6 +125,7 @@ export class TeamRosterComponent implements OnInit {
 
   constructor() {
     this.done$ = new Subject();
+    this.teamRostersAsRows = [];
   }
 
   ngOnInit() {}
@@ -150,6 +153,10 @@ export class TeamRosterComponent implements OnInit {
     });
   }
 
+
+  isOnlyPlayer(teamName) {
+    return this.teams[teamName].length==1;
+  }
 
   doPlayerClick(item) {
     if (!this.isModerator) return;

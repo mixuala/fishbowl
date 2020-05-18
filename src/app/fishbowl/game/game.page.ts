@@ -466,7 +466,8 @@ export class GamePage implements OnInit {
     this.stash.showCheckInDetails = true;
   }
   async loadRoundClick(){
-    await this.loadGameRounds();
+    let ok = await this.loadGameRounds();
+    if (!ok) return;
     this.stash.showCheckInDetails = false;
     this.beginTeamAssignments()
     
@@ -599,15 +600,24 @@ export class GamePage implements OnInit {
     let existingRoundEnums = Object.values(this.game.rounds || {});
 
     let teams: TeamRosters;
-    let rounds = [RoundEnum.Taboo, RoundEnum.OneWord, RoundEnum.Charades]
+    let rounds:GamePlayRound[];
+    try {
+      rounds = [RoundEnum.Taboo, RoundEnum.OneWord, RoundEnum.Charades]
       .filter( e=>existingRoundEnums.find( ex=>ex==e )==null )
       .map( (round)=>{
-        let gameRound = FishbowlHelpers.buildGamePlayRound(this.gameId, this.game, round, teams );
-        teams = Object.assign({}, gameRound.teams); // copy teams between rounds
-        gameRound.uid = this.db.createPushId();
-        return gameRound;
-    });
+          let gameRound = FishbowlHelpers.buildGamePlayRound(this.gameId, this.game, round, teams );
+          teams = Object.assign({}, gameRound.teams); // copy teams between rounds
+          gameRound.uid = this.db.createPushId();
+          return gameRound;
+        });
 
+    } catch(err) {
+      if (err="Not Enough Players CheckedIn") {
+        // present Toast
+        return Promise.resolve(false);
+      }
+    }
+        
     // update Game, use AngularFire ref
     // insert rounds in gameplay order
     const gameRef = this.db.object<Game>(`/games/${this.gameId}`);

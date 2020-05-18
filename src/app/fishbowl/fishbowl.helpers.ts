@@ -54,11 +54,14 @@ export class FishbowlHelpers {
     let combined = Object.assign({}, game.players, game.checkIn)
     let checkedInPlayers:PlayerByUids = Object.entries(combined).reduce( (o, [pid, v])=>{
       if (typeof v=='boolean' && v===false) 
-        return o;
-
+      return o;
+      
       o[pid] = game.players[pid];
       return o;
     },{});
+    if (Object.entries(checkedInPlayers).length<2) 
+      throw new Error("Not Enough Players CheckedIn");
+
     let entries = Object.entries(game.entries).reduce( (o,[pid,_3words])=>{
       if (checkedInPlayers[pid]){
         _3words.forEach( w=>o[w]=true);
