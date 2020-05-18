@@ -216,9 +216,10 @@
             </div>
 
             <h3>Join the video stream and relax until the game begins...</h3>
-            <ion-button expand="block" color="success" class="ion-margin-vertical taller">
+            <ion-button expand="block" color="success" class="ion-margin-vertical taller"
+            [href]="chatRoom" [title]="chatRoom" target="_blank">
               <ion-icon name="videocam" slot="start"></ion-icon>
-              <a [href]="chatRoom" title="open video" target="_blank">Open Video Chat Room</a>
+              Open Video Chat Room
             </ion-button>
             <div class="ion-margin-vertical"></div>
           </div>

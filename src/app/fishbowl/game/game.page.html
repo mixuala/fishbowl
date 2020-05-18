@@ -305,9 +305,10 @@
                   <ion-grid>
                     <ion-row>
                       <ion-col>
-                        <ion-button expand="block" color="success" class="taller">
+                        <ion-button expand="block" color="success" class="taller"  
+                        [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">
                           <ion-icon name="videocam" slot="start"></ion-icon>
-                          <a [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">Open Video Chat Room</a>
+                          Open Video Chat Room
                         </ion-button>
                       </ion-col>
                     </ion-row>
@@ -491,9 +492,10 @@
                     </ion-row>
                     <ion-row *ngIf="stash.activeGame">
                       <ion-col>
-                        <ion-button expand="block" color="success" class="taller">
+                        <ion-button expand="block" color="success" class="taller"  
+                        [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">
                           <ion-icon name="videocam" slot="start"></ion-icon>
-                          <a [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">Open Video Chat Room</a>
+                          Open Video Chat Room
                         </ion-button>
                       </ion-col>
                     </ion-row>
