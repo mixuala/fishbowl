@@ -45,10 +45,6 @@ export class GameSettingsPage implements OnInit {
   public entryForm: FormGroup;
   public gameForm: FormGroup;
   validation_messages = {
-    'name':[
-      { type: 'required', message: 'Please enter a screen name.' },
-      { type: 'pattern', message: 'Your word must be letters and numbers only.' }
-    ],
     'label':[
       { type: 'required', message: 'Please enter the title for this game.' },
       { type: 'pattern', message: 'Your word must be letters and numbers only.' }
@@ -267,8 +263,22 @@ export class GameSettingsPage implements OnInit {
     this.loadData(gameDefaults)
   }
 
+
+  doValidate(form:FormGroup){
+    Object.keys(form.controls).forEach(field => {
+      const control = form.get(field);
+      if (control instanceof FormGroup) this.doValidate(control)
+      else control.markAsTouched({ onlySelf: true });
+    })
+  }
+  
   
   doSubmit(){
+    if (!this.entryForm.valid) {
+      this.doValidate(this.entryForm)
+      return
+    }
+
     let formData = this.entryForm.value;
     let u = this.player;
 

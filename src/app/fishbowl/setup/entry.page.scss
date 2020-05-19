@@ -38,6 +38,13 @@ app-countdown-timer {
   }
 }
 
+ion-item-divider {
+  --background: inherit;
+}
+
+.rounded {
+  border-radius: 4px;
+}
 
 
 .game-time {

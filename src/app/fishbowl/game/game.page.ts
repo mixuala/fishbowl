@@ -288,6 +288,7 @@ export class GamePage implements OnInit {
     .then( ()=>{
       let doPlayerWelcome = changed.includes('doPlayerWelcome');
       doPlayerWelcome = doPlayerWelcome && !gamePlay.checkInComplete
+      doPlayerWelcome = doPlayerWelcome || !this.isPlayerRegistered;
       if (doPlayerWelcome) {
         this.stash.onTheSpot = null;
         this.showWelcomeInterstitial(game);
@@ -519,9 +520,10 @@ export class GamePage implements OnInit {
   }
 
 /**
-   * cloud action, trigger on gamePlay.doCheckIn==true, GameAdminState
+   * cloud action, trigger on gamePlay.doPlayerWelcome==true, GameAdminState
    */ 
   showWelcomeInterstitial(game:Game) {
+    if (!this.stash.isActivePage) return
     this.player$.pipe(
       // filter( p=>!!p.displayName),
       take(1),
@@ -843,16 +845,6 @@ export class GamePage implements OnInit {
       .subscribe( ([gamePlay,_]:[GamePlayState, any])=>{ 
         console.warn("120: REPLAY missed gamePlay events", gamePlay.changedKeys, gamePlay)
       });
-    }
-    else {
-      this.loadGame$(this.gameId).pipe(
-        first(),
-        tap( (d)=>{
-          if (this.stash.isActivePage && !this.isPlayerRegistered){
-            this.showWelcomeInterstitial(d.game);
-          }
-        })
-      ).subscribe();
     }
   }
 

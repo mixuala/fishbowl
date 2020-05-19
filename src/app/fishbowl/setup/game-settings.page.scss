@@ -25,6 +25,13 @@
   }
 }
 
+ion-item-divider {
+  --background: inherit;
+}
+
+
+
+
 ion-chip.copy-paste-url {
   height: 100%;
   line-height: 17px;
@@ -55,4 +62,8 @@ ion-textarea[formControlName="chatRoom"] {
   }
   font-family: monospace !important;
   margin-inline-end: 0;
+}
+
+.error-container {
+  color: var(--ion-color-danger)
 }

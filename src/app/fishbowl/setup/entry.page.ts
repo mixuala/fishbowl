@@ -211,8 +211,20 @@ export class EntryPage implements OnInit {
         this.entryForm.patchValue({name:""});
     }
   }
+
+  doValidate(form:FormGroup){
+    Object.keys(form.controls).forEach(field => {
+      const control = form.get(field);
+      if (control instanceof FormGroup) this.doValidate(control)
+      else control.markAsTouched({ onlySelf: true });
+    })
+  }
   
   doEntry(){
+    if (!this.entryForm.valid) {
+      this.doValidate(this.entryForm)
+      return
+    }
     let formData = this.entryForm.value;
     let u = this.player;
     let players = this.game.players || {};
