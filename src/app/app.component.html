@@ -36,12 +36,12 @@
                 [ios]="isAuthorized ? 'log-out-outline' : 'log-in-outline'" 
                 [md]="isAuthorized ? 'log-out-sharp' : 'log-in-sharp'">
               </ion-icon>
-              <ion-label>{{ isAuthorized ? "logout" : "login"}}</ion-label>
+              <ion-label>login</ion-label>
             </ion-item>
             <ion-item routerDirection="root" [routerLink]="['/auth/logout']" lines="none" detail="false"
               *ngIf="isAuthorized">
               <ion-icon slot="start" name="lock-closed"></ion-icon>
-              <ion-label>force logout</ion-label>
+              <ion-label>sign out</ion-label>
             </ion-item>        
             <!-- <ion-item routerDirection="root" [routerLink]="['/auth/change-password']" lines="none" detail="false"
               *ngIf="isAuthorized">
@@ -50,7 +50,17 @@
             </ion-item>             -->
           </ion-menu-toggle>
         </ion-list> 
-        
+
+        <ion-list id="actions">
+          <ion-menu-toggle auto-hide="false">
+            <ion-item routerDirection="forward" [routerLink]="['/app/overview']" lines="none" detail="false">
+              <ion-icon slot="start" name="information-circle" ></ion-icon>
+              <ion-label>Game Overview</ion-label>
+            </ion-item>
+          </ion-menu-toggle>
+        </ion-list> 
+
+
         <!-- <ion-list>
           <ion-list-header>
             <ion-label>Layouts</ion-label>

@@ -92,15 +92,10 @@ const routes: Routes = [
         path: 'game/:uid',
         loadChildren: () => import('../fishbowl/game/game.module').then( m => m.GamePageModule)
       },
-      // {
-      //   path: 'list',
-      //   loadChildren: () => import('../fishbowl/list/list.module').then( m => m.ListPageModule)
-      // },    
-      // {
-      //   // e.g. /app/[entry]/:gameId/entry
-      //   path: 'entry/:uid',
-      //   loadChildren: () => import('../fishbowl/setup/setup.module').then( m => m.SetupPageModule)
-      // },
+      {
+        path: 'overview',
+        loadChildren: () => import('../fishbowl/walkthrough/walkthrough.module').then(m => m.WalkthroughPageModule)
+      },
       {
         path: 'playground',
         children: [
