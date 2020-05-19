@@ -7,11 +7,6 @@
 
 // Note:  All the CSS variables defined below are overrides of Ionic elements CSS Custom Properties
 .signup-content {
-  --background: var(--page-background);
-  --padding-start: var(--page-margin);
-  --padding-end: var(--page-margin);
-  --padding-top: var(--page-margin);
-  --padding-bottom: var(--page-margin);
 
   .auth-title {
     color: var(--ion-color-dark);
@@ -23,7 +18,6 @@
 
 
   .inputs-list {
-    --ion-item-background: var(--page-background);
 
     .input-item {
       --padding-start: 0px;
@@ -98,4 +92,9 @@
 .play-as-guest {
   height: 5em;
   margin: 20px 0;
+}
+
+.footer {
+  padding: 0 16px;
+  bottom: 20px;
 }

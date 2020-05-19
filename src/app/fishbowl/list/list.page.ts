@@ -164,7 +164,11 @@ export class ListPage implements OnInit {
   }
 
   isActive( g:Game) {
-    return g.activeGame || g.gameTime < Date.now();
+    return g.activeGame || this.isGametime(g);
+  }
+
+  isGametime( g:Game) {
+    return g.gameTime < Date.now();
   }
 
   onGameTime(t:Date|{seconds:number}=null, buzz=true):Promise<void> {

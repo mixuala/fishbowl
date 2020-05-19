@@ -1,10 +1,15 @@
-<ion-grid class="ion-no-paddingxxx">
+<ion-grid>
   <ion-row class="ion-justify-content-center ion-align-items-start">
     <ion-col size="12" size-sm="8" size-md="6" class="ion-no-padding">
   <ion-card class="notes introduction">
-    <ion-card-header color="success">
-      <ion-card-title>Introduction</ion-card-title>
-    </ion-card-header>
+    <ion-item color="success">
+      <ion-avatar slot="start" size="large" >
+        <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
+      </ion-avatar>
+      <ion-label class="ion-text-wrap">
+        <h1 class="header">Introduction</h1>
+      </ion-label>
+    </ion-item>   
     <ion-card-content>
       <ion-list>
         <ion-item>
@@ -35,9 +40,14 @@
 
 
   <ion-card class="notes game-play">
-    <ion-card-header color="success">
-      <ion-card-title>Game Play</ion-card-title>
-    </ion-card-header>
+    <ion-item color="success">
+      <ion-avatar slot="start" size="large" >
+        <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
+      </ion-avatar>
+      <ion-label class="ion-text-wrap">
+        <h1 class="header">Game Play</h1>
+      </ion-label>
+    </ion-item>   
     <ion-card-content>
       <ion-list>
         <ion-item>
@@ -66,7 +76,10 @@
               if the word was called out. Then the round is scored and the turn passes to the other team.
             </p><p>
               Once the Fishbowl is empty, the game round completes. The same secret words are returned to the Fishbowl for following rounds.
-              The game ends after round 3 and the team with the most points wins!
+            </p>
+            <h2>Game Over</h2>
+            <p>
+              The game ends after round 3 and the team with the most points wins. But you already knew that. Have fun!
             </p>
           </ion-label>
         </ion-item>                  
