@@ -71,18 +71,15 @@ export class ListPage implements OnInit {
     ).subscribe();
     
     let loading = await this.presentLoading();
-    this.games$ = this.gameHelpers.getGames$(this.player$);
-
     let invite = this.activatedRoute.snapshot.queryParamMap.get('invite');
     invite = invite || this.activatedRoute.snapshot.paramMap.get('uid');
     this.stash.useInviteLayout = !!invite;
-
+    
     if (invite) {
-      this.games$ = this.games$.pipe(
-        map( (games, i)=>{
-          return games.filter( g=>g.uid==invite)
-        }),
-      )
+      this.games$ = this.gameHelpers.getGamesByInvite$(invite);
+    }
+    else {
+      this.games$ = this.gameHelpers.getGames$(this.player$);
     }
     
     this.games$.pipe(

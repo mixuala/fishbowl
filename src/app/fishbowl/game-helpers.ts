@@ -128,6 +128,13 @@ export class GameHelpers {
   ) {
   }
 
+  getGamesByInvite$(uid:string):Observable<Game[]>{
+    return this.db.object<Game>(`/games/${uid}`).snapshotChanges().pipe(
+      map(g=>[g]),
+      FishbowlHelpers.pipeSnapshot2Data(),
+    );
+  }
+
   getGames$(player$:Observable<Player>, daysAgo=7):Observable<Game[]>{
     let d = dayjs().subtract(daysAgo, 'day').startOf('day').toDate();
     return this.db.list<Game>('games', 
