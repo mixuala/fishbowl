@@ -145,17 +145,27 @@
                       {{spotlight?.playerName}}
                   </ion-button>
                   <div class="teleprompter"  *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
+                    <ion-item class="short">
+                      <!-- <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p> -->
+                      <ion-label class="inline-text-wrap">
+                        <ion-note class="ion-margin-horizontal">remaining</ion-note>
+                        <ion-badge color="tertiary" class="ion-padding-horizontal">{{gamePlay.remaining?.length || 0}}</ion-badge>
+                      </ion-label>
+                      <ion-label class="inline-text-wrap">
+                        <ion-note class="ion-margin-horizontal">round</ion-note>
+                        <ion-badge color="light" class="ion-padding-horizontal">{{activeRound?.round || "--"}}</ion-badge>
+                      </ion-label>
+                    </ion-item>
   
-                    <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p>
-                    <p><ion-note>word</ion-note></p>
-  
-                    <ion-item color="medium" expand="block" 
+                    <ion-item color="medium" expand="block" class="secret-word"
                     (click)="beginPlayerRoundClick()"
                     >
                       <ion-label class="ion-text-wrap ion-text-center">
                         {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[ready]')}}
                       </ion-label>
                     </ion-item>
+
+
                     <ion-grid class="ion-no-padding"><ion-row>
                       <ion-col size=5>
                         <ion-button color="danger" expand="block" 
@@ -332,7 +342,7 @@
                           <ion-label>
                             <ion-note>words remaining</ion-note> 
                           </ion-label>
-                          <ion-badge color="light" class="ion-padding-horizontal">{{stash.wordsRemaining || "––"}}</ion-badge>
+                          <ion-badge color="tertiary" class="ion-padding-horizontal">{{stash.wordsRemaining || "––"}}</ion-badge>
                         </ion-item>
                       </ion-col>
                       <!-- <ion-col size=6>
@@ -381,10 +391,23 @@
                 </ion-item-divider>
                 <ng-container *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
 
-                  <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p>
-                  <p><ion-note>word</ion-note></p>
+                  <!-- <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p>
+                  <p><ion-note>word</ion-note></p> -->
 
-                  <ion-item color="medium" expand="block" 
+                  <ion-item class="short">
+                    <!-- <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p> -->
+                    <ion-label class="inline-text-wrap">
+                      <ion-note class="ion-margin-horizontal">remaining</ion-note>
+                      <ion-badge color="tertiary" class="ion-padding-horizontal">{{stash.wordsRemaining || 0}}</ion-badge>
+                    </ion-label>
+                    <ion-label class="inline-text-wrap">
+                      <ion-note class="ion-margin-horizontal">round</ion-note>
+                      <ion-badge color="light" class="ion-padding-horizontal">{{activeRound?.round || "--"}}</ion-badge>
+                    </ion-label>
+                  </ion-item>
+                  
+
+                  <ion-item color="medium" expand="block" class="secret-word"
                   (click)="beginPlayerRoundClick()"
                   >
                     <ion-label class="ion-text-wrap ion-text-center">
@@ -407,7 +430,7 @@
                 </ng-container>
               </div>
 
-              <div class="round-scores" *ngIf="activeRound">
+              <div class="round-scores">
                 <app-score-card [gamePlay$]="gamePlay$"></app-score-card>
               </div>
               

@@ -164,7 +164,13 @@ ion-card-content{
   }
 
   .teleprompter {
-    ion-item {
+    ion-item.short {
+      --min-height: 24px;
+      > *{
+        margin:2px auto;
+      }
+    }
+    ion-item.secret-word {
       border-radius: 10px;
       ion-label {
         min-height: 180px;

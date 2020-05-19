@@ -168,9 +168,14 @@
                 </ion-badge>
               </ion-col>
             </ion-row>
-            <ion-row *ngIf="gameSummary.roundNo==3">
-              <ion-col>
-                <ion-button color="success" expand="block" size="large">GAME OVER</ion-button>
+            <ion-row>
+              <ion-col class="ion-text-center">
+                <ion-button color="success" expand="block" *ngIf="gameSummary.roundNo<3"
+                (click)="dismiss(true)"
+                >close</ion-button>
+                <ion-button color="success" expand="block" size="large"  *ngIf="gameSummary.roundNo==3"
+                (click)="dismiss(true)"
+                >GAME OVER</ion-button>
               </ion-col>
             </ion-row>
           </ion-grid>

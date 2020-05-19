@@ -16,14 +16,16 @@
     <ion-row class="ion-no-padding wide">
       <ion-col size="6" *ngFor="let log of ( getLog(gamePlay) | keyvalue)">
         <ion-item >
-          <ion-icon slot="start" 
+          <ion-icon slot="start" *ngIf="!isModerator; else moderatorToggle "
             [name]="log.value.result ? 'checkbox' : 'close-circle'" 
             [color]="log.value.result ? 'success' : 'danger'"></ion-icon>
+          <ng-template #moderatorToggle>
+            <ion-toggle class="pass-ok-toggle"
+              slot="start" color="success"
+              [checked]="log.value.result" 
+              (ionChange)="toggleChange(log, $event)"></ion-toggle>
+          </ng-template>
           <ion-label  class="ion-text-wrap">{{ (isModerator || log.value.result )? log.value.word : '[PASS]' }}</ion-label>
-          <ion-toggle class="pass-ok-toggle" *ngIf="isModerator"
-            slot="end" color="success"
-            [checked]="log.value.result" 
-            (ionChange)="toggleChange(log, $event)"></ion-toggle>
         </ion-item>
       </ion-col>
     </ion-row>

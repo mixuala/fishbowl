@@ -229,7 +229,9 @@ export class GamePage implements OnInit {
             console.info('round-complete dismissed')
             return true;
           },
-          // dismiss:()=>{},
+          dismiss:(v)=>{
+            if (v===true) this.modalCtrl.dismiss()
+          },
           duration,
         }
         await HelpComponent.presentModal(this.modalCtrl, interstitial);
@@ -1406,8 +1408,8 @@ export class GamePage implements OnInit {
           if (isDone) {
             // state: player got last word BEFORE Timer expired
             if (!isOvertime) {
-              console.log("0: ******* onTimerDone() <= completePlayerRound(), from wordAction(),  buzz=FALSE")
-              await this.onTimerDone( new Date(), false);
+              console.log("0: ******* onTimerDone() <= completePlayerRound(), from wordAction(),  buzz=FALSE, next=", next)
+              let waitFor = await this.onTimerDone( new Date(), false);
             }
             console.log("1: ******* completePlayerRound(), from wordAction(), next.remaining==0")
             this.completePlayerRound(isLastWord);
