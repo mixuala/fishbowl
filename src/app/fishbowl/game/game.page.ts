@@ -6,7 +6,7 @@ import { Storage } from  '@ionic/storage';
 import * as dayjs from 'dayjs';
 
 import { Observable, Subject, BehaviorSubject, of, from, interval, pipe, } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, first, filter, withLatestFrom, throttleTime, } from 'rxjs/operators';
+import { map, tap, switchMap, take, takeWhile, takeUntil, first, filter, withLatestFrom, throttleTime, } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -235,6 +235,9 @@ export class GamePage implements OnInit {
           duration,
         }
         await HelpComponent.presentModal(this.modalCtrl, interstitial);
+        if (this.isModerator()) {
+          this.beginNextGameRoundTimer();
+        }
       }
       return scoreboard;
     })
@@ -347,7 +350,7 @@ export class GamePage implements OnInit {
    */
 
   public audioVolumeIcons = ["volume-mute","volume-low","volume-medium","volume-high"];
-  public initialTimerDuration = 10;
+  public initialTimerDuration = 45;
   
   public stash:any = {
     // GameWatch changes
@@ -739,12 +742,27 @@ export class GamePage implements OnInit {
 
   }
 
+  beginNextGameRoundTimer(duration:number=null){
+    const BEGIN_NEXT_GAME_ROUND_AFTER = 10*1000;
+    let isModeratorMakingChanges = false;
+    if (!isModeratorMakingChanges) {
+      let gameDict$ =  this.gameWatch.gameDict$;
+      interval(duration || BEGIN_NEXT_GAME_ROUND_AFTER).pipe(
+        withLatestFrom(gameDict$),
+        first(),
+      ).subscribe( ([_,d])=>{
+        let hasStarted = !!d.activeRound;
+        if (!hasStarted) this.beginNextGameRound();
+      });
+    }
+  };
 
   /**
    * begin gameRound, get game.activeRound and set startTime 
    * - moveSpotlight() to first player
    * NOTE: 
    *  - call GameHelpers.loadNextRound() called after loadRounds()
+   *  - called by Moderator click action, or beginNextGameRoundTimer
    * @param round 
    */
   async beginNextGameRound():Promise<GamePlayRound>{
