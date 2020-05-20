@@ -263,6 +263,11 @@ export class GameHelpers {
           let changedKeys = Object.keys(gamePlay).filter( k=>{
             if (gamePlay[k]===false) return false;
             if (prev==null) return true;
+            if (['spotlight','timer','remaining'].includes(k)) {
+              // let changed = JSON.stringify(gamePlay[k])!=JSON.stringify(prev[k]);
+              // if (changed) console.warn( "120: spotlight changed:  ", JSON.stringify(gamePlay[k]),JSON.stringify(prev[k]) )
+              return JSON.stringify(gamePlay[k])!=JSON.stringify(prev[k])
+            }
             return gamePlay[k]!==prev[k];
           });
           console.warn( `121: ===>>> getGamePlay changedKeys=` , changedKeys)

@@ -226,7 +226,7 @@ export class GamePage implements OnInit {
           gameSummary,
           winnersByRound,
           onDidDismiss: (v)=>{
-            console.info('round-complete dismissed')
+            console.info('GAME-round-complete dismissed')
             return true;
           },
           dismiss:(v)=>{
@@ -236,6 +236,7 @@ export class GamePage implements OnInit {
         }
         await HelpComponent.presentModal(this.modalCtrl, interstitial);
         if (this.isModerator()) {
+          console.log("2: beginNextGameRoundTimer() [by moderator]")
           this.beginNextGameRoundTimer();
         }
       }
@@ -1167,7 +1168,7 @@ export class GamePage implements OnInit {
         Object.assign( update, next);   // add next word to GamePlayState
         if (next.remaining.length==0){
           console.warn("INVALID STATE: playerRound should not begin with next.remaining.length=0")
-          return this.completeGameRound(round);
+          return this._completeGameRound(round);
         }
 
         console.info("\t>>>> playerRoundWillBegin()");
@@ -1252,7 +1253,7 @@ export class GamePage implements OnInit {
     let done = this.onTimerDone["_done"];
     let id = t instanceof Date ? t.getTime() : t.seconds;
     if (done[id]) {
-      // console.warn( "123: 2> THROTTLE: timer id=", id);
+      console.warn( "123: 2> THROTTLE: timer id=", id);
       return;
     }
     done[id]=true;
@@ -1266,7 +1267,6 @@ export class GamePage implements OnInit {
 
     let isOnTheSpot = this.stash.onTheSpot;
     let isAuthorized = isOnTheSpot || this.isModerator();
-    if (!isAuthorized) return;
 
     return Promise.resolve()
     .then( ()=>{
@@ -1494,12 +1494,13 @@ export class GamePage implements OnInit {
       // event: playerRoundDidComplete
       console.info("\t>>>> playerRoundDidComplete()");
       // NOTE: Handle UX response in doShowInterstitials()
+      await Helpful.waitFor(1000)    // allow PlayerRoundComplete interstitial to appear
       return this.nextPlayerRound(); // calls moveSpotlight()
     })
     .then( async ()=>{
       if (gameRoundComplete) {
         console.info("\t>>>> game Round WILL Complete()");
-        return this.completeGameRound(this.gameDict.activeRound)
+        return this._completeGameRound(this.gameDict.activeRound)
       }
     });
   }
@@ -1547,11 +1548,9 @@ export class GamePage implements OnInit {
     })
   }
 
-  async completeGameRound(round:GamePlayRound){
-    let isOnTheSpot = this.stash.onTheSpot;
-    if (!(isOnTheSpot || this.isModerator())) return;
-    // guard: only active player pushes updates to the cloud
-    
+  private
+  async _completeGameRound(round:GamePlayRound){
+    // no guard here, because spotlight player has already changed
     
     console.info("12:\t>>>> gameRoundWillComplete()");
     let rid = this.game.activeRound;
