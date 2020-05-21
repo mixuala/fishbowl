@@ -473,7 +473,7 @@
 
         <!-- game-new-player -->
         <ng-template #getPlayerRegistration>
-          <ion-col size="12" size-sm="8" size-md="6" *ngIf="game">
+          <ion-col size="12" size-sm="8" size-md="6" *ngIf="game" class="ion-justify-content-center">
             <ion-card>
               <ion-card-header color="tertiary">      
                 <ion-card-title>
@@ -548,7 +548,7 @@
             </ion-card>
           </ion-col>
 
-          <app-overview *ngIf="game"></app-overview>
+          <app-overview *ngIf="game" single-column="true"></app-overview>
 
         </ng-template>
     </ion-row>

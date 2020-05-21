@@ -1,91 +1,93 @@
 <ion-grid>
-  <ion-row class="ion-justify-content-center ion-align-items-start">
-    <ion-col size="12" size-sm="8" size-md="6" class="ion-no-padding">
-  <ion-card class="notes introduction">
-    <ion-item color="success">
-      <ion-avatar slot="start" size="large" >
-        <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
-      </ion-avatar>
-      <ion-label class="ion-text-wrap">
-        <h1 class="header">Introduction</h1>
-      </ion-label>
-    </ion-item>   
-    <ion-card-content>
-      <ion-list>
-        <ion-item>
-          <ion-label class="ion-text-wrap">
-            <p>
-              Fishbowl is a social game played in three rounds. 
-            </p><p>
-              Players and divided into teams with turns alternating between teams/players.
-              The player in the spotlight "draws" a secret word from the Fishbowl, and must give clues to help (only) their teammates guess the word.
-              A timer buzzes to end the player round, and then the turn goes to a player on the opposite team.
-              This continues until the Fishbowl is empty.
-            </p><p>The rules for giving clues change with each round:</p>
-            <ol>
-              <li>Give clues, but <ion-text><strong>don't say</strong></ion-text> any part <ion-text><strong>of the secret word</strong></ion-text> (like "Taboo" or "HeadsUp")</li>
-              <li>Give only a <ion-text><strong>one word</strong></ion-text> clue</li>
-              <li>Say nothing &mdash; <ion-text><strong>just act it out</strong></ion-text> (like "Charades")</li>
-            </ol>
-            <p>
-              The same secret words are reused for each round, so pay attention to the secret words.
-            </p>
-          </ion-label>
-        </ion-item>               
-      </ion-list>
-    </ion-card-content>
-  </ion-card>
+  <ion-row [attr.class]="!singleColumn && 'ion-justify-content-center'">
+    <ion-col size="12" size-sm="8" size-md="6" [attr.offset-sm]="singleColumn && 2" [attr.offset-md]="singleColumn && 3" 
+    class="ion-no-padding">
+    <ion-card class="notes introduction">
+      <ion-item color="success">
+        <ion-avatar slot="start" size="large" >
+          <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
+        </ion-avatar>
+        <ion-label class="ion-text-wrap">
+          <h1 class="header">Introduction</h1>
+        </ion-label>
+      </ion-item>   
+      <ion-card-content>
+        <ion-list>
+          <ion-item>
+            <ion-label class="ion-text-wrap">
+              <h2>Fishbowl is a social game played in three rounds.</h2>
+              <p>
+                Players are divided into teams with turns alternating between teams/players.
+                The player in the spotlight "draws" a secret word from the Fishbowl, and must give clues to help (only) their teammates guess the word.
+                A timer buzzes to end the player round, and then the turn goes to a player on the opposite team.
+                This continues until the Fishbowl is empty.
+              </p><p>The rules for giving clues change with each round:</p>
+              <ol>
+                <li>Give clues, but <ion-text><strong>don't say</strong></ion-text> any part <ion-text><strong>of the secret word</strong></ion-text> (like "Taboo" or "HeadsUp")</li>
+                <li>Give only a <ion-text><strong>one word</strong></ion-text> clue</li>
+                <li>Say nothing &mdash; <ion-text><strong>just act it out</strong></ion-text> (like "Charades")</li>
+              </ol>
+              <p>
+                The same secret words are reused for each round, so pay attention to the secret words.
+              </p>
+            </ion-label>
+          </ion-item>               
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
   </ion-col>
-  <ion-col size="12" size-sm="8" size-md="6" class="ion-no-padding">
 
 
-  <ion-card class="notes game-play">
-    <ion-item color="success">
-      <ion-avatar slot="start" size="large" >
-        <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
-      </ion-avatar>
-      <ion-label class="ion-text-wrap">
-        <h1 class="header">Game Play</h1>
-      </ion-label>
-    </ion-item>   
-    <ion-card-content>
-      <ion-list>
-        <ion-item>
-          <ion-label class="ion-text-wrap inline-text-wrap">
-            <h2>Pre-game</h2>
-            <p>
-              To begin, each player must create a game entry which includes 3 secret words that are put into the Fishbowl.
-              All players should also take this time to join the video chat room (e.g. Zoom/Meet) in a separate window or device.
-            </p><p>
-              Once all entries are received, all players are prompted to check-in and are then assigned to 2 different teams.
-              Each team is color coded, either <ion-badge color="tertiary"><strong>Blue</strong></ion-badge> or <ion-badge color="success"><strong>Green</strong></ion-badge>
-            </p>
-            <h2>Game Play</h2>
-            <p>
-              With each player round, the spotlight player will be shown, 
-              and players on the active team will see their team colors light up on the app.
-              At this time, it is helpful for the (Zoom) moderator to "spotlight" the player for others to see.
-              Only the spotlight player needs the app, all other players are watching the spotlight player on video.
-            </p><p>
-              When ready, the spotlight player begins the round by click/tapping the <ion-badge color="medium"><strong>[ready]</strong></ion-badge> button to start the timer and serve up the secret word.
-              Only the active team guesses the secret word. But the other players should pay attention to the clues for future rounds.
-              The spotlight player clicks <ion-badge color="success"><strong>[OK]</strong></ion-badge> when the secret word is called out, or 
-              <ion-badge color="danger"><strong>[Pass]</strong></ion-badge> to move on.
-            </p><p>
-              After the timer buzzes, the spotlight player has a few extra seconds to press <ion-badge color="success"><strong>[OK]</strong></ion-badge> 
-              if the word was called out. Then the round is scored and the turn passes to the other team.
-            </p><p>
-              Once the Fishbowl is empty, the game round completes. The same secret words are returned to the Fishbowl for following rounds.
-            </p>
-            <h2>Game Over</h2>
-            <p>
-              The game ends after round 3 and the team with the most points wins. But you already knew that. Have fun!
-            </p>
-          </ion-label>
-        </ion-item>                  
-      </ion-list>
-    </ion-card-content>
-  </ion-card>
-</ion-col>
+
+  <ion-col size="12" size-sm="8" size-md="6" [attr.offset-sm]="singleColumn && 2" [attr.offset-md]="singleColumn && 3" 
+  class="ion-no-padding">
+    <ion-card class="notes game-play">
+      <ion-item color="success">
+        <ion-avatar slot="start" size="large" >
+          <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
+        </ion-avatar>
+        <ion-label class="ion-text-wrap">
+          <h1 class="header">Game Play</h1>
+        </ion-label>
+      </ion-item>   
+      <ion-card-content>
+        <ion-list>
+          <ion-item>
+            <ion-label class="ion-text-wrap inline-text-wrap">
+              <h2>Pre-game</h2>
+              <p>
+                To begin, each player must create a game entry which includes 3 secret words that are put into the Fishbowl.
+                All players should also take this time to join the video chat room (e.g. Zoom/Meet) in a separate window or device.
+              </p><p>
+                Once all entries are received, all players are prompted to check-in and are then assigned to 2 different teams.
+                Each team is color coded, either <ion-badge color="tertiary"><strong>Blue</strong></ion-badge> or <ion-badge color="success"><strong>Green</strong></ion-badge>
+              </p>
+              <h2>Game Play</h2>
+              <p>
+                With each player round, the spotlight player will be shown, 
+                and players on the active team will see their team colors light up on the app.
+                At this time, it is helpful for the (Zoom) moderator to "spotlight" the player for others to see.
+                Only the spotlight player needs the app, all other players are watching the spotlight player on video.
+              </p><p>
+                When ready, the spotlight player begins the round by click/tapping the <ion-badge color="medium"><strong>[ready]</strong></ion-badge> button to start the timer and serve up the secret word.
+                Only the active team guesses the secret word. But the other players should pay attention to the clues for future rounds.
+                The spotlight player clicks <ion-badge color="success"><strong>[OK]</strong></ion-badge> when the secret word is called out, or 
+                <ion-badge color="danger"><strong>[Pass]</strong></ion-badge> to move on.
+              </p><p>
+                After the timer buzzes, the spotlight player has a few extra seconds to press <ion-badge color="success"><strong>[OK]</strong></ion-badge> 
+                if the word was called out. Then the round is scored and the turn passes to the other team.
+              </p><p>
+                Once the Fishbowl is empty, the game round completes. The same secret words are returned to the Fishbowl for following rounds.
+              </p>
+              <h2>Game Over</h2>
+              <p>
+                The game ends after round 3 and the team with the most points wins. But you already knew that. Have fun!
+              </p>
+            </ion-label>
+          </ion-item>                  
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+  </ion-col>
 </ion-row>
 </ion-grid>
