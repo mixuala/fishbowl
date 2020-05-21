@@ -310,6 +310,17 @@ ion-card-content{
 
 
 .moderator-control-panel {
+
+  ion-card-header {
+    display: flex;
+    ion-card-title {
+      flex: 1;
+    }
+    .slot-end-wrap {
+      flex: 0 20%;
+      text-align: center;
+    }
+  }
   ion-card-content ion-list {
     padding-bottom: 0px;
   }

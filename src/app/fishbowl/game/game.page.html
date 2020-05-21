@@ -23,11 +23,16 @@
           <ion-card class="moderator-control-panel">
             <ion-card-header color="dark">      
               <ion-card-title>
-                Game Controls for <ion-text color="tertiary">
-                  {{game.label}}
-                </ion-text>
+                Game Controls for <ion-text color="tertiary">{{game.label}}</ion-text>
               </ion-card-title>
+              <div class="slot-end-wrap">
+                <ion-toggle color="success"  [disabled]="isGameTime()" 
+                [checked]="game?.activeGame" (click)="toggleActiveGame()"></ion-toggle>
+                <ion-badge color="success" class="is-live"  *ngIf="game?.activeGame" 
+                >live</ion-badge>
+              </div>
             </ion-card-header>
+            
             <ion-card-content>
               <div *ngIf="stash.activeGame; else preGameAdmin">
               <ion-list class="game-controls wide">

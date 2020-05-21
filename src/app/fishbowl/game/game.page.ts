@@ -928,7 +928,7 @@ export class GamePage implements OnInit {
       tap( d=>{
         let game = d.game;                  // closure
         this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
-        game.activeGame = game.activeGame || game.gameTime < Date.now();
+        game.activeGame = game.activeGame || this.isGameTime(game);
         this.stash.activeGame = game.activeGame;
         this.stash.playersSorted = Helpful.sortObjectEntriesByValues(game.players) as Array<[string,string]>
         this.watchGamePlay(gameId, d);
@@ -1027,6 +1027,23 @@ export class GamePage implements OnInit {
 
   preloadAudio(){
     ["click","buzz","ok","pass","dq", "pause"].forEach( k=>this.audio.preload(k));
+  }
+
+
+  toggleActiveGame(g:Game) {
+    if (!this.isModerator()) return
+    let game_af = this.db.object<Game>(`/games/${this.gameId}`);
+    game_af.valueChanges().pipe(
+      first(),
+    ).subscribe( (g)=>{
+      let activeGame = g && !g.activeGame;
+      game_af.update( {activeGame} )
+    })
+  }
+
+  isGameTime(g:Game=null) {
+    let {gameTime, complete} = g || this.game;
+    return gameTime < Date.now()  && complete!==true;
   }
 
   onGameTime(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
