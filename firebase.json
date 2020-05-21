@@ -12,7 +12,17 @@
     } ],
     "headers": [
       {
-        "source": "**",
+        "source": "*",
+        "headers": [
+          {
+            "key" : "Access-Control-Allow-Origin",
+            "value" : "https://securetoken.googleapis.com/",
+            "Vary": "Origin"
+          }
+        ]
+      },
+      {
+        "source": "/build/app/**",
         "headers": [
           {
             "key": "Cache-Control",

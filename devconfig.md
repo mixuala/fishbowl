@@ -33,3 +33,16 @@ firebase init
 
 
 
+# PWA
+> https://angular.io/guide/service-worker-getting-started
+> https://ionicthemes.com/tutorials/about/the-complete-guide-to-progressive-web-apps-with-ionic4
+> https://firebase.google.com/docs/cloud-messaging/js/client
+```
+npm install -g @angular/cli lighthouse
+// project listed in angular.json
+ng add @angular/pwa --project app
+```
+
+```
+lighthouse http://localhost:8100 --view
+```
