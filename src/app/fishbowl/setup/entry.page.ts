@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LoadingController, IonButton } from '@ionic/angular';
+import { LoadingController, IonButton, ToastController } from '@ionic/angular';
 import { Validators, FormGroup, FormControl, ValidatorFn, AbstractControl } from '@angular/forms';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
@@ -64,6 +64,7 @@ export class EntryPage implements OnInit {
     private activatedRoute: ActivatedRoute,
     private router: Router,
     private loadingController: LoadingController,
+    public toastController: ToastController,
     private audio: AudioService,
     private db: AngularFireDatabase,
     private authService: AuthService,
@@ -239,11 +240,29 @@ export class EntryPage implements OnInit {
     let update = {players, playerCount, entries} as Game;
     this.gameRef.update( update ).then(
       res=>{
+        let msg = "Your entry was accepted";
+        this.presentToast(msg);
         let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
         this.router.navigate(['/app/game', gameId]);
       }
     );
   }
+
+  async presentToast(msg, options:any={}) {
+    let defaults = {
+      message: msg,
+      position: "top",
+      animated: true,
+      color: "tertiary",
+      keyboardClose: true,
+      cssClass: "toast-below-header",
+      duration: 2000,
+    }
+    options = Object.assign( defaults, options);
+    const toast = await this.toastController.create(options);
+    toast.present();
+  }
+
 
 }
 
