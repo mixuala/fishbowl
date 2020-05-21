@@ -4,7 +4,6 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { PipesModule } from '../../pipes/pipes.module';
 import { ComponentsModule } from '../../components/components.module';
 import { IonicModule } from '@ionic/angular';
-import { IonicStorageModule } from '@ionic/storage';
 
 import { ListPageRoutingModule } from './list-routing.module';
 
@@ -18,7 +17,6 @@ import { ListPage } from './list.page';
     PipesModule,
     ComponentsModule,
     IonicModule,
-    IonicStorageModule.forRoot(),
     ListPageRoutingModule
   ],
   declarations: [ListPage]

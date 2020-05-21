@@ -1,9 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { ModalController } from '@ionic/angular';
-import { Storage } from  '@ionic/storage';
-import { environment } from '../../../environments/environment';
+import { Plugins, } from '@capacitor/core';
 import { interval, Subject } from 'rxjs';
 import { takeUntil, tap } from 'rxjs/operators';
+
+import { environment } from '../../../environments/environment';
+
+const { Storage } = Plugins;
 
 @Component({
   selector: 'app-help',
@@ -18,8 +21,9 @@ export class HelpComponent implements OnInit {
    * @param modalCtrl 
    * @param options
    */
-  public static dismissed:any = {}; // check before modal.present()
+  public static dismissed:any = null; // check before modal.present()
   public static last:HTMLIonModalElement;
+  public template: string;
 
   /**
    * 
@@ -45,20 +49,17 @@ export class HelpComponent implements OnInit {
     return Promise.resolve()
     .then( ()=>{
       if (!!HelpComponent.last) {
-        console.warn('121: HelpComponent.last.dismiss');
         return HelpComponent.last && HelpComponent.last.dismiss(true);
       }
     })
-    .then( ()=>{
-
-    /**
-     * BUG: static method does not wait for instance to load 
-     *      this.storage.get(HelpComponent.STORAGE_KEY)
-     * 
-     */
+    .then( async ()=>{
 
       // let ready = await 
-      if (HelpComponent.dismissed[options.template]) {
+      if (HelpComponent.dismissed == null) {
+        await HelpComponent._loadStorage();
+      }
+      let dismissKey = typeof options.once == "string" ?  `${options.template}:${options.once}` : options.template;
+      if (HelpComponent.dismissed[dismissKey]) {
         return Promise.reject('skip');
       }
     })
@@ -83,11 +84,12 @@ export class HelpComponent implements OnInit {
           await modal.onWillDismiss()
           .then( async (resp)=>{
             done$.next(true);
-            options.onWillDismiss && options.onWillDismiss(resp); 
+            options.onWillDismiss && options.onWillDismiss(resp);
           })
           modal.onDidDismiss()
           .then( (resp)=>{
             let result = (options.onDidDismiss) ? options.onDidDismiss(resp) : resp;
+            HelpComponent.last = null;
             resolve(result)
             // let {template} = modal.componentProps;
           });
@@ -105,26 +107,46 @@ export class HelpComponent implements OnInit {
   }  
 
 
-  public template: string;
+
+  private static
+  _loadStorage():Promise<void>{
+    // load dismissed
+    HelpComponent.dismissed = {};
+    let key = HelpComponent.STORAGE_KEY;
+    return Storage.get( {key} )
+    .then( o=>{
+      let value: any;
+      try {
+        value = JSON.parse(o.value);
+        HelpComponent.dismissed = Object.assign(HelpComponent.dismissed, value);
+      } catch (err) {
+        value = o.value;
+      }
+      // console.log( "loaded", HelpComponent.dismissed, value)
+    })
+  }
   
   constructor(
-    private storage:  Storage,
   ) { 
-    // load dismissed
-    this.storage.get(HelpComponent.STORAGE_KEY)
-    .then( dismissed=>{
-      Object.assign(HelpComponent.dismissed, dismissed);
-    })
+
   }  
 
   async ngOnInit() {
+    HelpComponent._loadStorage();
   }
 
-  dismiss(ev:MouseEvent, instance){
-    let self = instance;
+  onDismissClick(ev:MouseEvent){
+    let self = this as any;
     if (!!self.once) {
-      HelpComponent.dismissed[self.template] = true;
-      self.storage.set(HelpComponent.STORAGE_KEY, HelpComponent.dismissed)
+      let dismissKey = typeof self.once == "string" ?  `${self.template}:${self.once}` : self.template;
+      HelpComponent.dismissed[dismissKey] = true;
+      let key = HelpComponent.STORAGE_KEY;
+      let value = JSON.stringify(HelpComponent.dismissed);
+      Storage.set( { key, value } )
+      // .then( async ()=>{
+      //   let res = await Storage.get( {key} );
+      //   console.log("Storage set value=", key, JSON.parse(res.value) );
+      // });
     }    
     self.modal.dismiss();
   }
