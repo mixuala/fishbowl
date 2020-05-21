@@ -3,6 +3,7 @@ ion-card.notes {
     font-size: 28px;
     font-weight: 700;
   }
+
   p {
     margin-bottom: 8px;
     > * {
@@ -12,5 +13,25 @@ ion-card.notes {
   ol,li {
     font-size: 14px;
     color: #666666;
+  }
+
+  h2 {
+    color: var(--ion-color-dark);
+    font-weight: bold;
+    &:not(:first) {
+      margin-top: 16px;
+    }
+  }
+  
+}
+
+
+.game-play {
+  h2 {
+    color: var(--ion-color-dark);
+    font-weight: bold;
+    &:not(:first) {
+      margin-top: 16px;
+    }
   }
 }
