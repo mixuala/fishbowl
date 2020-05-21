@@ -1,10 +1,12 @@
 import { Injectable } from '@angular/core';
-import { Storage } from  '@ionic/storage';
+import { Plugins, } from '@capacitor/core';
 import * as firebase from 'firebase/app';
 import { AngularFireAuth } from '@angular/fire/auth';
 
 import { Observable, } from 'rxjs';
 import { take, } from 'rxjs/operators';
+
+const { Storage } = Plugins;
 
 @Injectable({
   providedIn: 'root'
@@ -13,7 +15,6 @@ export class AuthService {
 
   constructor(
     public afAuth: AngularFireAuth,
-    private storage:  Storage,
   ){}
 
   getCurrentUser():Promise<firebase.User>{
@@ -58,9 +59,9 @@ export class AuthService {
       this.afAuth.auth.signOut()
       .then( async () => {
         // this.firebaseService.unsubscribeOnLogOut();
-        this.storage.keys().then( keys=>{
-          keys.forEach( k=>{
-            this.storage.remove(k)
+        Storage.keys().then( o=>{
+          o.keys.forEach( k=>{
+            Storage.remove({key:k})
           });
         });
         resolve();

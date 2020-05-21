@@ -1,5 +1,5 @@
 <ion-grid class="center-grid" tappable 
-(click)="dismiss($event, this)"
+(click)="onDismissClick($event)"
 >
   <ion-row class="ion-justify-content-center ion-align-items-center">
     <ion-col size="12" size-sm="7" size-xl="5">
@@ -171,10 +171,10 @@
             <ion-row>
               <ion-col class="ion-text-center">
                 <ion-button color="success" expand="block" *ngIf="gameSummary.roundNo<3"
-                (click)="dismiss(true)"
+                (click)="onDismissClick(true)"
                 >close</ion-button>
                 <ion-button color="success" expand="block" size="large"  *ngIf="gameSummary.roundNo==3"
-                (click)="dismiss(true)"
+                (click)="onDismissClick(true)"
                 >GAME OVER</ion-button>
               </ion-col>
             </ion-row>
@@ -240,7 +240,7 @@
             </div>
 
             <ion-button expand="block" color="tertiary" size="large" class="ion-margin-vertical"
-            routerDirection="forward" [routerLink]="entryLink" (click)="dismiss(true)">
+            routerDirection="forward" [routerLink]="entryLink" (click)="onDismissClick(true)">
               Create Game Entry
             </ion-button>
             <div class="ion-margin-vertical"></div>
