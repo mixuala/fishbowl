@@ -46,7 +46,9 @@
                   <ion-badge color="tertiary" class="ion-padding-horizontal">{{game.playerCount || 0}}</ion-badge>
                 </ion-label>
               </ion-item>
-              <ion-button expand="block" color="success" (click)="join(game, i)">{{ isGametime(game) ? 'Join Game' : 'Grab a Spot Now'}}</ion-button>   
+              <ion-button expand="block" [color]="!game.complete ? 'success':'tertiary'"
+              (click)="doAction(game, i)"
+              >{{ getCallToAction(game) }}</ion-button>   
             </ion-card-content>
           </ion-card>
         </ion-col>

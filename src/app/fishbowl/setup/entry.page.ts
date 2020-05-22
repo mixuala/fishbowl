@@ -178,7 +178,7 @@ export class EntryPage implements OnInit {
   }
 
   doPlayerEntryLookup(name:string=null):[string, string] {
-    if (this.player.isAnonymous==false) return null;
+    // if (this.player.isAnonymous==false) return null;
     if (this.game.activeRound) return null;
 
     name = this.entryForm.get('name').value;

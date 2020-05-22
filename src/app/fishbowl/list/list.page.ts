@@ -160,11 +160,17 @@ export class ListPage implements OnInit {
   }
 
   isActive( g:Game) {
-    return g.activeGame || this.isGametime(g);
+    return (g.activeGame || this.isGametime(g));
   }
 
   isGametime( g:Game) {
     return g.gameTime < Date.now();
+  }
+
+  getCallToAction( g:Game ) {
+    if (g.complete) return "Game Over";
+    if (this.isGametime(g)) return "Join Game";
+    else return "Grab a Spot Now"
   }
 
   onGameTime(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
@@ -173,7 +179,7 @@ export class ListPage implements OnInit {
     return
   }
   
-  join(game, index) {
+  doAction(game, index) {
     this.player$.pipe(
       tap( p=>{
         if( game.activeGame ) {
