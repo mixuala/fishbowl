@@ -559,11 +559,12 @@ export class GameHelpers {
   moveSpotlight(
     watch:GamePlayWatch, 
     round:GamePlayRound, 
-    options:{ nextTeam?:boolean, defaultDuration?:number} = {} 
+    options:{ nextTeam?:boolean, defaultDuration?:number, spotlightState?:any} = {} 
   ): 
     Promise<void>
   {
     let {uid, gamePlay$} = watch;
+    let initState = JSON.stringify(options.spotlightState);
     // rewrite without promise
     return new Promise( (resolve, reject)=>{
       gamePlay$.pipe(
@@ -574,6 +575,11 @@ export class GameHelpers {
           if (!round) {
             console.error("round is empty")
             return      // not sure this is the right path
+          }
+          let curState = JSON.stringify(gamePlay.spotlight);
+          if (initState && curState != initState) {
+            console.warn("120: CANCEL spotlight state has already changed to state=", curState)
+            return;
           }
 
 

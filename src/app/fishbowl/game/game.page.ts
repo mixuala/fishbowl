@@ -581,7 +581,7 @@ export class GamePage implements OnInit {
           once:false,
           playerName: player.displayName,
           backdropDismiss: false,
-          duration: status===false ? null : ALREADY_CHECKED_IN_DISMISS,
+          // duration: status===false ? 9999 : ALREADY_CHECKED_IN_DISMISS,
           swipeToClose: true,
           playerReady: (res)=>{
             this.modalCtrl.dismiss(res);
@@ -840,7 +840,7 @@ export class GamePage implements OnInit {
     let game = this.gameDict[this.gameId] as Game;
     let round = this.gameDict.activeRound;
     let defaultDuration = this.initialTimerDuration
-    return this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam, defaultDuration});
+    return this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam, defaultDuration, });
   }
 
 
@@ -1273,7 +1273,7 @@ export class GamePage implements OnInit {
     let done = this.onTimerDone["_done"];
     let id = t instanceof Date ? t.getTime() : t.seconds;
     if (done[id]) {
-      console.warn( "123: 2> THROTTLE: timer id=", id);
+      console.warn( "12: 2> THROTTLE: timer id=", id);
       return;
     }
     done[id]=true;
@@ -1287,6 +1287,7 @@ export class GamePage implements OnInit {
 
     let isOnTheSpot = this.stash.onTheSpot;
     let isAuthorized = isOnTheSpot || this.isModerator();
+    let gamePlay:GamePlayState;
 
     return Promise.resolve()
     .then( ()=>{
@@ -1326,13 +1327,14 @@ export class GamePage implements OnInit {
           // check if playerRoundDidComplete(), 
           // if not, set playerRoundBegin=false, disable wordAction buttons
           let doPlayerRoundComplete = isAuthorized && gamePlay.playerRoundBegin==true;
-          return doPlayerRoundComplete;
+          return {doPlayerRoundComplete, gamePlay};
         })
       ).toPromise()
-      .then( (doPlayerRoundComplete)=>{
+      .then( (res)=>{
+        let {doPlayerRoundComplete, gamePlay} = res;
         if (doPlayerRoundComplete) {
           // console.log("1:  ******* completePlayerRound, from onTimerDone() OVERTIME, clearTimer=false")
-          return this.completePlayerRound(false);
+          return this.completePlayerRound(gamePlay.spotlight, false);
         }
         else {
           // buzz=false/overtime=false silent OR playerRoundDidComplete()
@@ -1450,7 +1452,7 @@ export class GamePage implements OnInit {
               let waitFor = await this.onTimerDone( new Date(), false);
             }
             console.log("1: ******* completePlayerRound(), from wordAction(), next.remaining==0")
-            this.completePlayerRound(isLastWord);
+            this.completePlayerRound(gamePlay.spotlight, isLastWord);
           }
         });
       }
@@ -1479,7 +1481,14 @@ export class GamePage implements OnInit {
    *    onTimerDone()
    * onTimerDone() or FishbowlHelpers.nextWord() is empty 
    */
-  async completePlayerRound(gameRoundComplete=false):Promise<void>{
+  async completePlayerRound(
+    spotlightState:{
+      teamIndex: number;
+      playerIndex: number[];
+      teamName?: string;
+    }
+    , gameRoundComplete=false
+  ):Promise<void>{
     let isOnTheSpot = this.stash.onTheSpot;
     if (!(isOnTheSpot || this.isModerator())) return;
 
@@ -1515,7 +1524,7 @@ export class GamePage implements OnInit {
       console.info("\t>>>> playerRoundDidComplete()");
       // NOTE: Handle UX response in doShowInterstitials()
       await Helpful.waitFor(1000)    // allow PlayerRoundComplete interstitial to appear
-      return this.nextPlayerRound(); // calls moveSpotlight()
+      return this.nextPlayerRound(spotlightState); // calls moveSpotlight()
     })
     .then( async ()=>{
       if (gameRoundComplete) {
@@ -1528,7 +1537,12 @@ export class GamePage implements OnInit {
   /**
    * queue next PlayerRound AFTER completePlayerRound() or 
    */
-  private nextPlayerRound():Promise<void>{
+  private nextPlayerRound(spotlightState:{
+      teamIndex: number;
+      playerIndex: number[];
+      teamName?: string;
+    }
+  ):Promise<void>{
     let isOnTheSpot = this.stash.onTheSpot;
     if (!(isOnTheSpot || this.isModerator())) {
       throw new Error( " spotlight changed before ready")
@@ -1562,7 +1576,7 @@ export class GamePage implements OnInit {
       console.info("12:\t>>>> spotlightWillChange()");
     })
     .then(()=>{
-      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound).then( ()=>{
+      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound, {spotlightState}).then( ()=>{
         console.info("12: \t>>>> spotlightDidChange()");
       })
     })
