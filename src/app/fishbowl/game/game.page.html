@@ -32,7 +32,7 @@
                 >live</ion-badge>
               </div>
             </ion-card-header>
-            
+
             <ion-card-content>
               <div *ngIf="stash.activeGame; else preGameAdmin">
               <ion-list class="game-controls wide">
@@ -222,12 +222,30 @@
             </div>
 
             <ng-template #preGameAdmin>
-              <ion-list class="ion-padding-top">
-                  <ion-button color="success" expand="block" (click)="doGameSettings()">
+              <ion-list class="game-admin wide">
+                <ion-item lines="full">
+                  <ion-button size="small" color="success" (click)="doGameSettings()">
                     <ion-icon name="settings" slot="start"></ion-icon>
-                    Game Settings
+                    Settings
                   </ion-button>
-              </ion-list>
+                  <ion-button  size="small" color="danger" (click)="resetGameClick($event)"  slot="end">
+                    <ion-icon name="warning" slot="start"></ion-icon>
+                    Reset Game
+                  </ion-button>
+                </ion-item>
+              </ion-list>     
+              <ion-list class="game-check-in wide toggle-hide">
+                <ion-item lines="none">
+                  <ion-label>Players Registered</ion-label>
+                </ion-item>
+                <ion-item *ngFor="let p of stash.playersSorted" class="player">
+                  <ion-icon slot="start" name="checkbox" color="success"></ion-icon>
+                  <ion-label color="dark" class="name" >
+                    {{p[1]}}
+                    <ion-note class="ion-float-right" *ngIf="isModerator(p[0])">moderator</ion-note>
+                  </ion-label>
+                </ion-item>
+              </ion-list>         
             </ng-template>        
 
             </ion-card-content>
@@ -270,7 +288,24 @@
                   <ion-text  color="dark">
                     Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                   </ion-text>
+                  <div class="review-game-entry">
+
+                    <ion-label>
+                      <h1>Welcome to the <span>Players Lounge</span></h1>
+                      <p><ion-text color="tertiary">
+                      Just chill until the game goes live.
+                      </ion-text></p>
+                    </ion-label>
+
+                    <ion-button expand="block" color="tertiary" class="taller ion-margin-top"
+                    routerDirection="forward" [routerLink]="['/app/game', gameId, 'player']">
+                      {{player ? 'Review Game Entry for' : 'Create Game Entry'}}
+                      <ion-text color="light" *ngIf="player">&nbsp;{{player.displayName}}</ion-text>
+                    </ion-button>
+                  </div>
                 </div>
+
+
               </div>
 
             <!-- <ion-list class="ion-no-padding"> -->

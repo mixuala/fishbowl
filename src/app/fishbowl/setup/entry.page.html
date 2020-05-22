@@ -1,6 +1,7 @@
 <ion-header>
   <ion-toolbar color="success">
     <ion-buttons slot="start">
+      <ion-back-button></ion-back-button>
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
     <ion-title>
@@ -32,6 +33,15 @@
                 <ion-text  color="dark">
                   Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                 </ion-text>
+
+                <div class="rounded outline ion-color-dark" *ngIf="game && player && !game.players[player.uid]">
+                  <ion-label class="ion-text-wrap">
+                    <p>To grab a spot in this game,</p>
+                    <p>
+                      put 3 words into the <ion-text color="tertiary">Fishbowl</ion-text> now. 
+                    </p>
+                  </ion-label>
+                </div>
                 <ion-item-divider></ion-item-divider>
               </div>
 

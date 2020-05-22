@@ -44,7 +44,7 @@ ion-list.wide {
   }
 }
 
-ion-col > ion-button.taller {
+ion-button.taller {
   --padding-top: var(--ion-padding, 16px);
   --padding-bottom: var(--ion-padding, 16px);
   height: 100%;
@@ -69,6 +69,9 @@ ion-card-content{
   .game-countdown {
     .game-time {
       padding: 20px 0;
+    }
+    .review-game-entry {
+      margin-top: 40px;
     }
   }
 

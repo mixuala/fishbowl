@@ -46,6 +46,27 @@ ion-item-divider {
   border-radius: 4px;
 }
 
+.outline {
+  &.ion-color-tertiary {
+    --ion-color-base: var(--ion-color-tertiary);
+  }
+  &.ion-color-dark {
+    --ion-color-base: var(--ion-color-dark);
+  }
+  &.rounded {
+    border-radius: 10px;
+  }
+  margin: 14px 0 0;
+  padding: 20px 20px;
+  color: var(--ion-color-light);
+  background-color: var(--ion-color-dark);
+  p {
+    color: var(--ion-color-light);
+    font-size: 1em;
+    font-weight: 500;
+  }
+}
+
 
 .game-time {
   padding: 20px 0;

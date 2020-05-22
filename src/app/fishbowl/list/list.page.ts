@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LoadingController, ModalController, } from '@ionic/angular';
+import { LoadingController, } from '@ionic/angular';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
@@ -41,7 +41,6 @@ export class ListPage implements OnInit {
     private  activatedRoute: ActivatedRoute,
     private  router: Router,
     private loadingController: LoadingController,
-    private modalCtrl: ModalController,
     private db: AngularFireDatabase,
     private authService: AuthService,
     private gameHelpers: GameHelpers,
@@ -177,10 +176,16 @@ export class ListPage implements OnInit {
   join(game, index) {
     this.player$.pipe(
       tap( p=>{
-        if (game.players && game.players[p.uid]) {
+        if( game.activeGame ) {
+          // activeGame
           this.router.navigate(['/app/game', game.uid]);
         }
-        else if( game.activeGame) {
+        else if (game.players && game.players[p.uid]) {
+          // registered player
+          this.router.navigate(['/app/game', game.uid]);
+        }
+        else if (game.moderator && game.moderator[p.uid]) {
+          // moderator
           this.router.navigate(['/app/game', game.uid]);
         }
         else {

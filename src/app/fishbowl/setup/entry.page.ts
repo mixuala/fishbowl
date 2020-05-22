@@ -5,15 +5,12 @@ import { Validators, FormGroup, FormControl, ValidatorFn, AbstractControl } from
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, of, from, throwError } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
+import { Observable, Subject, of, from, } from 'rxjs';
+import { map, tap, switchMap, take, filter } from 'rxjs/operators';
 
-import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
 import { Player } from '../../user/role';
 import { AudioService } from '../../services/audio.service';
-import { Helpful } from '../../services/app.helpers';
-import { FishbowlHelpers } from '../fishbowl.helpers'
 import { GameHelpers } from '../game-helpers';
 import { 
   Game, GameWatch, GameDict, RoundEnum,
