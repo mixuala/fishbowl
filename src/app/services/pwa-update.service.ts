@@ -4,10 +4,10 @@ import { Injectable } from '@angular/core';
 
 import { Plugins, AppState } from '@capacitor/core';
 import { SwUpdate } from '@angular/service-worker';
-import { interval, Observable } from 'rxjs';
+import { Observable, timer } from 'rxjs';
 
 
-const CHECK_UPDATE_INTERVAL = 60*1000;
+const CHECK_UPDATE_INTERVAL = 10*60*1000;
 
 /**
  * service worker update service
@@ -31,7 +31,7 @@ export class PwaUpdateService {
       this.pwaUpdates.available.subscribe(event => this.promptUser());
       this.pwaUpdates.checkForUpdate()
       .then(()=>{
-        this.timer = interval(CHECK_UPDATE_INTERVAL)
+        this.timer = timer(5000, CHECK_UPDATE_INTERVAL)
         this.timer.subscribe(() =>{ 
           this.pwaUpdates.checkForUpdate()
           .then(() => console.log('checking for updates'))
