@@ -11,16 +11,18 @@
       <ion-col *ngFor="let teamName of teamNamesInPlayOrder; let i = index"  
         [ngClass]="i%2==0 ? 'even' : 'odd'"
         [class.on-the-spot]="spotlight?.teamName==teamName"
+        size="6"
       >
       <ion-item [color]="i%2 ? 'success' : 'tertiary'" class="ion-text-center team-name">
-        <ion-label>{{teamName}}</ion-label>
+        <ion-label class="ion-text-wrap">{{teamName}}</ion-label>
       </ion-item>
       </ion-col>
     </ion-row>
     <ion-row class="players ion-align-items-center" *ngFor="let rowData of teamRostersAsRows; let row=index">
       <ion-col *ngFor="let item of rowData; let col=index"  class="ion-no-padding"
       [ngClass]="col%2==0 ? 'even' : 'odd'" 
-      [class.on-the-spot]="item && item.displayName==spotlight?.playerName">
+      [class.on-the-spot]="item && item.displayName==spotlight?.playerName"
+      size="6">
         <ion-button class="player" size="small" *ngIf="item"
         [color]="col%2 ? 'success' : 'tertiary'" 
         [disabled]="isOnlyPlayer(teamNamesInPlayOrder[col])"

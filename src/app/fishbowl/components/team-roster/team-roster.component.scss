@@ -11,10 +11,16 @@
   }
 
   .players {
-    ion-badge.player {
-      vertical-align: middle;
-      --padding-start: 20px;
-      --padding-end: 20px;
+    // ion-badge.player {
+    //   vertical-align: middle;
+    //   --padding-start: 20px;
+    //   --padding-end: 20px;
+    // }
+    .player {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: break-spaces;
+      display: inline-table;
     }
     .on-the-spot {
       &.even {
