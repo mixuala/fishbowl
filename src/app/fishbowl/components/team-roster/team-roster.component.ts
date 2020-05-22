@@ -150,7 +150,8 @@ export class TeamRosterComponent implements OnInit {
 
 
   isOnlyPlayer(teamName) {
-    return this.teams[teamName].length==1;
+    
+    return this.asModerator && this.teams[teamName].length==1;
   }
 
   doPlayerClick(item) {

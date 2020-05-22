@@ -379,6 +379,7 @@ export class GamePage implements OnInit {
   public isPlayerRegistered: boolean;
   private player$ = new BehaviorSubject<Player>(null);
   public spotlight:SpotlightPlayer;
+  public gameSummary: any;      // for game.complete==true
 
 
   @ViewChild( 'animateTarget', {static:false} ) animateTarget:HTMLElement;
@@ -772,10 +773,20 @@ export class GamePage implements OnInit {
     if (!this.game) return
     if (!this.isModerator()) return;
     
-    let roundIndex = FishbowlHelpers.getRoundIndex(this.gameDict);
-    let isFirstRound = roundIndex.prev==null;
+    let roundIndex:{next:string, prev:string}; // closure
+    let isFirstRound: boolean;
     return Promise.resolve()
     .then( ()=>{
+      roundIndex = FishbowlHelpers.getRoundIndex(this.gameDict);
+      if (!roundIndex) {
+        if (this.game.complete) {
+          return Promise.reject("gameComplete")
+        }
+        console.warn( "unknown state")
+      }
+    })
+    .then( ()=>{
+      isFirstRound = roundIndex.prev==null;
       // NOTE: gameDict.activeRound == null
       if (isFirstRound) {
         // before round 1
@@ -925,7 +936,16 @@ export class GamePage implements OnInit {
     this.loadGame$(gameId).pipe(
       // takeUntil(this.done$),  // ??
       takeWhile( (d)=>!!d[gameId]),
+      map( (d)=>{
+        let isGameOver = this.doGameOver(d);
+        if (isGameOver) {
+          return;
+        }
+        return d;
+      }),
       tap( d=>{
+        if (!d) return; // gameOver
+
         let game = d.game;                  // closure
         this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
         game.activeGame = game.activeGame || this.isGameTime(game);
@@ -977,6 +997,24 @@ export class GamePage implements OnInit {
         console.info(">>> ***** watchGamePlay(): subscriber COMPLETE ******")
       }
     );
+  }
+
+  doGameOver( d:GameDict ): boolean {
+    if (!d.game.complete) return false
+
+    this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
+    let teamNames = d.game.teamNames.slice();
+    let dontWait = this.gameHelpers.scoreRound$(
+      d.gamePlayWatch, 
+      teamNames,
+    ).toPromise().then( (scoreboard)=>{            
+      this.gameSummary = {
+        teamNames,
+        scoreboard,
+      }
+      console.warn("game over", this.gameSummary)
+    });
+    return true;
   }
 
   /**
@@ -1602,6 +1640,7 @@ export class GamePage implements OnInit {
       activeRound: null,
     } as Game;
     if (isGameComplete) {
+      updateGame.teams = round.teams;
       updateGame.complete = true;
     }    
     waitFor.push(

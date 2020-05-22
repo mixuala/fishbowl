@@ -18,7 +18,7 @@
       </ion-col>
     </ion-row>
     <ion-row class="players ion-align-items-center" *ngFor="let rowData of teamRostersAsRows; let row=index">
-      <ion-col *ngFor="let item of rowData; let col=index"
+      <ion-col *ngFor="let item of rowData; let col=index"  class="ion-no-padding"
       [ngClass]="col%2==0 ? 'even' : 'odd'" 
       [class.on-the-spot]="item && item.displayName==spotlight?.playerName">
         <ion-button class="player" size="small" *ngIf="item"

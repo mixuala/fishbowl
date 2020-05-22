@@ -407,8 +407,7 @@ export class GameHelpers {
     waitFor.push( promise );
 
 
-    // MOVE to adjustTeams(): 
-    // WARNNING: do NOT copy teams, teamRosters adjusted BEFORE begin Next Round
+    // teamRosters adjusted realtime in GameHelpers.pushTeamRosters()
     let lastRound = gameDict[ roundIndex.prev ]  as GamePlayRound;
     if (lastRound) {
       waitFor.push(

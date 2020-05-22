@@ -116,8 +116,12 @@ export class FishbowlHelpers {
   getLatestRoster(gameDict: GameDict):Partial<GamePlayRound> {
     let roundIndex = FishbowlHelpers.getRoundIndex(gameDict);
     if (!roundIndex) {
-      // gameOver, all rounds complete
-      return null;
+      let {complete, teams, players} = gameDict.game;
+      if (complete && teams) {
+        // gameOver, all rounds complete
+        return {teams, players, orderOfPlay: gameDict.game.teamNames.slice() }
+      }
+      else return null;
     }
     // copy teams from prev round, if available
     let copyFrom = gameDict[roundIndex.prev || roundIndex.next] as GamePlayRound;

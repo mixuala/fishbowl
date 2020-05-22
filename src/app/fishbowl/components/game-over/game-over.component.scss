@@ -1,0 +1,32 @@
+
+
+ion-grid.center-grid {
+
+  background-color: rgba(0,0,0,0.6);
+
+  margin: 0px;
+  &, & > ion-row {
+    height: 100%;
+  }
+  .content {
+    background-color: rgba(0,0,0,0.8);
+    p, h1 {
+      margin-bottom: 0.8em;
+    }
+  }
+
+}
+
+.game-round-complete {
+  .game-summary {
+    .header {
+      ion-icon {
+        font-size: 1.5em;
+      }
+      ion-badge {
+        --padding-start: 16px;
+        --padding-end: 16px;
+      }
+    }
+  }
+}

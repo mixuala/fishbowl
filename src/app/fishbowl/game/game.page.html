@@ -134,9 +134,9 @@
 
 
 
-              <ion-list class="game-controls-container wide toggle-hide">
+              <ion-list class="game-controls-container wide toggle-hide" [class.on-the-spot]="stash.onTheSpot">
                 <ion-item lines="none">
-                  <ion-label>Game Controls</ion-label>
+                  <ion-label>Player Round Controls</ion-label>
                   <ion-toggle color="tertiary" [checked]="stash.showModeratorGameControls"
                    (click)="toggleStashClick('showModeratorGameControls', $event)"></ion-toggle>
                 </ion-item>
@@ -144,7 +144,6 @@
                 <ng-container *ngIf="stash.showModeratorGameControls">
                   <ion-button expand="block" class="spotlight" size="small"
                       [color]="spotlight?.teamIndex ? 'success' : 'tertiary'"
-                      [class.on-the-spot]="stash.onTheSpot" 
                       >
                       <ion-icon name="person" slot="start"></ion-icon>
                       {{spotlight?.playerName}}
@@ -277,40 +276,9 @@
               
             <ion-card-content [ngClass]="{'on-the-spot': stash.onTheSpot}">
 
-              <div class="game-countdown"  *ngIf="!stash.activeGame">
-                <ion-item-divider class="ion-margin-top">
-                  <ion-note>countdown to game time</ion-note>
-                </ion-item-divider>
-                <div class="game-time ion-text-center">
-                  <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"
-                  (onBuzz)="onGameTime($event)"
-                  ></app-countdown-timer>
-                  <ion-text  color="dark">
-                    Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
-                  </ion-text>
-                  <div class="review-game-entry">
-
-                    <ion-label>
-                      <h1>Welcome to the <span>Players Lounge</span></h1>
-                      <p><ion-text color="tertiary">
-                      Just chill until the game goes live.
-                      </ion-text></p>
-                    </ion-label>
-
-                    <ion-button expand="block" color="tertiary" class="taller ion-margin-top"
-                    routerDirection="forward" [routerLink]="['/app/game', gameId, 'player']">
-                      {{player ? 'Review Game Entry for' : 'Create Game Entry'}}
-                      <ion-text color="light" *ngIf="player">&nbsp;{{player.displayName}}</ion-text>
-                    </ion-button>
-                  </div>
-                </div>
-
-
-              </div>
-
             <!-- <ion-list class="ion-no-padding"> -->
 
-              <div  *ngIf="stash.activeGame">
+              <div  *ngIf="stash.activeGame; else inactiveGame">
 
 
               <div class="user-controls">
@@ -356,6 +324,7 @@
                     <ion-row>
                       <ion-col>
                         <ion-button expand="block" color="success" class="taller"  
+                        [disabled]="!game.chatRoom"
                         [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">
                           <ion-icon name="videocam" slot="start"></ion-icon>
                           Open Video Chat Room
@@ -427,7 +396,7 @@
                 <!-- </ion-item> -->
               </div>
 
-              <div class="teleprompter" *ngIf="stash.onTheSpot">
+              <div class="teleprompter" *ngIf="stash.onTheSpot" [class.on-the-spot]="stash.onTheSpot">
                 <ion-item-divider class="ion-margin-top">
                   <ion-note>on the spot</ion-note>
                 </ion-item-divider>
@@ -501,6 +470,43 @@
                 </div>
               </div>
               </div>
+
+              <ng-template #inactiveGame>
+                <div class="game-countdown"  *ngIf="!game.complete; else gameOver">
+                  <ion-item-divider class="ion-margin-top">
+                    <ion-note>countdown to game time</ion-note>
+                  </ion-item-divider>
+                  <div class="game-time ion-text-center">
+                    <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"
+                    (onBuzz)="onGameTime($event)"
+                    ></app-countdown-timer>
+                    <ion-text  color="dark">
+                      Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
+                    </ion-text>
+                    <div class="review-game-entry">
+  
+                      <ion-label>
+                        <h1>Welcome to the <span>Players Lounge</span></h1>
+                        <p><ion-text color="tertiary">
+                        Just chill until the game goes live.
+                        </ion-text></p>
+                      </ion-label>
+  
+                      <ion-button expand="block" color="tertiary" class="taller ion-margin-top"
+                      routerDirection="forward" [routerLink]="['/app/game', gameId, 'player']">
+                        {{player ? 'Review Game Entry for' : 'Create Game Entry'}}
+                        <ion-text color="light" *ngIf="player">&nbsp;{{player.displayName}}</ion-text>
+                      </ion-button>
+                    </div>
+                  </div>
+                </div>
+
+                <ng-template #gameOver>
+                  <app-game-over [game-summary]="gameSummary" [gameDict$]="gameWatch?.gameDict$"></app-game-over>
+                </ng-template>
+
+
+              </ng-template>
           
 
             <!-- </ion-list> -->
@@ -528,7 +534,7 @@
 
                 <div class="game-countdown"  *ngIf="!stash.activeGame">
                   <ion-item-divider class="ion-margin-top">
-                    <ion-note>countdown to game time</ion-note>
+                    <ion-note>Countdown to game time</ion-note>
                   </ion-item-divider>
                   <div class="game-time ion-text-center">
                     <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"

@@ -33,6 +33,7 @@ export interface Game {
   // TODO: rename activeRoundId
   activeRound?: string;
   complete?: boolean;
+  teams?: TeamRosters;    // final team roster
   public?: boolean;
 }
 
