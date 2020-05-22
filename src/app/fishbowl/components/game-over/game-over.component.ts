@@ -24,6 +24,7 @@ export class GameOverComponent implements OnInit {
       let [k, change] = en;
       switch(k){
         case 'gameSummary': {
+          if (!this.gameSummary && change.firstChange) return
           let{ scoreboard, teamNames} = this.gameSummary;
           this.winnersByRound = Object.keys(scoreboard).reduce( (o, round)=>{ 
             let team0 = scoreboard[round][teamNames[0]] || {};
