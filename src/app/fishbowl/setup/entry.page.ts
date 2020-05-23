@@ -178,22 +178,28 @@ export class EntryPage implements OnInit {
   }
 
   doPlayerEntryLookup(name:string=null):[string, string] {
-    // if (this.player.isAnonymous==false) return null;
-    if (this.game.activeRound) return null;
-
     name = this.entryForm.get('name').value;
-    let found = Object.entries(this.game.players).find( ([k,v])=>v.trim().toLowerCase()==name.toLowerCase());
+    let {players, checkIn} = this.game;
+
+    if (this.game.activeRound){
+      // confirm player has not checked in
+      let pid = Object.keys(players).find( k=>players[k]==name);
+      if (pid && !!checkIn[pid]) {
+        return null;  // already checkedIn
+      }
+    }
+    let found = Object.entries(players).find( ([k,v])=>v.trim().toLowerCase()==name.toLowerCase());
     return !!found ? found : null;
   }
 
   async onTakePlayerIdentity(v:any) {
     try {
       if (v==false) throw new Error('cancel');
+
       let found = this.doPlayerEntryLookup();
       if (!found) throw new Error('cancel');
       let [oldPid, name] = found;
       if (!this.game.players[oldPid]) throw new Error('cancel');
-      if (this.game.activeRound) throw new Error('cancel');
       
       let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
       let done = await this.gameHelpers.patchPlayerId( gameId, this.game, {
@@ -205,8 +211,13 @@ export class EntryPage implements OnInit {
       return;
       // let game$ do the rest
     } catch (err) {
-      if (err=='cancel')
+      if (err=="ERROR: player already checked in"){
+        this.presentToast(`Sorry, player ${name} has already checked in.`)
         this.entryForm.patchValue({name:""});
+      }
+      else if (err=='cancel'){
+        this.entryForm.patchValue({name:""});
+      }
     }
   }
 

@@ -767,7 +767,11 @@ export class GameHelpers {
   }
 
   async patchPlayerId( gameId: string, game:Game, changeId:{old:string, new:string}): Promise<any>{
-    if (!!game.activeRound) return Promise.reject("ERROR: cannot PatchPlayerid, game as already begun")
+    if (!!game.activeRound) {
+      // reject if already checkedIn
+      if (!!game.checkIn[changeId.old])
+        return Promise.reject("ERROR: player already checked in")
+    }
     let update = {}
     let keys = ['players', 'entries', 'checkIn', 'moderators'];
     keys.map( k=>{
