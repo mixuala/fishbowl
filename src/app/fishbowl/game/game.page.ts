@@ -84,7 +84,8 @@ export class GamePage implements OnInit {
 
         let changed = gamePlay.changedKeys || [];
         if (changed.includes('spotlight')) {
-          this.spotlight = FishbowlHelpers.getSpotlightPlayer(gamePlay, round);
+          this.spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
+          // console.warn("13:0 pipeCloudEventLoop_Bkg=", JSON.stringify(gamePlay.spotlight), "mutated=", this.spotlight!==oldSpotlight)
           this.stash.onTheSpot = this.spotlight && this.spotlight.uid === player.uid;
         }        
         let isThrottling = this.throttleTimeAndWordEvents(gamePlay);        

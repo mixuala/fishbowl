@@ -270,7 +270,12 @@ export class GameHelpers {
             }
             return gamePlay[k]!==prev[k];
           });
-          console.warn( `121: ===>>> getGamePlay changedKeys=` , changedKeys)
+          if (changedKeys.length==1 && changedKeys[0]=="timestamp") {
+            // HACK: [OK] skipPlayer does NOT go through pairwise correctly
+            //      prev.spotlight is ALREADY changed, only cur.timestamp is detected
+            changedKeys.push('spotlight');
+          }
+          console.warn( `120: ===>>> getGamePlay changedKeys=` , changedKeys)
           gamePlay.changedKeys = changedKeys;
         }
         return gamePlay || {}
@@ -622,6 +627,7 @@ export class GameHelpers {
             isTicking: false,
             timerPausedAt: null,
           } as GamePlayState;
+          // console.warn("13:a moveSpotlight=", JSON.stringify(spotlight))
           this.pushGamePlayState(watch, update).then( ()=>{
             resolve();
           });

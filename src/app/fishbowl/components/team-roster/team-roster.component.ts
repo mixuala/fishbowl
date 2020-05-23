@@ -142,6 +142,7 @@ export class TeamRosterComponent implements OnInit {
           break;
         }
         case "spotlight":{
+          // console.log("13: TeamRosters ", JSON.stringify(this.spotlight))
           break;
         }
       }
