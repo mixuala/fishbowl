@@ -134,11 +134,11 @@ export class AppComponent {
     switch (platform){
       case 'ios':
       case 'android':
-        this.patch_PWA_bootstrap();
+        // this.patch_PWA_bootstrap();
         // reset caches, currently not put in Storage
         App.addListener('appStateChange', (state: AppState) => {
           // state.isActive contains the active state
-          console.log('&&& App state changed. active=', state.isActive);
+          console.log('### App state changed. active=', state.isActive);
           // AppCache.handleAppStateChange(state);
         });
         break;
