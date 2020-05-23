@@ -1,6 +1,7 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LoadingController, ModalController, } from '@ionic/angular';
+import { Title } from '@angular/platform-browser';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import { Plugins, } from '@capacitor/core';
 import * as dayjs from 'dayjs';
@@ -391,6 +392,7 @@ export class GamePage implements OnInit {
     private router: Router,
     private loadingController: LoadingController,
     private modalCtrl: ModalController,
+    private titleService: Title,
     private audio: AudioService,
     private db: AngularFireDatabase,
     private authService: AuthService,
@@ -863,6 +865,7 @@ export class GamePage implements OnInit {
   // called AFTER ngOnInit, before page transition begins
   ionViewWillEnter() {
     // const dontWait = HelpComponent.presentModal(this.modalCtrl, {template:'intro', once:false});
+    this.stash.restoreTitle = this.titleService.getTitle();
     this.stash.isActivePage = true;
     this.gameId = this.activatedRoute.snapshot.paramMap.get('uid');
     this.stash.wasCached = this.watchGame(this.gameId);
@@ -885,6 +888,7 @@ export class GamePage implements OnInit {
 
 
   ionViewWillLeave() {
+    this.titleService.setTitle( this.stash.restoreTitle )
     this.stash.isActivePage = false;
     // console.warn("111: ionViewWillLeave$>>  isActivePage=", this.stash.isActivePage);
     // close modals
@@ -937,6 +941,7 @@ export class GamePage implements OnInit {
     this.loadGame$(gameId).pipe(
       // takeUntil(this.done$),  // ??
       takeWhile( (d)=>!!d[gameId]),
+      tap( d=>this.titleService.setTitle( `${d.game.label} –– Fishbowl`) ),
       map( (d)=>{
         let isGameOver = this.doGameOver(d);
         if (isGameOver) {
