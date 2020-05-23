@@ -85,7 +85,7 @@ export class ListPage implements OnInit {
       filter( ()=>this.stash.listen),
       map( (games, i)=>{
         games.forEach( g=>{
-          g.activeGame = this.isActive(g);
+          g.activeGame = FishbowlHelpers.isActive(g);
         })
         if (!invite) return games;
         return games.filter( g=>g.uid==invite)
@@ -160,16 +160,20 @@ export class ListPage implements OnInit {
   }
 
   isActive( g:Game) {
-    return (g.activeGame || this.isGametime(g));
+    return FishbowlHelpers.isActive(g);
   }
 
   isGametime( g:Game) {
-    return g.gameTime < Date.now();
+    return FishbowlHelpers.isGametime(g);
+  }
+
+  isLive( g:Game) {
+    return FishbowlHelpers.isLive(g);
   }
 
   getCallToAction( g:Game ) {
     if (g.complete) return "Game Over";
-    if (this.isGametime(g)) return "Join Game";
+    if (FishbowlHelpers.isGametime(g)) return "Join Game";
     else return "Grab a Spot Now"
   }
 

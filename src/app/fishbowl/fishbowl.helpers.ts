@@ -17,6 +17,19 @@ import { Player } from '../user/role';
 
 export class FishbowlHelpers {
 
+  static
+  isActive( g:Game) {
+    return (g.activeGame || FishbowlHelpers.isGametime(g));
+  }
+  static
+  isGametime( g:Game) {
+    return g.gameTime < Date.now();
+  }
+  static
+  isLive( g:Game) {
+    return !g.complete && FishbowlHelpers.isGametime(g);
+  }
+
   static 
   setGameDateTime(day:number=5, hour:number=19):dayjs.Dayjs {
     let min = dayjs().day();

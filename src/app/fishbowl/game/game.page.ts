@@ -949,7 +949,7 @@ export class GamePage implements OnInit {
 
         let game = d.game;                  // closure
         this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
-        game.activeGame = game.activeGame || this.isGameTime(game);
+        game.activeGame = FishbowlHelpers.isActive(game);
         this.stash.activeGame = game.activeGame;
         this.stash.playersSorted = Helpful.sortObjectEntriesByValues(game.players) as Array<[string,string]>
         this.watchGamePlay(gameId, d);

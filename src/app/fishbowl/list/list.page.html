@@ -26,7 +26,7 @@
                 {{game.label}}
                 <div class="ion-float-right inline-text-wrap">
                   <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
-                  <ion-badge  *ngIf="isActive(game)" color="success" class="is-live">live</ion-badge>
+                  <ion-badge  *ngIf="isLive(game)" color="success" class="is-live">live</ion-badge>
                 </div>
               </ion-card-title>
             </ion-card-header>
