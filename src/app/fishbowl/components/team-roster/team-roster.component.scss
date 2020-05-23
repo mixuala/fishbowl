@@ -1,25 +1,33 @@
 .team-roster {
-  .header, .players {
-    text-align: center;
-  }
+
   .even * {
     color:var(--ion-color-light);
   }
-  .team .team-name {
-    color:var(--ion-color-light);
-    font-weight: 700;
+  .header {
+    .team-name {
+      --padding-start: 8px;
+      color:var(--ion-color-light);
+      font-weight: 700;
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      // white-space: pre-wrap;
+      // display: inline-table;
+      ion-label {
+        margin-right: 0;
+        white-space: pre-wrap;
+      }
+    }
   }
 
   .players {
-    // ion-badge.player {
-    //   vertical-align: middle;
-    //   --padding-start: 20px;
-    //   --padding-end: 20px;
-    // }
-    .player {
+    ion-col {
+      text-align: center;
+    }
+    .player-name {
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: break-spaces;
+      white-space: pre-wrap;
       display: inline-table;
     }
     .on-the-spot {
@@ -29,8 +37,21 @@
       &.odd {
         background-color: var(--ion-color-tertiary);
       }
-
     }
   }
 
+}
+
+@media (max-width: 576px) {
+  .header .team-name {
+    font-size: smaller;
+  }
+  .players ion-col {
+    &.even {
+      text-align: left !important;
+    }
+    &.odd {
+      text-align: right !important;
+    }
+  }
 }

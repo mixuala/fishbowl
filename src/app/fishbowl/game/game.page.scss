@@ -139,14 +139,15 @@ ion-card-content{
     }
     .scoreboard {
       margin-top: 8px;
-
+      ion-note {
+        padding-left: 4px;
+        font-weight: 500;
+        color: var(--ion-color-dark);
+      }
+      
       .on-the-spot {
-        background-color: var(--ion-color-success);
-        // color: var(--ion-color-light);
         border-radius: 4px;
-        ion-note {
-          color: var(--ion-color-dark);
-        }
+        background-color: var(--ion-color-success);
         &.even {
           background-color: var(--ion-color-tertiary);
         }
