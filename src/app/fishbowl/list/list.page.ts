@@ -159,6 +159,11 @@ export class ListPage implements OnInit {
     return loading;
   }
 
+    
+  isGameOver( g:Game) {
+    return FishbowlHelpers.isGameOver(g);
+  }
+
   isActive( g:Game) {
     return FishbowlHelpers.isActive(g);
   }
@@ -167,12 +172,8 @@ export class ListPage implements OnInit {
     return FishbowlHelpers.isGametime(g);
   }
 
-  isLive( g:Game) {
-    return FishbowlHelpers.isLive(g);
-  }
-
   getCallToAction( g:Game ) {
-    if (g.complete) return "Game Over";
+    if (FishbowlHelpers.isGameOver(g)) return "Game Over";
     if (FishbowlHelpers.isGametime(g)) return "Join Game";
     else return "Grab a Spot Now"
   }
@@ -186,12 +187,12 @@ export class ListPage implements OnInit {
   doAction(game, index) {
     this.player$.pipe(
       tap( p=>{
-        if( game.activeGame ) {
+        if( this.isActive(game) ) {
           // activeGame
           this.router.navigate(['/app/game', game.uid]);
         }
         else if (game.players && game.players[p.uid]) {
-          // registered player
+          // preGame with registered player
           this.router.navigate(['/app/game', game.uid]);
         }
         else if (game.moderator && game.moderator[p.uid]) {
@@ -199,6 +200,7 @@ export class ListPage implements OnInit {
           this.router.navigate(['/app/game', game.uid]);
         }
         else {
+          // playerEntry CTA
           this.router.navigate(['/app/game', game.uid, 'player']);
         }
       })

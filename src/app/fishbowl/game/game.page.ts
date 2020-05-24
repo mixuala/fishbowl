@@ -782,7 +782,7 @@ export class GamePage implements OnInit {
     .then( ()=>{
       roundIndex = FishbowlHelpers.getRoundIndex(this.gameDict);
       if (!roundIndex) {
-        if (this.game.complete) {
+        if (this.isGameOver(this.game)) {
           return Promise.reject("gameComplete")
         }
         console.warn( "unknown state")
@@ -849,9 +849,9 @@ export class GamePage implements OnInit {
   // called from game-controls
   // tested OK
   nextPlayer(nextTeam=true):Promise<void>{
-    if (!this.stash.activeGame) return;
-
     let game = this.gameDict[this.gameId] as Game;
+    if (!this.isActive(game)) return;
+
     let round = this.gameDict.activeRound;
     let defaultDuration = this.initialTimerDuration
     return this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam, defaultDuration, });
@@ -941,7 +941,10 @@ export class GamePage implements OnInit {
     this.loadGame$(gameId).pipe(
       // takeUntil(this.done$),  // ??
       takeWhile( (d)=>!!d[gameId]),
-      tap( d=>this.titleService.setTitle( `${d.game.label} –– Fishbowl`) ),
+      tap( d=>{
+        let title = d && d.game && d.game.label;
+        if (title) this.titleService.setTitle( `${title} –– Fishbowl`)
+      }),
       map( (d)=>{
         let isGameOver = this.doGameOver(d);
         if (isGameOver) {
@@ -954,8 +957,6 @@ export class GamePage implements OnInit {
 
         let game = d.game;                  // closure
         this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
-        game.activeGame = FishbowlHelpers.isActive(game);
-        this.stash.activeGame = game.activeGame;
         this.stash.playersSorted = Helpful.sortObjectEntriesByValues(game.players) as Array<[string,string]>
         this.watchGamePlay(gameId, d);
       }),
@@ -1006,7 +1007,7 @@ export class GamePage implements OnInit {
   }
 
   doGameOver( d:GameDict ): boolean {
-    if (!d.game.complete) return false
+    if (!this.isGameOver(d.game)) return false
 
     this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
     let teamNames = d.game.teamNames.slice();
@@ -1085,10 +1086,16 @@ export class GamePage implements OnInit {
     })
   }
 
-  isGameTime(g:Game=null) {
-    let {gameTime, complete} = g || this.game;
-    return gameTime < Date.now()  && complete!==true;
+  isActive(g:Game=null) {
+    return FishbowlHelpers.isActive(g||this.game);
   }
+  isGameTime(g:Game=null) {
+    return FishbowlHelpers.isGametime(g||this.game);
+  }
+  isGameOver(g:Game=null) {
+    return FishbowlHelpers.isGameOver(g||this.game);
+  }
+
 
   onGameTime(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
     // reload page

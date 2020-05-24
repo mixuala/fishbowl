@@ -18,16 +18,32 @@ import { Player } from '../user/role';
 export class FishbowlHelpers {
 
   static
-  isActive( g:Game) {
-    return (g.activeGame || FishbowlHelpers.isGametime(g));
+  isGameOver( g:Game) {
+    return !!g.complete;
   }
+
+  /**
+   * usage: moderator can manually toggle a game active BEFORE isGametime()
+   * - 'opens the door" from the Players Lounge early
+   * @param g 
+   */
+  static
+  isActive( g:Game) {
+    return !g.complete && (g.activeGame || FishbowlHelpers.isGametime(g));
+  }
+
+  /**
+   * usage: UX conditions only. based on game.gameTime only.
+   * - listPage: CTA copy 
+   * - gamePage: disable moderator activeGame toggle
+   * - flash [live] badge
+   * 
+   * NOTE: use isActive() for most conditions, moderator can manually toggle true before isGametime()
+   * @param g 
+   */
   static
   isGametime( g:Game) {
-    return g.gameTime < Date.now();
-  }
-  static
-  isLive( g:Game) {
-    return !g.complete && FishbowlHelpers.isGametime(g);
+    return !g.complete && g.gameTime < Date.now();
   }
 
   static 

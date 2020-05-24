@@ -11,6 +11,7 @@ import { map, tap, switchMap, take, filter } from 'rxjs/operators';
 import { AuthService } from '../../services/auth-service.service';
 import { Player } from '../../user/role';
 import { AudioService } from '../../services/audio.service';
+import { FishbowlHelpers } from '../fishbowl.helpers';
 import { GameHelpers } from '../game-helpers';
 import { 
   Game, GameWatch, GameDict, RoundEnum,
@@ -103,7 +104,6 @@ export class EntryPage implements OnInit {
         this.game$ = this.gameRef.valueChanges().pipe( 
           tap( o=>{
             this.game = o;
-            this.stash.activeGame = o.gameTime < Date.now();
             this.loadEntries();
           })
         )
@@ -167,6 +167,12 @@ export class EntryPage implements OnInit {
   }
 
   // Helpers
+
+  isPregame(g:Game=null) {
+    g = g || this.game;
+    return !FishbowlHelpers.isGameOver(g) && !FishbowlHelpers.isGametime(g);
+  }
+  
   async presentLoading() {
     const loading = await this.loadingController.create({
       message: 'Loading...',

@@ -11,11 +11,28 @@
 
 <ion-content>
   <!-- grid mode -->
+
+  <!-- template states:
+    templates: 
+      // moderator
+      *ngIf isActive(game); else moderator_preGameAdmin
+      #moderator_preGameAdmin
+
+      // player
+      *ngIf !isGameOver(); else showGameOver
+        *ngIf isPlayerRegistered; else #playerEntryCTA
+          *ngIf isActive(); else #showPlayersLounge
+          #showPlayersLounge
+        #playerEntryCTA
+      #showGameOver
+    -->
+
+
   <ion-grid no-padding class="team-round" 
   [class.spotlight]="spotlight?.teamName && player?.teamName==spotlight.teamName"
   [class.even]="spotlight?.teamIndex%2==0"
   >
-    <ion-row class="ion-justify-content-center">
+    <ion-row class="ion-justify-content-center" *ngIf="game">
 
         <!-- moderator-control-panel -->
         <ion-col size="12" size-sm="8" size-md="6"  *ngIf="isModerator()">
@@ -26,14 +43,14 @@
               </ion-card-title>
               <div class="slot-end-wrap">
                 <ion-toggle color="success"  [disabled]="isGameTime()" 
-                [checked]="game?.activeGame" (click)="toggleActiveGame()"></ion-toggle>
-                <ion-badge color="success" class="is-live"  *ngIf="game?.activeGame" 
+                [checked]="isActive()" (click)="toggleActiveGame()"></ion-toggle>
+                <ion-badge color="success" class="is-live"  *ngIf="isActive()" 
                 >live</ion-badge>
               </div>
             </ion-card-header>
 
             <ion-card-content>
-              <div *ngIf="stash.activeGame; else preGameAdmin">
+              <div *ngIf="isActive(game); else moderator_preGameAdmin">
               <ion-list class="game-controls wide">
                 <ion-item>
                   <ion-button size="small" color="primary" 
@@ -43,7 +60,7 @@
                   [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" 
                   (click)="loadRoundClick()">Load Rounds</ion-button>
                   <ion-button size="small" color="success" slot="end"
-                  [disabled]="!game.rounds || !!game.activeRound || game.complete" 
+                  [disabled]="!game.rounds || !!game.activeRound || isGameOver()" 
                   (click)="beginGameRoundClick()">Begin Round</ion-button>
                 </ion-item>
                 <ion-item>
@@ -219,7 +236,7 @@
               ></app-score-card>
             </div>
 
-            <ng-template #preGameAdmin>
+            <ng-template #moderator_preGameAdmin>
               <ion-list class="game-admin wide">
                 <ion-item lines="full">
                   <ion-button size="small" color="success" (click)="doGameSettings()">
@@ -251,18 +268,9 @@
         </ion-col>
 
 
-
-
-
-
-
-
-
-
-
-
+      <ng-container *ngIf="!isGameOver(); else showGameOver">
         <!--  game-control-panel -->
-        <ion-col size="12" size-sm="8" size-md="6" *ngIf="isPlayerRegistered; else getPlayerRegistration">
+        <ion-col size="12" size-sm="8" size-md="6" *ngIf="isPlayerRegistered; else playerEntryCTA">
           <ion-card>
             <ion-card-header color="tertiary">      
               <ion-card-title>
@@ -277,7 +285,7 @@
 
             <!-- <ion-list class="ion-no-padding"> -->
 
-              <div  *ngIf="stash.activeGame; else inactiveGame">
+              <div  *ngIf="isActive(game); else showPlayersLounge">
 
 
               <div class="user-controls">
@@ -303,7 +311,7 @@
                     </ion-col>
                     <ion-col size=2>
                       <ion-item class="ion-no-padding" lines="none">
-                        <ion-button color="dark" size="small" [disabled]="stash.activeGame && 0" 
+                        <ion-button color="dark" size="small" [disabled]="isActive(game) && 0" 
                         (click)="doSettings()">
                           <ion-icon name="settings"> </ion-icon>
                         </ion-button>                           
@@ -470,8 +478,9 @@
               </div>
               </div>
 
-              <ng-template #inactiveGame>
-                <div class="game-countdown"  *ngIf="!game.complete; else gameOver">
+              <ng-template #showPlayersLounge> 
+                <!-- ion-card-content -->
+                <div class="game-countdown">
                   <ion-item-divider class="ion-margin-top">
                     <ion-note>countdown to game time</ion-note>
                   </ion-item-divider>
@@ -517,7 +526,7 @@
 
 
         <!-- game-new-player -->
-        <ng-template #getPlayerRegistration>
+        <ng-template #playerEntryCTA>
           <ion-col size="12" size-sm="8" size-md="6" *ngIf="game" class="ion-justify-content-center">
             <ion-card>
               <ion-card-header color="tertiary">      
@@ -531,7 +540,7 @@
                 
               <ion-card-content>
 
-                <div class="game-countdown"  *ngIf="!stash.activeGame">
+                <div class="game-countdown"  *ngIf="!isActive(game)">
                   <ion-item-divider class="ion-margin-top">
                     <ion-note>Countdown to game time</ion-note>
                   </ion-item-divider>
@@ -560,7 +569,7 @@
                         </ion-button>
                       </ion-col>
                     </ion-row>
-                    <ion-row *ngIf="stash.activeGame">
+                    <ion-row *ngIf="isActive(game)">
                       <ion-col>
                         <ion-button expand="block" color="success" class="taller"  
                         [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">
@@ -596,7 +605,30 @@
           <app-overview *ngIf="game" single-column="true"></app-overview>
 
         </ng-template>
+      </ng-container>        
+
+      <ng-template #showGameOver>
+        <ion-col size="12" size-sm="8" size-md="6">
+          <ion-card>
+            <ion-card-header color="tertiary">      
+              <ion-card-title>
+                {{game.label}}
+              </ion-card-title>
+              <ion-card-subtitle>
+                Fishbowl
+              </ion-card-subtitle>
+            </ion-card-header>    
+            <ion-card-content>
+              <app-game-over [game-summary]="gameSummary" [gameDict$]="gameWatch?.gameDict$"></app-game-over>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+        <!-- add startAGameCTA -->
+
+      </ng-template>        
     </ion-row>
+
   </ion-grid>
 
 </ion-content>

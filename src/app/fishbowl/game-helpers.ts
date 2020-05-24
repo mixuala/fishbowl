@@ -64,7 +64,6 @@ ionViewWillEnter():
     - set: gameDict, activeRound, game
     - set: gamePlayWatch if game.activeRound
       - [activeRoundId, gamePlayByRoundId$, gameLogByRoundId$]
-  - set: stash.activeGame <= game.gameTime
   - set: player {name, teamId, teamName}
   => gamePlay$:  
     - set: wordsRemaining

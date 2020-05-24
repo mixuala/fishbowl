@@ -130,6 +130,11 @@ html.md {
   vertical-align: middle;
 }
 
+ion-badge.wide {
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
 
 ion-toast {
   &.toast-below-header{

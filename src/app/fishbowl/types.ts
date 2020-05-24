@@ -69,7 +69,7 @@ export interface WordResult {
 
 /**
  * HACK: push GameAdminState to `/gamePlay`
- * - manage Game.activeGame==true BEFORE loadRounds()
+ * - manage isActive(game) BEFORE loadRounds()
  * - triggers cloudAction for all users
  * - monitor changes in Game.doInterstitials()
  */

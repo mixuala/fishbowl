@@ -17,16 +17,13 @@ ion-grid.center-grid {
 
 }
 
-.game-round-complete {
-  .game-summary {
-    .header {
-      ion-icon {
-        font-size: 1.5em;
-      }
-      ion-badge {
-        --padding-start: 16px;
-        --padding-end: 16px;
-      }
-    }
+.header {
+  ion-icon {
+    font-size: 1.5em;
   }
+}
+
+ion-badge.wide {
+  --padding-start: 16px;
+  --padding-end: 16px;
 }

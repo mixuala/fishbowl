@@ -22,11 +22,10 @@
           <ion-card class="game">
             <ion-card-header color="tertiary">
               <ion-card-title>
-                <!-- <ion-icon size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
                 {{game.label}}
                 <div class="ion-float-right inline-text-wrap">
                   <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
-                  <ion-badge  *ngIf="isLive(game)" color="success" class="is-live">live</ion-badge>
+                  <ion-badge  *ngIf="isActive(game)" color="success" class="is-live">live</ion-badge>
                 </div>
               </ion-card-title>
             </ion-card-header>
@@ -46,7 +45,7 @@
                   <ion-badge color="tertiary" class="ion-padding-horizontal">{{game.playerCount || 0}}</ion-badge>
                 </ion-label>
               </ion-item>
-              <ion-button expand="block" [color]="!game.complete ? 'success':'tertiary'"
+              <ion-button expand="block" [color]="!isGameOver(game) ? 'success':'tertiary'"
               (click)="doAction(game, i)"
               >{{ getCallToAction(game) }}</ion-button>   
             </ion-card-content>
