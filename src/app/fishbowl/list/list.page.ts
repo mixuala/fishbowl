@@ -4,8 +4,8 @@ import { LoadingController, } from '@ionic/angular';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, of, from, BehaviorSubject } from 'rxjs';
-import { map, tap, switchMap, take, filter } from 'rxjs/operators';
+import { Observable, Subject, of, from, BehaviorSubject, interval } from 'rxjs';
+import { map, tap, switchMap, take, filter, first } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -142,9 +142,11 @@ export class ListPage implements OnInit {
   }
 
   ionViewDidEnter() {
+    interval(500).pipe(first()).subscribe(()=>this.stash.showSocialButtons = true)
     this.stash.listen = true;
   }
   ionViewDidLeave() {
+    this.stash.showSocialButtons = false;
     this.stash.listen = false;
   }
   

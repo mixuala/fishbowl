@@ -872,6 +872,7 @@ export class GamePage implements OnInit {
   }
   
   ionViewDidEnter() {
+    interval(500).pipe(first()).subscribe(()=>this.stash.showSocialButtons = true)
     if (this.stash.wasCached) {
       // just replay missing gamePlay events, ONCE
       this.gameDict.gamePlayWatch.gamePlay$.pipe(
@@ -888,6 +889,7 @@ export class GamePage implements OnInit {
 
 
   ionViewWillLeave() {
+    this.stash.showSocialButtons = false;
     this.titleService.setTitle( this.stash.restoreTitle )
     this.stash.isActivePage = false;
     // console.warn("111: ionViewWillLeave$>>  isActivePage=", this.stash.isActivePage);

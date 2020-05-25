@@ -148,3 +148,9 @@ ion-toast {
     --ion-color-base: rgba(var(--ion-color-success-rgb), 0.85) !important;
   }
 }
+
+.social-buttons {
+  ion-icon {
+    font-size: 32px;
+  }
+}
