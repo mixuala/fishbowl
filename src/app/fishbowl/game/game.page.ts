@@ -326,11 +326,13 @@ export class GamePage implements OnInit {
     }
 
     if (changed.includes('log')) {
-      let lastKey = Object.keys(gamePlay.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
-      let sound = gamePlay.log[-lastKey].result ? 'ok' : 'pass';
-      this.audio.play(sound);
-      // console.info( "*** doGamePlayUx(): detect timer WORD action by change in gamePlay.log", sound);
-      return;
+      try {
+        let lastKey = Object.keys(gamePlay.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
+        let sound = gamePlay.log[-lastKey].result ? 'ok' : 'pass';
+        this.audio.play(sound);
+        // console.info( "*** doGamePlayUx(): detect timer WORD action by change in gamePlay.log", sound);
+        return;
+      } catch (err) {}
     }
   }
 

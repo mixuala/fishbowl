@@ -158,72 +158,74 @@
                 </ion-item>
                 
                 <ng-container *ngIf="stash.showModeratorGameControls">
-                  <ion-button expand="block" class="spotlight" size="small"
-                      [color]="spotlight?.teamIndex ? 'success' : 'tertiary'"
-                      >
+                  <ng-container *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
+
+                    <ion-button expand="block" class="spotlight" size="small"
+                    [color]="spotlight?.teamIndex ? 'success' : 'tertiary'"
+                    >
                       <ion-icon name="person" slot="start"></ion-icon>
                       {{spotlight?.playerName}}
-                  </ion-button>
-                  <div class="teleprompter"  *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
-                    <ion-item class="short">
-                      <!-- <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p> -->
-                      <ion-label class="inline-text-wrap">
-                        <ion-note class="ion-margin-horizontal">remaining</ion-note>
-                        <ion-badge color="tertiary" class="ion-padding-horizontal">{{gamePlay.remaining?.length || 0}}</ion-badge>
-                      </ion-label>
-                      <ion-label class="inline-text-wrap">
-                        <ion-note class="ion-margin-horizontal">round</ion-note>
-                        <ion-badge color="light" class="ion-padding-horizontal">{{activeRound?.round || "--"}}</ion-badge>
-                      </ion-label>
-                    </ion-item>
-  
-                    <ion-item color="medium" expand="block" class="secret-word"
-                    (click)="beginPlayerRoundClick()"
-                    >
-                      <ion-label class="ion-text-wrap ion-text-center">
-                        {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[ready]')}}
-                      </ion-label>
-                    </ion-item>
+                    </ion-button>
+                    <div class="teleprompter">
+                      <ion-item class="short">
+                        <!-- <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p> -->
+                        <ion-label class="inline-text-wrap">
+                          <ion-note class="ion-margin-horizontal">remaining</ion-note>
+                          <ion-badge color="tertiary" class="ion-padding-horizontal">{{gamePlay.remaining?.length || 0}}</ion-badge>
+                        </ion-label>
+                        <ion-label class="inline-text-wrap">
+                          <ion-note class="ion-margin-horizontal">round</ion-note>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{activeRound?.round || "--"}}</ion-badge>
+                        </ion-label>
+                      </ion-item>
+    
+                      <ion-item color="medium" expand="block" class="secret-word"
+                      (click)="beginPlayerRoundClick()"
+                      >
+                        <ion-label class="ion-text-wrap ion-text-center">
+                          {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[ready]')}}
+                        </ion-label>
+                      </ion-item>
 
 
-                    <ion-grid class="ion-no-padding"><ion-row>
-                      <ion-col size=5>
-                        <ion-button color="danger" expand="block" 
-                        (click)="onWordActionClick('PASS')" [disabled]="gamePlay.timerPausedAt || !gamePlay.isTicking"
-                        >PASS</ion-button>
-                      </ion-col>
-                      <ion-col size=7>
-                        <ion-button color="success" expand="block"
-                        (click)="onWordActionClick('OK')" [disabled]="gamePlay.timerPausedAt || !gamePlay.playerRoundBegin"
-                        >OK</ion-button>
-                      </ion-col>
-                    </ion-row></ion-grid>
-  
-                  </div>
-
-                  <div  class="timer-controls ion-margin-bottom" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
-                    <div #animateTarget class="wrapper">
-                      <ion-button id="play-timer" expand="block" color="success" 
-                        (click)="onTimerClick()"   
-                        [class.is-ticking]="gamePlay?.isTicking"
-                        [class.pause]="gamePlay?.timerPausedAt"
-                        >
-                        <span class="when-not-ticking">{{gamePlay?.timerPausedAt || gamePlay.timerDuration || initialTimerDuration}}s</span>
-                        <ion-icon name="pause" color="dark" *ngIf="gamePlay?.isTicking && !gamePlay?.timerPausedAt"></ion-icon>
-                      </ion-button>
-                      <app-countdown-timer #countdownTimer fill="time" [duration]="gamePlay?.timer" [units]="{from: 'second', to: 'second'}"
-                        [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
-                        >[done]
-                      </app-countdown-timer>
-                      <ion-button class="volume" color="light" (click)="toggleVolumeIcon()">
-                        <ion-icon [name]="stash.audioVolumeIcon" >
-                          <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
-                        </ion-icon>
-                      </ion-button>
+                      <ion-grid class="ion-no-padding"><ion-row>
+                        <ion-col size=5>
+                          <ion-button color="danger" expand="block" 
+                          (click)="onWordActionClick('PASS')" [disabled]="gamePlay.timerPausedAt || !gamePlay.isTicking"
+                          >PASS</ion-button>
+                        </ion-col>
+                        <ion-col size=7>
+                          <ion-button color="success" expand="block"
+                          (click)="onWordActionClick('OK')" [disabled]="gamePlay.timerPausedAt || !gamePlay.playerRoundBegin"
+                          >OK</ion-button>
+                        </ion-col>
+                      </ion-row></ion-grid>
+    
                     </div>
-                  </div>
 
+                    <div  class="timer-controls ion-margin-bottom" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
+                      <div #animateTarget class="wrapper">
+                        <ion-button id="play-timer" expand="block" color="success" 
+                          (click)="onTimerClick()"   
+                          [class.is-ticking]="gamePlay?.isTicking"
+                          [class.pause]="gamePlay?.timerPausedAt"
+                          >
+                          <span class="when-not-ticking">{{gamePlay?.timerPausedAt || gamePlay.timerDuration || initialTimerDuration}}s</span>
+                          <ion-icon name="pause" color="dark" *ngIf="gamePlay?.isTicking && !gamePlay?.timerPausedAt"></ion-icon>
+                        </ion-button>
+                        <app-countdown-timer #countdownTimer fill="time" [duration]="gamePlay?.timer" [units]="{from: 'second', to: 'second'}"
+                          [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
+                          >[done]
+                        </app-countdown-timer>
+                        <ion-button class="volume" color="light" (click)="toggleVolumeIcon()">
+                          <ion-icon [name]="stash.audioVolumeIcon" >
+                            <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
+                          </ion-icon>
+                        </ion-button>
+                      </div>
+                    </div>
 
+                  </ng-container>
                 </ng-container>
               </ion-list>
               
