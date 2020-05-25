@@ -335,7 +335,36 @@ export class FishbowlHelpers {
         return arr
       })
     )
-    
+  }
+
+  static 
+  pipeSortKeys(keys:string[], asc:boolean[]=[], compareAsBoolean:string[]=[]){
+    return pipe(
+      map( (arr:any[])=>{
+        arr = arr.sort( (a,b)=>{
+          let check = 0;
+          keys.find( (key,i)=>{
+            let order:number = (asc.length>i) ? (!!asc[i] ? 1 : -1) : (asc[asc.length-1] && 1);
+            if (compareAsBoolean.includes(key)==false && (typeof a[key]=='boolean' || typeof b[key]=='boolean')) {
+              compareAsBoolean.push(key)
+            }
+            if ( compareAsBoolean.includes(key) ) {
+              check = order * (a[key] ? 1 : 0)-(b[key] ? 1 : 0)
+            }
+            else {
+              check = order * a[key]-b[key];
+            }
+            if (check===0) return false;
+            return true;
+          })
+          return check;
+        });
+
+        // console.log(arr.map( (o,i)=>Helpful.pick(o, 'complete', 'gameTime', 'label')));
+        return arr;
+
+      })
+    )
   }
 
   static

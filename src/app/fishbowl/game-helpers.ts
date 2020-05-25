@@ -141,7 +141,8 @@ export class GameHelpers {
     ).snapshotChanges().pipe(
       FishbowlHelpers.pipeSnapshot2Data(),
       FishbowlHelpers.pipeGameIsPublished(player$),
-      FishbowlHelpers.pipeSort('gameTime')
+      // FishbowlHelpers.pipeSort('gameTime'),
+      FishbowlHelpers.pipeSortKeys(['complete', 'gameTime'], [true,true], ['complete']),
     )
   }
 

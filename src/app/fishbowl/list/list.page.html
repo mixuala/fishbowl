@@ -20,11 +20,12 @@
     <ion-row [class.ion-justify-content-center]="games.length==1">
         <ion-col size="12" size-sm="6" size-xl="4" *ngFor="let game of games, let i=index">
           <ion-card class="game">
-            <ion-card-header color="tertiary">
+            <ion-card-header [color]="isGameOver(game) ? 'success' : 'tertiary'">
               <ion-card-title>
                 {{game.label}}
                 <div class="ion-float-right inline-text-wrap">
                   <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
+                  <ion-badge  *ngIf="isGameOver(game)" color="tertiary" >Game Over</ion-badge>
                   <ion-badge  *ngIf="isActive(game)" color="success" class="is-live">live</ion-badge>
                 </div>
               </ion-card-title>
