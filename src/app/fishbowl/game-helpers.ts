@@ -3,7 +3,7 @@ import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularf
 import * as firebase from 'firebase/app';
 
 import { Observable, of, combineLatest, ReplaySubject, Subject, } from 'rxjs';
-import { map, take, share, tap, first, debounceTime, pairwise, startWith, takeUntil } from 'rxjs/operators';
+import { map, take, share, tap, first, debounceTime, pairwise, startWith, takeUntil, withLatestFrom } from 'rxjs/operators';
 
 import * as dayjs from 'dayjs';
 
@@ -559,83 +559,113 @@ export class GameHelpers {
     })
   }
 
-      
+
+  /**
+   * moveSpotlight to next player, by default it will infer spotlight from 
+   * the last entry in the GameLog. 
+   * to advance spotlight manually, set options.useGamePlaySpotlight==true
+   * 
+   * @param watch 
+   * @param round 
+   * @param options 
+   *    useGamePlaySpotlight: if true, use spotlight from gamePlay 
+   */
   moveSpotlight(
     watch:GamePlayWatch, 
     round:GamePlayRound, 
-    options:{ nextTeam?:boolean, defaultDuration?:number, spotlightState?:any} = {} 
+    options:{ nextTeam?:boolean, defaultDuration?:number
+      , spotlightState?:any   // deprecate
+      , useGamePlaySpotlight?:boolean
+    } = {} 
   ): 
     Promise<void>
   {
-    let {uid, gamePlay$} = watch;
-    let initState = JSON.stringify(options.spotlightState);
-    // rewrite without promise
-    return new Promise( (resolve, reject)=>{
-      gamePlay$.pipe(
-        take(1),
-        tap( (gamePlay)=>{       
-          
-          if (!gamePlay) return;  // round is complete
-          if (!round) {
-            console.error("round is empty")
-            return      // not sure this is the right path
-          }
-          let curState = JSON.stringify(gamePlay.spotlight);
-          if (initState && curState != initState) {
-            console.warn("120: CANCEL spotlight state has already changed to state=", curState)
-            return;
-          }
-
-
-          let spotlight = Object.assign( {} , gamePlay && gamePlay.spotlight );
-          let teamNamesInPlayOrder = round.orderOfPlay;
-          let limits = {
-            teamIndex: teamNamesInPlayOrder.length,
-            playerIndex: teamNamesInPlayOrder.map( teamName=>{
-              return round.teams[teamName].length
-            })
-          }
-          if (options.nextTeam!==false){
-            // increment team first
-            spotlight.teamIndex +=1;
-            if (spotlight.teamIndex >= limits.teamIndex){
-              // after last team, 
-              spotlight.teamIndex = 0;
-              // increment players
-              spotlight.playerIndex = spotlight.playerIndex.map( (v,i)=>{
-                v +=1;
-                return v >= limits.playerIndex[i] ? 0 : v;
-              });
+    let teamNamesInPlayOrder = round.orderOfPlay;
+    let limits = {
+      teamIndex: teamNamesInPlayOrder.length,
+      playerIndex: teamNamesInPlayOrder.map( teamName=>{
+        return round.teams[teamName].length
+      })
+    }
+    let {uid, gamePlay$, gameLog$ } = watch;
+    return gameLog$.pipe(
+      withLatestFrom(gamePlay$),
+      first(),
+      map( (res:[GamePlayLog, GamePlayState])=>{
+        let [gameLog, gamePlay ] = res;
+        let spotlight:any;
+        if (!gameLog || !!options.useGamePlaySpotlight ) {
+          spotlight = Helpful.pick(gamePlay.spotlight, "teamIndex", "teamName", "playerIndex");
+        }
+        else {
+          // get spotlight state from gameLog
+          let roundKey = `round${gamePlay.doBeginGameRound}`;
+          let log = gameLog[roundKey]
+          let sortedTimestamps = Object.keys(log).map( v=>parseInt(v) ).sort().reverse();  // sort Timestamps in MostRecent first, DESC order
+          let lastWordResult = log[ sortedTimestamps[0] ];
+          let {playerName, teamName } = lastWordResult;
+          let teamIndex = teamNamesInPlayOrder.findIndex( v=>v==teamName);
+          let playerIndex = teamNamesInPlayOrder.map( (t,i)=>{
+            let found = sortedTimestamps.find( k=> log[k] && log[k].teamName==t );
+            let wordResult = found && log[found];
+            if (!wordResult) return 0;
+            let j = round.teams[t].findIndex( k=>round.players[k]==wordResult.playerName );
+            if (~j) {
+              if (i>teamIndex) {
+                j++; // pre-increment playerIndex, for teamIndex++
+              }
+              if (j>=limits.playerIndex[i]) {
+                j=0;
+              }
             }
-          } else {
-            // increment player on the SAME team
-            if (spotlight.teamIndex == -1) spotlight.teamIndex = 0;
-            let i = spotlight.teamIndex;
-            spotlight.playerIndex[ i ] += 1;
-            if (spotlight.playerIndex[ i ] >= limits.playerIndex[ i ]) spotlight.playerIndex[ i ] = 0;
-          }
-          spotlight.teamName = teamNamesInPlayOrder[spotlight.teamIndex];
-          // where does gamePlayTimerDuration first get set?
-          let timerDuration = gamePlay.timerDuration || options.defaultDuration;
-
-          let update = {
-            spotlight,
-            timer: null,
-            log: {},
-            timerDuration,
-            word: null,
-            isTicking: false,
-            timerPausedAt: null,
-          } as GamePlayState;
-          // console.warn("13:a moveSpotlight=", JSON.stringify(spotlight))
-          this.pushGamePlayState(watch, update).then( ()=>{
-            resolve();
+            return ~j ? j : 0;
           });
-        }),
-      ).subscribe();
-    });  
-  }
+          
+          let spotlight0 = {teamIndex, teamName, playerIndex };
+          console.warn("13:a gameLog spotlight=", JSON.stringify(spotlight0), limits.playerIndex)
+          spotlight = {teamIndex, teamName, playerIndex };
+        }
 
+        if (options.nextTeam!==false){
+          // increment team first
+          spotlight.teamIndex +=1;
+          if (spotlight.teamIndex >= limits.teamIndex){
+            // after last team, 
+            spotlight.teamIndex = 0;
+            // increment players
+            spotlight.playerIndex = spotlight.playerIndex.map( (v,i)=>{
+              v +=1;
+              return v >= limits.playerIndex[i] ? 0 : v;
+            });
+          }
+        } else {
+          // increment player on the SAME team
+          // console.log("13:a2 SKIP player on same team",  JSON.stringify(spotlight))
+          if (spotlight.teamIndex == -1) spotlight.teamIndex = 0;
+          let i = spotlight.teamIndex;
+          spotlight.playerIndex[ i ] += 1;
+          if (spotlight.playerIndex[ i ] >= limits.playerIndex[ i ]) spotlight.playerIndex[ i ] = 0;
+        }
+        spotlight.teamName = teamNamesInPlayOrder[spotlight.teamIndex];
+        // where does gamePlayTimerDuration first get set?
+        let timerDuration = gamePlay.timerDuration || options.defaultDuration;
+
+        let update = {
+          spotlight,
+          timer: null,
+          log: {},
+          timerDuration,
+          word: null,
+          isTicking: false,
+          timerPausedAt: null,
+        } as GamePlayState;
+        console.warn("13:b moveSpotlight=", JSON.stringify(spotlight))
+        return this.pushGamePlayState(watch, update).then( o=>{return});
+      }),
+    ).toPromise().then( ()=>{return});
+  }
+      
+  
 
   /**
    * update GamePlayLog with the lastest values from the player round, gamePlay.log
@@ -663,12 +693,13 @@ export class GameHelpers {
           return Promise.resolve()
           .then( ()=>{
             let logPath = `/gameLogs/${gameId}/${roundKey}`;
-            // console.log(">>> pushGameLog(): mergeLogEntries", mergeLogEntries)
+            console.log("13: >>> pushGameLog(): mergeLogEntries", mergeLogEntries)
             return this.db.object<GamePlayLog>(logPath).update(mergeLogEntries)
           })
           .then( v=>{
             // merge gameLog entries into round.entries
-            let merged = FishbowlHelpers.updateFishbowl(round, mergeLogEntries);
+            let cleanLog = FishbowlHelpers.filter_BeginRoundMarker(gamePlay.log);
+            let merged = FishbowlHelpers.updateFishbowl(round, cleanLog);
             let updateRound = {
               entries: merged,
             } as GamePlayRound;
@@ -819,7 +850,6 @@ export class GameHelpers {
       Object.entries(teams).forEach( ([teamName,playerIds], i)=>{
         if (spotlight.playerIndex[i]>playerIds.length-1) spotlight.playerIndex[i]=0;
       });
-      
       let waitFor=[
         this.db.object<GamePlayRound>(`/rounds/${activeRoundId}`).update( {teams} ),
         this.pushGamePlayState( gameDict.gamePlayWatch, {spotlight} ),

@@ -11,7 +11,8 @@ import {
   GamePlayState,
   GamePlayLogEntries,
   PlayerByUids,
-  GameDict
+  GameDict,
+  WordResult
 } from './types';
 import { Player } from '../user/role';
 
@@ -306,6 +307,13 @@ export class FishbowlHelpers {
     // console.log("   >>> fishbowl false=", Object.values(fishbowl).filter(v=>v==false).length)
     // console.log("   >>> round.entries false=", Object.values(round.entries).filter(v=>v==false).length)
     return fishbowl as {[word:string]: boolean};
+  }
+
+
+  static BEGIN_ROUND_MARKER = "##begin-round##"
+  static
+  filter_BeginRoundMarker = (o={})=>{
+    return Object.entries(o).filter( ([k,v]:[string, WordResult])=>v.word!=FishbowlHelpers.BEGIN_ROUND_MARKER ).reduce( (o,[k,v])=>(o[k]=v,o), {});
   }
 
   static

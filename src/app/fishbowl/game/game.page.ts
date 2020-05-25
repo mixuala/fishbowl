@@ -26,7 +26,6 @@ import {
 } from '../types';
 
 
-
 const { Storage } = Plugins;
 declare let window;
 
@@ -169,7 +168,7 @@ export class GamePage implements OnInit {
         if (!round) throw new Error("round should not be empty when playerRoundComplete==true")
 
         let gamePlayCopy = Object.assign({}, gamePlay);
-        gamePlayCopy.log = Object.assign({}, gamePlay.log);
+        gamePlayCopy.log = FishbowlHelpers.filter_BeginRoundMarker(gamePlay.log);
         let gameSummary = {
           spotlightPlayer,
           game: Helpful.pick(game, 'playerCount', 'teamNames'),
@@ -855,7 +854,7 @@ export class GamePage implements OnInit {
 
     let round = this.gameDict.activeRound;
     let defaultDuration = this.initialTimerDuration
-    return this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam, defaultDuration, });
+    return this.gameHelpers.moveSpotlight(this.gamePlayWatch, round, {nextTeam, defaultDuration, useGamePlaySpotlight:true});
   }
 
 
@@ -1249,9 +1248,18 @@ export class GamePage implements OnInit {
           return this._completeGameRound(round);
         }
 
+        let {playerName, teamName} = this.spotlight;
+        let wordResult:WordResult = {
+          // moveSpotlight(): push beginRound entry to gameLog
+          playerName, teamName, 
+          result: false, 
+          word: FishbowlHelpers.BEGIN_ROUND_MARKER,
+        }
+        update.log = {
+          [-1*Date.now()]: wordResult
+        }
         console.info("\t>>>> playerRoundWillBegin()");
         update.playerRoundBegin = true;
-
       }
     }
 
@@ -1634,7 +1642,9 @@ export class GamePage implements OnInit {
       console.info("12:\t>>>> spotlightWillChange()");
     })
     .then(()=>{
-      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound, {spotlightState}).then( ()=>{
+      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound
+        // , { spotlightState }
+      ).then( ()=>{
         console.info("12: \t>>>> spotlightDidChange()");
       })
     })

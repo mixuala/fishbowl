@@ -5,7 +5,7 @@ import { first, tap, pairwise, startWith, filter } from 'rxjs/operators';
 
 import { Game, GamePlayState, WordResult, GamePlayLogEntries, } from '../../types';
 import { Player } from '../../../user/role';
-
+import { FishbowlHelpers } from '../../fishbowl.helpers';
 
 /**
  * usage:
@@ -38,9 +38,11 @@ export class ScoreCardComponent implements OnInit {
   @Output() onChange = new EventEmitter<GamePlayLogEntries>();
 
 
+
   getLog(gamePlay:GamePlayState) {
-    if (!this.isModerator) return gamePlay.log;
-    return Object.assign( {}, gamePlay.log, this.changes);
+    let cleanLog = FishbowlHelpers.filter_BeginRoundMarker(gamePlay.log);
+    if (!this.isModerator) return cleanLog
+    return Object.assign( {}, cleanLog, this.changes);
   }
 
   authorize(){
