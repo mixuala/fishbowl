@@ -375,7 +375,7 @@ export class GamePage implements OnInit {
   public listen$ : Subject<boolean> = new Subject<boolean>();
   public upcomingGames$: Observable<Game[]>;
   public game$:Observable<Game>;
-  public gameRef:AngularFireObject<Game>;
+  private gameRef:AngularFireObject<Game>;
   public playerId: string;
   public player: Player;
   public isPlayerRegistered: boolean;
@@ -528,6 +528,8 @@ export class GamePage implements OnInit {
       checkInComplete: false,
     }
     await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
+    await this.gameRef.update( {isGameOpen:true} )
+
     this.stash.showCheckInDetails = true;
   }
 
@@ -635,9 +637,8 @@ export class GamePage implements OnInit {
       }
     }
         
-    // update Game, use AngularFire ref
+    // update Game
     // insert rounds in gameplay order
-    const gameRef = this.db.object<Game>(`/games/${this.gameId}`);
     let byUids = rounds.reduce( (o,v)=>(o[v.uid]=v.round, o), {})
     byUids = Object.assign(this.game.rounds || {}, byUids)  // merge with existing rounds
     let teamNames = this.game.teamNames || Object.keys(rounds[0].teams);
@@ -646,7 +647,7 @@ export class GamePage implements OnInit {
 
     waitFor.push (
       // Game
-      gameRef.update({
+      this.gameRef.update({
         teamNames, // DEV, add edit page for game to set/edit teams
         rounds: byUids,
       })
@@ -868,6 +869,7 @@ export class GamePage implements OnInit {
     this.stash.restoreTitle = this.titleService.getTitle();
     this.stash.isActivePage = true;
     this.gameId = this.activatedRoute.snapshot.paramMap.get('uid');
+    this.gameRef = this.db.object<Game>(`/games/${this.gameId}`);
     this.stash.wasCached = this.watchGame(this.gameId);
   }
   
@@ -1079,17 +1081,21 @@ export class GamePage implements OnInit {
 
   toggleActiveGame(g:Game) {
     if (!this.isModerator()) return
-    let game_af = this.db.object<Game>(`/games/${this.gameId}`);
-    game_af.valueChanges().pipe(
+    this.gameRef.valueChanges().pipe(
       first(),
     ).subscribe( (g)=>{
       let activeGame = g && !g.activeGame;
-      game_af.update( {activeGame} )
+      this.gameRef.update( {activeGame} )
     })
   }
 
+
   isActive(g:Game=null) {
     return FishbowlHelpers.isActive(g||this.game);
+  }
+  isGameOpen(g:Game=null){
+    g = g || this.game;
+    return !!g.isGameOpen;
   }
   isGameTime(g:Game=null) {
     return FishbowlHelpers.isGametime(g||this.game);
@@ -1097,7 +1103,6 @@ export class GamePage implements OnInit {
   isGameOver(g:Game=null) {
     return FishbowlHelpers.isGameOver(g||this.game);
   }
-
 
   onGameTime(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
     // reload page
@@ -1657,9 +1662,10 @@ export class GamePage implements OnInit {
     if (isGameComplete) {
       updateGame.teams = round.teams;
       updateGame.complete = true;
+      updateGame.isGameOpen = null;
     }    
     waitFor.push(
-      this.db.object<Game>(`/games/${this.gameId}`).update( updateGame )
+      this.gameRef.update( updateGame )
     )
 
     

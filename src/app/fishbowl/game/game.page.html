@@ -285,8 +285,7 @@
 
             <!-- <ion-list class="ion-no-padding"> -->
 
-              <div  *ngIf="isActive(game); else showPlayersLounge">
-
+              <ng-container  *ngIf="isGameOpen(); else showPlayersLounge">
 
               <div class="user-controls">
                 <ion-item-divider class="ion-margin-top">
@@ -476,29 +475,37 @@
                   >[done]</app-countdown-timer>
                 </div>
               </div>
-              </div>
+              </ng-container>
 
               <ng-template #showPlayersLounge> 
                 <!-- ion-card-content -->
                 <div class="game-countdown">
-                  <ion-item-divider class="ion-margin-top">
-                    <ion-note>countdown to game time</ion-note>
-                  </ion-item-divider>
-                  <div class="game-time ion-text-center">
+                  <div class="game-time ion-text-center"  *ngIf="!isGameTime()">
+                    <ion-item-divider class="ion-margin-top">
+                      <ion-note>countdown to game time</ion-note>
+                    </ion-item-divider>
                     <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"
                     (onBuzz)="onGameTime($event)"
                     ></app-countdown-timer>
+                  </div>
+                  <div class="game-time ion-text-center">
                     <ion-text  color="dark">
                       Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                     </ion-text>
+
                     <div class="review-game-entry">
-  
                       <ion-label>
                         <h1>Welcome to the <span>Players Lounge</span></h1>
                         <p><ion-text color="tertiary">
-                        Just chill until the game goes live.
+                        Just chill while the other players arrive.
                         </ion-text></p>
                       </ion-label>
+  
+                      <ion-button expand="block" color="success" class="taller" [disabled]="!game.chatRoom"
+                      [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">
+                        <ion-icon name="videocam" slot="start"></ion-icon>
+                        Open Video Chat Room
+                      </ion-button>
   
                       <ion-button expand="block" color="tertiary" class="taller ion-margin-top"
                       routerDirection="forward" [routerLink]="['/app/game', gameId, 'player']">
@@ -506,14 +513,9 @@
                         <ion-text color="light" *ngIf="player">&nbsp;{{player.displayName}}</ion-text>
                       </ion-button>
                     </div>
+                    
                   </div>
                 </div>
-
-                <ng-template #gameOver>
-                  <app-game-over [game-summary]="gameSummary" [gameDict$]="gameWatch?.gameDict$"></app-game-over>
-                </ng-template>
-
-
               </ng-template>
           
 
@@ -571,7 +573,7 @@
                     </ion-row>
                     <ion-row *ngIf="isActive(game)">
                       <ion-col>
-                        <ion-button expand="block" color="success" class="taller"  
+                        <ion-button expand="block" color="success" class="taller"  [disabled]="!game.chatRoom" 
                         [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">
                           <ion-icon name="videocam" slot="start"></ion-icon>
                           Open Video Chat Room

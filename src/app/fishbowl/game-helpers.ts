@@ -868,6 +868,7 @@ export class GameHelpers {
       }
       let resetGame = {
         complete: false,
+        isGameOpen: null,
         activeRound: null,
         checkIn: Object.keys(game.moderators).reduce( (o,k)=>(o[k]=false,o),{}),   // default moderator are hidden
         rounds: onlyUnplayed ? unplayed : null,

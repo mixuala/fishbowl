@@ -19,6 +19,7 @@ export interface Game {
   timezoneOffset: number;
   playerCount?: number;
   players?: PlayerByUids;
+  isGameOpen?: boolean;
   checkIn?: CheckInByUids;
   moderators?: {
     [uid:string]: boolean;
