@@ -338,6 +338,9 @@ ion-card-content{
       > * {
         margin: 0 auto;
       }
+      .flex-row {
+        width: 100%;
+      }
       &.shorter {
         height: 40px;
         ion-toggle {
