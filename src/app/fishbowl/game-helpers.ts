@@ -659,6 +659,7 @@ export class GameHelpers {
           isTicking: false,
           timerPausedAt: null,
           doBeginPlayerRound: true,
+          playerRoundComplete: false,
         } as GamePlayState;
         console.warn("13:b moveSpotlight=", JSON.stringify(spotlight))
         return this.pushGamePlayState(watch, update).then( o=>{return});

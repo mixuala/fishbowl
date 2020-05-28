@@ -43,6 +43,7 @@ export class HelpComponent implements OnInit {
     }
     const defaults:any = {
       once: false,
+      replaceSame: false,
       // backdropDismiss: true,
       // enableBackdropDismiss: true,
       // showBackdrop: true,
@@ -60,7 +61,7 @@ export class HelpComponent implements OnInit {
         }
         if (template==options.template){
           if (!options.replaceSame) {
-            return;
+            return Promise.reject('skip');
           }
           return HelpComponent.dismissTemplate(template);
         }

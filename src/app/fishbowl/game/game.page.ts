@@ -85,7 +85,7 @@ export class GamePage implements OnInit {
         let changed = gamePlay.changedKeys || [];
         if (changed.includes('spotlight')) {
           this.spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
-          this.stash.onTheSpot = this.spotlight && this.spotlight.uid === this.getActingPlayerId(player);
+          this.stash.onTheSpot = this.hasSpotlight(player)
         }        
         let isThrottling = this.throttleTimeAndWordEvents(gamePlay);        
         this.doGamePlayUx(gamePlay);
@@ -290,7 +290,7 @@ export class GamePage implements OnInit {
       }
     })
     .then( async ()=>{
-      if (changed.includes('spotlight')) {
+      if (!!gamePlay.doBeginGameRound && changed.includes('spotlight')) {
         if (HelpComponent.curTemplate()=='begin-player-round'){
           return;
         }
@@ -590,7 +590,8 @@ export class GamePage implements OnInit {
 
         HelpComponent.presentModal(this.modalCtrl, {
           template:'player-welcome',
-          // once: `${gameTitle}`,
+          once: true,
+          replaceSame: false,
           dismissKeyPrefix: game.label,
           gameTitle, chatRoom,
           playerName, hasEntry, entryLink,
@@ -623,7 +624,7 @@ export class GamePage implements OnInit {
       tap( player=>{
         let dontWait = HelpComponent.presentModal(this.modalCtrl, {
           template:'check-in',
-          once:false,
+          replace: true,
           playerName: player.displayName,
           backdropDismiss: false,
           // duration: status===false ? 9999 : ALREADY_CHECKED_IN_DISMISS,
@@ -772,10 +773,11 @@ export class GamePage implements OnInit {
   async showBeginPlayerRoundInterstitial(gamePlay:GamePlayState, game:Game){
     if (this.isModerator()) return;
     
-    // role guard
+    // role & state guards
     let player = this.player$.getValue();
-    if (!game.checkIn[ this.getActingPlayerId(player) ]) 
-      return
+    if (!game.checkIn[ this.getActingPlayerId(player) ]) return
+    if (!game.activeRound) return
+
 
     // confirm state, gamePlay.doBeginPlayerRound has not changed
     gamePlay = await this.gameDict.gamePlayWatch.gamePlay$.pipe( first() ).toPromise();
@@ -783,10 +785,13 @@ export class GamePage implements OnInit {
       return
     }
 
-    let resetOnTheSpot = (p:Player=null):boolean=>{
-      let player = p || this.player$.getValue();
-      let onTheSpot = this.spotlight && this.spotlight.uid === this.getActingPlayerId(player);
+    let _resetOnTheSpot = (p:Player=null):boolean=>{
+      let onTheSpot = this.hasSpotlight(p)
       return this.stash.onTheSpot = onTheSpot;
+    }
+
+    let playSound = (sound:string) =>{
+      this.audio.play(sound);
     }
 
     let modalOptions = {
@@ -794,6 +799,8 @@ export class GamePage implements OnInit {
       backdropDismiss: false,
       replaceSame: false,
       swipeToClose: true,
+      dismissKeyPrefix: game.label,
+      throttleTime: 10*1000,
       self:this,
       player$: this.player$,
       spotlight$: this.gameDict.gamePlayWatch.gamePlay$.pipe( 
@@ -817,7 +824,7 @@ export class GamePage implements OnInit {
         if (assumePlayerAlias) {
           console.warn("14: pass the phone to uid=", assumePlayerAlias)
           let sound = assumePlayerAlias ? 'ok' : 'click'
-          modalOptions.self.audio.play(sound);
+          playSound(sound);
 
           // trigger: let isOnTheSpot = this.stash.onTheSpot;
           let {player$} = modalOptions;
@@ -829,7 +836,7 @@ export class GamePage implements OnInit {
             p.playingAsUid = assumePlayerAlias.uid;
           }
           player$.next(p);
-          resetOnTheSpot(p)
+          _resetOnTheSpot(p)
         }
       },
       // for TeamRoster
@@ -1225,10 +1232,29 @@ export class GamePage implements OnInit {
     window.location.href = window.location.href;
     return
   }
+  
+  hasSpotlight(v:Player|string) {
+    try {
+      let player = (typeof v != "string") && v;
+      switch (v) {
+        case 'team':
+          return !!this.game.activeRound && this.player$.value.teamName==this.spotlight.teamName;
+        case 'player':
+        default:          
+          return !!this.game.activeRound && this.spotlight.uid==this.getActingPlayerId(player);
+      }
+    } catch(err) {
+      return false;
+    }
+  }
 
   getActingPlayerId(player:Player=null) {
-    player = player || this.player$.value;
-    return player.playingAsUid || player.uid;
+    try {
+      player = player || this.player$.value;
+      return player.playingAsUid || player.uid;
+    } catch(err) {
+      return null;
+    }
   }
 
   onTimerRangeChange(range: CustomEvent) {
@@ -1292,8 +1318,7 @@ export class GamePage implements OnInit {
 
   onTheSpotClick(ev) {
     let target = ev.target;
-    let p = this.player$.value;
-    let onTheSpot = this.spotlight && this.spotlight.uid === this.getActingPlayerId(p)
+    let onTheSpot = this.hasSpotlight('player')
     if (onTheSpot) {
       target.scrollIntoView();
     }
@@ -1321,7 +1346,7 @@ export class GamePage implements OnInit {
    * push gamePlay.timer to cloud, timer actually starts from cloud event loop
    * - called by onTimerClick()
    * - guard: the Spotlight player
-   * - guard: stash.onTheSpot = (this.spotlight.uid === this.playerId), set in this.loadGame$() event loop
+   * - guard: stash.onTheSpot = this.hasSpotlight(), set in this.loadGame$() event loop
    * - UX response in doGamePlayUx()
    * @param gamePlay 
    * @param duration 

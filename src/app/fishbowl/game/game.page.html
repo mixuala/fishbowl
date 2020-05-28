@@ -10,26 +10,9 @@
 </ion-header>
 
 <ion-content>
-  <!-- grid mode -->
-
-  <!-- template states:
-    templates: 
-      // moderator
-      *ngIf isActive(game); else moderator_preGameAdmin
-      #moderator_preGameAdmin
-
-      // player
-      *ngIf !isGameOver(); else showGameOver
-        *ngIf isPlayerRegistered; else #playerEntryCTA
-          *ngIf isActive(); else #showPlayersLounge
-          #showPlayersLounge
-        #playerEntryCTA
-      #showGameOver
-    -->
-
 
   <ion-grid no-padding class="team-round" 
-  [class.spotlight]="spotlight?.teamName && player?.teamName==spotlight.teamName"
+  [class.spotlight]="hasSpotlight('team')"
   [class.even]="spotlight?.teamIndex%2==0"
   >
     <ion-row class="ion-justify-content-center" *ngIf="game">
@@ -535,8 +518,21 @@
                     
                   </div>
                 </div>
+
+                <ion-grid>
+                  <ion-row class="ion-justify-content-center"><h1> Players </h1></ion-row>
+                  <ion-row class="players ion-justify-content-center">
+                    <ion-col *ngFor="let p of stash.playersSorted; let col=index"  class="inline-text-wrap ion-text-center"
+                    [ngClass]="col%2==0 ? 'even' : 'odd'" size="6">
+                      <ion-badge color="success" class="name wide" >
+                        {{p[1]}}
+                      </ion-badge> &nbsp;
+                      <ion-note *ngIf="isModerator(p[0])">moderator</ion-note>
+                    </ion-col>
+                  </ion-row>
+                </ion-grid>
+
               </ng-template>
-          
 
             <!-- </ion-list> -->
             </ion-card-content>
@@ -599,20 +595,18 @@
                         </ion-button>
                       </ion-col>
                     </ion-row>
-                    <ion-row class="hide-under-spotlight">
-                      <ion-col size=6>
-                        <ion-item>
-                          <ion-label><ion-note>round</ion-note></ion-label>
-                          <ion-badge color="light" class="ion-padding-horizontal">{{activeRound?.round || "––"}}</ion-badge>
-                        </ion-item>
+                    <ion-row class="ion-justify-content-center">
+                      <ion-col class="ion-text-center">
+                        <h1 class="ion-padding-top"> Players </h1>
                       </ion-col>
-                      <ion-col size=6>
-                        <ion-item>
-                          <ion-label>
-                            <ion-note>players</ion-note> 
-                          </ion-label>
-                          <ion-badge color="light" class="ion-padding-horizontal">{{game.playerCount}}</ion-badge>
-                        </ion-item>
+                    </ion-row>
+                    <ion-row class="players ion-justify-content-center">
+                      <ion-col *ngFor="let p of stash.playersSorted; let col=index"  class="inline-text-wrap ion-text-center"
+                      [ngClass]="col%2==0 ? 'even' : 'odd'" size="6">
+                        <ion-badge color="success" class="name wide" >
+                          {{p[1]}}
+                        </ion-badge> &nbsp;
+                        <ion-note *ngIf="isModerator(p[0])">moderator</ion-note>
                       </ion-col>
                     </ion-row>
                   </ion-grid>
