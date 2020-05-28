@@ -268,14 +268,15 @@ export class GamePage implements OnInit {
     })    
     .then( ()=>{   
       if (changed.includes('playerRoundBegin')) {
-        // cancel beginPlayerRound Interstitial
-        HelpComponent.last &&  HelpComponent.last.dismiss()
+        // cancel all Interstitials
+        console.warn("14: XXX playerRoundBegin cancel ALL interstitials ")
+        HelpComponent.last &&  HelpComponent.last.dismiss(true)
       }
     })
     .then( async ()=>{   
       if (changed.includes('doBeginGameRound') && gamePlay.doBeginGameRound>0) {
         // beginGameRound Interstitial
-        await this.showBeginGameRoundInterstitial(gamePlay.doBeginGameRound)
+        await this.showBeginGameRoundInterstitial(game, gamePlay.doBeginGameRound)
         if (changed.includes('doBeginPlayerRound')) {
           // show ready for Spotlight Player or PassThePhone
           // allow showBeginGameRound interstitial to appear
@@ -589,7 +590,8 @@ export class GamePage implements OnInit {
 
         HelpComponent.presentModal(this.modalCtrl, {
           template:'player-welcome',
-          once: `${gameTitle}`,
+          // once: `${gameTitle}`,
+          dismissKeyPrefix: game.label,
           gameTitle, chatRoom,
           playerName, hasEntry, entryLink,
           backdropDismiss: false,
@@ -628,7 +630,7 @@ export class GamePage implements OnInit {
           swipeToClose: true,
           playerReady: (res)=>{
             this.modalCtrl.dismiss(res);
-            let sound = res ? 'ok' : 'pass';
+            let sound = res ? 'ok' : 'click';
             this.audio.play(sound);
             let checkIn = {[player.uid]: res ? player.displayName : false };
             this.gameHelpers.pushCheckIn(this.gameId, checkIn).then( ()=>{
@@ -641,8 +643,9 @@ export class GamePage implements OnInit {
             if (v===true || !!status) 
               return this.modalCtrl.dismiss();
           }
-        }).then( ()=>{
-          this.audio.play('click') 
+        })
+        .then( ()=>{
+          this.audio.play('click'); // on modal.present()
         });
       })
     ).subscribe();
@@ -759,7 +762,7 @@ export class GamePage implements OnInit {
             return this.modalCtrl.dismiss();
            }
         }).then( ()=>{
-          this.audio.play('ok') 
+          this.audio.play('click')  // on modal.present()
         });
       })
     ).subscribe();
@@ -768,6 +771,11 @@ export class GamePage implements OnInit {
 
   async showBeginPlayerRoundInterstitial(gamePlay:GamePlayState, game:Game){
     if (this.isModerator()) return;
+    
+    // role guard
+    let player = this.player$.getValue();
+    if (!game.checkIn[ this.getActingPlayerId(player) ]) 
+      return
 
     // confirm state, gamePlay.doBeginPlayerRound has not changed
     gamePlay = await this.gameDict.gamePlayWatch.gamePlay$.pipe( first() ).toPromise();
@@ -775,8 +783,6 @@ export class GamePage implements OnInit {
       return
     }
 
-    // role guard
-    let player = this.player$.getValue();
     this.stash.onTheSpot = this.spotlight && this.spotlight.uid === this.getActingPlayerId(player);
     let isOnTheSpot = this.stash.onTheSpot;
     let assumePlayerAlias:SpotlightPlayer;
@@ -784,7 +790,7 @@ export class GamePage implements OnInit {
       template:'begin-player-round',
       once:false,
       backdropDismiss: false,
-      replace: true,
+      replaceSame: false,
       swipeToClose: true,
       player,
       spotlight$: this.gameDict.gamePlayWatch.gamePlay$.pipe( 
@@ -825,11 +831,12 @@ export class GamePage implements OnInit {
     return;
   }
 
-  showBeginGameRoundInterstitial(round:number):Promise<void>{
+  showBeginGameRoundInterstitial(game:Game, round:number):Promise<void>{
     const BEGIN_ROUND_DISMISS = 8000;
     return HelpComponent.presentModal(this.modalCtrl, {
       template:'begin-game-round',
-      once:false,
+      dismissKeyPrefix: game.label,
+      throttleTime: 60*1000,
       backdropDismiss: false,
       duration: BEGIN_ROUND_DISMISS,
       swipeToClose: true,
@@ -839,7 +846,7 @@ export class GamePage implements OnInit {
       dismiss: (v)=>{
         return this.modalCtrl.dismiss()
         .then( ()=>{
-          this.audio.play('ok');
+          this.audio.play('click');
         });
       }
     });

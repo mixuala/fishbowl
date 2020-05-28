@@ -189,7 +189,7 @@ export class ListPage implements OnInit {
   doAction(game, index) {
     this.player$.pipe(
       tap( p=>{
-        if( this.isActive(game) ) {
+        if( FishbowlHelpers.isGameOver(game) ) {
           // activeGame
           this.router.navigate(['/app/game', game.uid]);
         }

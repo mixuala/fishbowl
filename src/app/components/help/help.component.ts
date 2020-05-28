@@ -29,6 +29,10 @@ export class HelpComponent implements OnInit {
    * 
    * @param modalCtrl 
    * @param options 
+   *        dismissKeyPrefix: add prefix to dismissKey, e.g. game.label
+   *        throttleTime:number, skip creation until throttleTime has passed
+   *        replace:boolean, when true, dismiss HelpComponent.last
+   *        replaceSame:boolean, when true replace duplicate template
    * @returns Promise<any> resolves on modelCtrl.onDidDismiss
    */
   public static
@@ -38,7 +42,7 @@ export class HelpComponent implements OnInit {
       // return Promise.resolve();
     }
     const defaults:any = {
-      once: true,
+      once: false,
       // backdropDismiss: true,
       // enableBackdropDismiss: true,
       // showBackdrop: true,
@@ -51,14 +55,15 @@ export class HelpComponent implements OnInit {
     .then( ()=>{
       if (!!HelpComponent.last) {
         let template = HelpComponent.curTemplate();
-        if (template != options.template && options.replace===true){
-          console.warn("14:4 HelpComponent.last.dismiss(), template=", template)
+        if (!!options.replace) {
+          return HelpComponent.dismissTemplate();
+        }
+        if (template==options.template){
+          if (!options.replaceSame) {
+            return;
+          }
           return HelpComponent.dismissTemplate(template);
         }
-        // else if (template==options.template && options.replace===true){
-        //   console.warn("14:4 XXXXXXX   HelpComponent suppress, template=", template)
-        //   return;
-        // }
       }
     })
     .then( async ()=>{
@@ -67,9 +72,20 @@ export class HelpComponent implements OnInit {
       if (HelpComponent.dismissed == null) {
         await HelpComponent._loadStorage();
       }
-      let dismissKey = typeof options.once == "string" ?  `${options.template}:${options.once}` : options.template;
-      if (HelpComponent.dismissed[dismissKey]) {
-        return Promise.reject('skip');
+      let dismissKey = HelpComponent.getDismissKey(options);
+      let dismissedValue = HelpComponent.dismissed[dismissKey];
+      switch (typeof dismissedValue) {
+        case 'number': {
+          // dismissedValue = timestamp of last dismissal
+          let {throttleTime} = options;
+          if (throttleTime && Date.now() < (dismissedValue+throttleTime)) {
+            return Promise.reject('skip');
+          }
+          break;
+        }
+        case 'boolean':{
+          if (dismissedValue) return Promise.reject('skip');
+        }
       }
     })
     .then( ()=>{
@@ -118,6 +134,13 @@ export class HelpComponent implements OnInit {
   }  
 
   public static
+  getDismissKey(options):string {
+    let dismissKey = [options.template]
+    if (!!options.dismissKeyPrefix) dismissKey.unshift( options.dismissKeyPrefix );
+    return dismissKey.join('~')
+  }
+
+  public static
   curTemplate():string{
     try {
       return HelpComponent.last.componentProps.template;
@@ -127,12 +150,13 @@ export class HelpComponent implements OnInit {
   }
 
   public static
-  dismissTemplate(template:string):Promise<boolean>{
+  dismissTemplate(template:string=null):Promise<boolean>{
     try {
       let lastTemplate = HelpComponent.curTemplate();
       if (template && template==lastTemplate) {
         return HelpComponent.last.dismiss(true);
       }
+      if (!template) return HelpComponent.last.dismiss(true);
     } catch (err) {
     }
   }
@@ -166,18 +190,18 @@ export class HelpComponent implements OnInit {
   }
 
   onDismissClick(ev:MouseEvent){
-    let self = this as any;
-    if (!!self.once) {
-      let dismissKey = typeof self.once == "string" ?  `${self.template}:${self.once}` : self.template;
+    let self = this as any;  // same as self.modal.componentProps 
+    let options = self.modal.componentProps || {};
+    let dismissKey = HelpComponent.getDismissKey(options);
+    if (!!options.once) {
       HelpComponent.dismissed[dismissKey] = true;
-      let key = HelpComponent.STORAGE_KEY;
-      let value = JSON.stringify(HelpComponent.dismissed);
-      Storage.set( { key, value } )
-      // .then( async ()=>{
-      //   let res = await Storage.get( {key} );
-      //   console.log("Storage set value=", key, JSON.parse(res.value) );
-      // });
-    }    
-    self.modal.dismiss();
+    }
+    else if (!!options.throttleTime) {
+      HelpComponent.dismissed[dismissKey] = Date.now();
+    }
+    let key = HelpComponent.STORAGE_KEY;
+    let value = JSON.stringify(HelpComponent.dismissed);
+    Storage.set( { key, value } )
+    self.modal.dismiss(true);
   }
 }
