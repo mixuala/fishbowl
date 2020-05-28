@@ -174,7 +174,8 @@ export class TeamRosterComponent implements OnInit {
 
   }
 
-  doPlayAsClick(spotlight:SpotlightPlayer) {
+  doPlayAsClick(spotlight:SpotlightPlayer, ev:CustomEvent) {
+    ev.stopImmediatePropagation();
     if (!!this.passThePhone) this.onPlayAs.emit(spotlight);
   }
 

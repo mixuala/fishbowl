@@ -82,7 +82,7 @@
           </div>
           <ion-button  expand="block" size="large" class="inline-text-wrap play-as-button button-over-dark"
           [color]="spotlight.teamIndex ? 'tertiary' : 'success'"
-          (click)="doPlayAsClick(spotlight)"
+          (click)="doPlayAsClick(spotlight, $event)"
           > 
             Play as &nbsp;<ion-badge [color]="spotlight.teamIndex ? 'success' : 'tertiary'" >{{ spotlight.playerName }}</ion-badge>
           </ion-button>

@@ -329,68 +329,70 @@
 
       <ng-container *ngSwitchCase="'begin-player-round'">
         <ng-container *ngIf="(spotlight$ | async) as spotlight">
-          <!-- seen by ONLY spotlight player -->
-          <ng-container *ngIf="spotlight?.uid==player.uid; else passThePhone">
-            <ion-card class="content begin-player-round" padding>
-              <ion-item color="tertiary" class="title">
-                <ion-card-title>
-                  Next Player Round
-                </ion-card-title>
-              </ion-item>   
+          <ng-container *ngIf="(player$ | async) as player">
+            <!-- seen by ONLY spotlight player -->
+            <ng-container *ngIf="spotlight?.uid==getActingPlayerId(player); else passThePhone">
+              <ion-card class="content begin-player-round" padding>
+                <ion-item color="tertiary" class="title">
+                  <ion-card-title>
+                    Next Player Round
+                  </ion-card-title>
+                </ion-item>   
 
-              <ion-card-content>
-                <h1>
-                  <ion-text color="light">
-                    Now on the Spot:
-                  </ion-text> 
-                  &nbsp;
-                  <ion-text [color]="spotlight.teamIndex ? 'success' : 'tertiary'" >
-                    {{ spotlight.playerName }}
-                  </ion-text>
-                </h1>
+                <ion-card-content>
+                  <h1>
+                    <ion-text color="light">
+                      Now on the Spot:
+                    </ion-text> 
+                    &nbsp;
+                    <ion-text [color]="spotlight.teamIndex ? 'success' : 'tertiary'" >
+                      {{ spotlight.playerName }}
+                    </ion-text>
+                  </h1>
 
-                <div class="begin-player-round-help">
-                  <p>
-                    Click or tap the [ready] button to begin your round.
-                  </p>
-                  <div class="image-wrap ready-button-image">
-                    <img src="assets/images/ready-button-image.png">
+                  <div class="begin-player-round-help">
+                    <p>
+                      Click or tap the [ready] button to begin your round.
+                    </p>
+                    <div class="image-wrap ready-button-image">
+                      <img src="assets/images/ready-button-image.png" (click)="spotlightPlayerReadyClick && spotlightPlayerReadyClick()">
+                    </div>
+                    <ion-button color="success" expand="block" size="large"  class="button-over-dark"
+                    (click)="dismiss(true)"> OK </ion-button>
                   </div>
-                  <ion-button color="success" expand="block" size="large"  class="button-over-dark"
-                  (click)="dismiss(true)"> OK </ion-button>
-                </div>
 
 
-              </ion-card-content>        
-            </ion-card>
+                </ion-card-content>        
+              </ion-card>
+            </ng-container>
+
+            <!-- seen by all other players -->
+            <ng-template #passThePhone>
+              <ion-card class="content team-rosters begin-player-round pass-the-phone">
+                <ion-item color="tertiary" class="title">
+                  <ion-card-title>
+                    Next Player Round
+                  </ion-card-title>
+                </ion-item>   
+      
+                <ion-card-content>
+                  <p class="ion-text-center inline-text-wrap player-callout">
+                    You are player &nbsp;
+                    <ion-badge [color]="player.teamId ? 'success' : 'tertiary'">
+                      {{player.displayName}}
+                    </ion-badge> 
+                  </p>
+                  <app-team-roster
+                    [gameDict$]="gameDict$"
+                    [spotlight]="spotlight"
+                    spotlightTeam="true"
+                    (onPlayAs)="playAs($event)"
+                  ></app-team-roster>
+      
+                </ion-card-content>        
+              </ion-card>
+            </ng-template>
           </ng-container>
-
-          <!-- seen by all other players -->
-          <ng-template #passThePhone>
-            <ion-card class="content team-rosters begin-player-round pass-the-phone">
-              <ion-item color="tertiary" class="title">
-                <ion-card-title>
-                  Next Player Round
-                </ion-card-title>
-              </ion-item>   
-    
-              <ion-card-content>
-                <p class="ion-text-center inline-text-wrap player-callout">
-                  You are player &nbsp;
-                  <ion-badge [color]="player.teamId ? 'success' : 'tertiary'">
-                    {{player.displayName}}
-                  </ion-badge> 
-                </p>
-                <app-team-roster
-                  [gameDict$]="gameDict$"
-                  [spotlight]="spotlight"
-                  spotlightTeam="true"
-                  (onPlayAs)="dismiss($event)"
-                ></app-team-roster>
-    
-              </ion-card-content>        
-            </ion-card>
-          </ng-template>
         </ng-container>
       </ng-container>
 

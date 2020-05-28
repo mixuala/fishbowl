@@ -783,51 +783,65 @@ export class GamePage implements OnInit {
       return
     }
 
-    this.stash.onTheSpot = this.spotlight && this.spotlight.uid === this.getActingPlayerId(player);
-    let isOnTheSpot = this.stash.onTheSpot;
-    let assumePlayerAlias:SpotlightPlayer;
+    let resetOnTheSpot = (p:Player=null):boolean=>{
+      let player = p || this.player$.getValue();
+      let onTheSpot = this.spotlight && this.spotlight.uid === this.getActingPlayerId(player);
+      return this.stash.onTheSpot = onTheSpot;
+    }
+
     let modalOptions = {
       template:'begin-player-round',
-      once:false,
       backdropDismiss: false,
       replaceSame: false,
       swipeToClose: true,
-      player,
+      self:this,
+      player$: this.player$,
       spotlight$: this.gameDict.gamePlayWatch.gamePlay$.pipe( 
-        map( gamePlay=>{
+        map( gamePlay=>{        
           let round = this.gameDict.activeRound;
           let spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
           return spotlight;
         })
       ),
+      // beginPlayerRound
+      spotlightPlayerReadyClick:()=>{
+        let target = document.querySelector('#spotlight-button')
+        let ev = {target}
+        this.onTheSpotClick(ev);
+        setTimeout( ()=>this.onTheSpotClick(ev), 100);
+        setTimeout( ()=>this.beginPlayerRoundClick(), 1500);
+      },
+      // playAs different player
+      getActingPlayerId: this.getActingPlayerId,
+      playAs(assumePlayerAlias:SpotlightPlayer){
+        if (assumePlayerAlias) {
+          console.warn("14: pass the phone to uid=", assumePlayerAlias)
+          let sound = assumePlayerAlias ? 'ok' : 'click'
+          modalOptions.self.audio.play(sound);
+
+          // trigger: let isOnTheSpot = this.stash.onTheSpot;
+          let {player$} = modalOptions;
+          let p = Object.assign({}, player$.value);
+          if (player.uid == assumePlayerAlias.uid) {
+            delete p.playingAsUid;
+          }
+          else {
+            p.playingAsUid = assumePlayerAlias.uid;
+          }
+          player$.next(p);
+          resetOnTheSpot(p)
+        }
+      },
       // for TeamRoster
       gameDict$: this.gameWatch.gameDict$,
-      dismiss: (v:boolean|SpotlightPlayer)=>{
-        this.modalCtrl.dismiss();
-        if (v.hasOwnProperty('uid')) {
-          assumePlayerAlias = v as SpotlightPlayer;
-        }
+      dismiss: (v:boolean)=>{
+        this.modalCtrl.dismiss(true);
         return null;
       }
     }
     await HelpComponent.presentModal(this.modalCtrl, modalOptions);
-    let sound = assumePlayerAlias ? 'ok' : 'click'
-    this.audio.play(sound);
+    // dismissed
     this.gameHelpers.pushGamePlayState(this.gamePlayWatch, { doBeginPlayerRound:false, });
-    if (assumePlayerAlias) {
-      console.warn("14: pass the phone to uid=", assumePlayerAlias)
-      // trigger: let isOnTheSpot = this.stash.onTheSpot;
-      let p = Object.assign({}, this.player$.value);
-      if (player.uid == assumePlayerAlias.uid) {
-        delete p.playingAsUid;
-      }
-      else {
-        p.playingAsUid = assumePlayerAlias.uid;
-      }
-      this.player$.next(p);
-      this.showBeginPlayerRoundInterstitial( gamePlay, game )
-      // repeat with isOnTheSpot=true 
-    }
     return;
   }
 
@@ -1278,7 +1292,9 @@ export class GamePage implements OnInit {
 
   onTheSpotClick(ev) {
     let target = ev.target;
-    if (this.stash.onTheSpot) {
+    let p = this.player$.value;
+    let onTheSpot = this.spotlight && this.spotlight.uid === this.getActingPlayerId(p)
+    if (onTheSpot) {
       target.scrollIntoView();
     }
   }
