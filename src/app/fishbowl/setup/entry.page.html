@@ -125,6 +125,41 @@
                     </div>
                   </ng-container>
                 </div>
+
+                <ion-list class="more-words wide toggle-hide">
+                  <ion-item lines="none">
+                    <ion-label><ion-text color="tertiary">Add More Words</ion-text></ion-label>
+                    <ion-toggle color="tertiary" [checked]="stash.addMoreWords"
+                    (click)="toggleStashClick('addMoreWords', $event)"></ion-toggle>
+                  </ion-item>
+
+                  <div [class.ion-hide]="!stash.addMoreWords">
+                    <ion-item class="input-item">
+                      <ion-input type="text" placeholder="more words" formControlName="word_4" clearInput inputmode="text"></ion-input>
+                    </ion-item>
+                    <div class="error-container">
+                      <ng-container *ngFor="let validation of validation_messages.word">
+                        <div class="error-message" *ngIf="entryForm.get('word_4').hasError(validation.type) && (entryForm.get('word_4').dirty || entryForm.get('word_4').touched)">
+                          <ion-icon name="information-circle-outline"></ion-icon>
+                          <span>{{ validation.message }}</span>
+                        </div>
+                      </ng-container>
+                    </div>
+    
+                    <ion-item class="input-item">
+                      <ion-input type="text" placeholder="even more" formControlName="word_5" clearInput inputmode="text"></ion-input>
+                    </ion-item>
+                    <div class="error-container">
+                      <ng-container *ngFor="let validation of validation_messages.word">
+                        <div class="error-message" *ngIf="entryForm.get('word_5').hasError(validation.type) && (entryForm.get('word_5').dirty || entryForm.get('word_5').touched)">
+                          <ion-icon name="information-circle-outline"></ion-icon>
+                          <span>{{ validation.message }}</span>
+                        </div>
+                      </ng-container>
+                    </div>
+                  </div>
+               </ion-list>        
+          
           
               </ion-list>
           

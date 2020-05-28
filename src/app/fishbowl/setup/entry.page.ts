@@ -29,6 +29,7 @@ export class EntryPage implements OnInit {
   
   public stash:any = {
     listen: true,
+    addMoreWords: false,
   };
 
   public listen$ : Subject<boolean> = new Subject<boolean>();
@@ -73,7 +74,9 @@ export class EntryPage implements OnInit {
       Validators.required,
       Validators.pattern('^[a-zA-Z0-9_.+-\\s]+$')
     ]);
-
+    let validExtraEntry = Validators.compose([
+      Validators.pattern('^[a-zA-Z0-9_.+-\\s]+$')
+    ]);
 
     this.entryForm = new FormGroup({
       'name': new FormControl('', Validators.compose([
@@ -83,7 +86,9 @@ export class EntryPage implements OnInit {
       ])),
       'word_1': new FormControl('', validEntry),
       'word_2': new FormControl('', validEntry),
-      'word_3': new FormControl('', validEntry),   
+      'word_3': new FormControl('', validEntry),
+      'word_4': new FormControl('', validExtraEntry),
+      'word_5': new FormControl('', validExtraEntry),   
     });
 
   }
@@ -148,11 +153,16 @@ export class EntryPage implements OnInit {
       word_1: "",
       word_2: "",
       word_3: "",
+      word_4: "",
+      word_5: "",
     }
     let words = this.game.entries && this.game.entries[this.player.uid] || [];
     words.forEach( (v,i)=>{
       entry[`word_${i+1}`] = v;
     });
+    if (words.length>3) {
+      this.stash.addMoreWords = true;
+    }
 
     let name = this.game.players && this.game.players[this.player.uid] || this.player.displayName || "";
     entry['name'] = name as string;
@@ -171,6 +181,12 @@ export class EntryPage implements OnInit {
   isPregame(g:Game=null) {
     g = g || this.game;
     return !FishbowlHelpers.isGameOver(g) && !FishbowlHelpers.isGametime(g);
+  }
+
+  toggleStashClick(key, ev){
+    this.stash[key] = !this.stash[key]
+    // not sure why this is necessary, but it is
+    setTimeout( ()=>ev.target.checked = this.stash[key], 100)
   }
   
   async presentLoading() {
@@ -250,7 +266,7 @@ export class EntryPage implements OnInit {
     Object.keys(entries).forEach( k=>{
       entries[k] = entries[k].map( v=>v.trim() )
     })
-    entries[u.uid] = Object.entries(formData).filter( ([k,v])=>k.startsWith('word_')).map( ([k,v])=>v as string);
+    entries[u.uid] = Object.entries(formData).filter( ([k,v])=>k.startsWith('word_')&&!!(v as string).trim()).map( ([k,v])=>v as string);
     let update = {players, playerCount, entries} as Game;
     this.gameRef.update( update ).then(
       res=>{
