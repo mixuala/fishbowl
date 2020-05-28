@@ -85,8 +85,7 @@ export class GamePage implements OnInit {
         let changed = gamePlay.changedKeys || [];
         if (changed.includes('spotlight')) {
           this.spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
-          // console.warn("13:0 pipeCloudEventLoop_Bkg=", JSON.stringify(gamePlay.spotlight), "mutated=", this.spotlight!==oldSpotlight)
-          this.stash.onTheSpot = this.spotlight && this.spotlight.uid === player.uid;
+          this.stash.onTheSpot = this.spotlight && this.spotlight.uid === this.getActingPlayerId(player);
         }        
         let isThrottling = this.throttleTimeAndWordEvents(gamePlay);        
         this.doGamePlayUx(gamePlay);
@@ -242,7 +241,7 @@ export class GamePage implements OnInit {
         }
       }
       return scoreboard;
-    })
+    });
   }
 
 
@@ -262,11 +261,48 @@ export class GamePage implements OnInit {
         // gameOver interstitial
       }  
     })
+    .then( async ()=>{
+      if (gamePlay.doBeginPlayerRound===false) {
+        HelpComponent.dismissTemplate('begin-player-round')
+      }
+    })    
     .then( ()=>{   
+      if (changed.includes('playerRoundBegin')) {
+        // cancel beginPlayerRound Interstitial
+        HelpComponent.last &&  HelpComponent.last.dismiss()
+      }
+    })
+    .then( async ()=>{   
       if (changed.includes('doBeginGameRound') && gamePlay.doBeginGameRound>0) {
         // beginGameRound Interstitial
-        this.showBeginGameRoundInterstitial(gamePlay.doBeginGameRound);
+        await this.showBeginGameRoundInterstitial(gamePlay.doBeginGameRound)
+        if (changed.includes('doBeginPlayerRound')) {
+          // show ready for Spotlight Player or PassThePhone
+          // allow showBeginGameRound interstitial to appear
+          // console.warn("14:a1 pass the phone, changed=",  changed )
+          await Helpful.waitFor(1000);
+          let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
+          await waitFor
+          this.showBeginPlayerRoundInterstitial(gamePlay, game);
+        }    
         return Promise.reject('skip')
+      }
+    })
+    .then( async ()=>{
+      if (changed.includes('spotlight')) {
+        if (HelpComponent.curTemplate()=='begin-player-round'){
+          return;
+        }
+        // fire interstitial only on first load, and AFTER showBeginGameRoundInterstitial()
+        // otherwise fire AFTER scoreboards from doInterstitialsWithScoreboard()
+        // console.warn("14:a2 pass the phone, changed=",  changed )å
+        await Helpful.waitFor(1000); // (required)
+        // console.warn("14:b  AFTER spotlightDidChange BEFORE passThePhone last=", HelpComponent.last.componentProps.template)
+        let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
+        await waitFor
+        // console.warn("14:d  waitForDismissal resolved, promise=", waitFor)
+        this.showBeginPlayerRoundInterstitial(gamePlay, game);
+        return Promise.reject('skip');
       }
     })
     .then( async ()=>{
@@ -529,7 +565,7 @@ export class GamePage implements OnInit {
       checkInComplete: false,
     }
     await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
-    await this.gameRef.update( {isGameOpen:true} )
+    await this.gameHelpers.pushGameState( this.gameId, {isGameOpen:true} );
 
     this.stash.showCheckInDetails = true;
   }
@@ -730,9 +766,68 @@ export class GamePage implements OnInit {
   }
 
 
-  showBeginGameRoundInterstitial(round:number){
+  async showBeginPlayerRoundInterstitial(gamePlay:GamePlayState, game:Game){
+    if (this.isModerator()) return;
+
+    // confirm state, gamePlay.doBeginPlayerRound has not changed
+    gamePlay = await this.gameDict.gamePlayWatch.gamePlay$.pipe( first() ).toPromise();
+    if (gamePlay.doBeginPlayerRound==false) {
+      return
+    }
+
+    // role guard
+    let player = this.player$.getValue();
+    this.stash.onTheSpot = this.spotlight && this.spotlight.uid === this.getActingPlayerId(player);
+    let isOnTheSpot = this.stash.onTheSpot;
+    let assumePlayerAlias:SpotlightPlayer;
+    let modalOptions = {
+      template:'begin-player-round',
+      once:false,
+      backdropDismiss: false,
+      replace: true,
+      swipeToClose: true,
+      player,
+      spotlight$: this.gameDict.gamePlayWatch.gamePlay$.pipe( 
+        map( gamePlay=>{
+          let round = this.gameDict.activeRound;
+          let spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
+          return spotlight;
+        })
+      ),
+      // for TeamRoster
+      gameDict$: this.gameWatch.gameDict$,
+      dismiss: (v:boolean|SpotlightPlayer)=>{
+        this.modalCtrl.dismiss();
+        if (v.hasOwnProperty('uid')) {
+          assumePlayerAlias = v as SpotlightPlayer;
+        }
+        return null;
+      }
+    }
+    await HelpComponent.presentModal(this.modalCtrl, modalOptions);
+    let sound = assumePlayerAlias ? 'ok' : 'click'
+    this.audio.play(sound);
+    this.gameHelpers.pushGamePlayState(this.gamePlayWatch, { doBeginPlayerRound:false, });
+    if (assumePlayerAlias) {
+      console.warn("14: pass the phone to uid=", assumePlayerAlias)
+      // trigger: let isOnTheSpot = this.stash.onTheSpot;
+      let p = Object.assign({}, this.player$.value);
+      if (player.uid == assumePlayerAlias.uid) {
+        delete p.playingAsUid;
+      }
+      else {
+        p.playingAsUid = assumePlayerAlias.uid;
+      }
+      this.player$.next(p);
+      this.showBeginPlayerRoundInterstitial( gamePlay, game )
+      // repeat with isOnTheSpot=true 
+    }
+    return;
+  }
+
+  showBeginGameRoundInterstitial(round:number):Promise<void>{
     const BEGIN_ROUND_DISMISS = 8000;
-    let dontWait = HelpComponent.presentModal(this.modalCtrl, {
+    return HelpComponent.presentModal(this.modalCtrl, {
       template:'begin-game-round',
       once:false,
       backdropDismiss: false,
@@ -748,7 +843,6 @@ export class GamePage implements OnInit {
         });
       }
     });
-
   }
 
   beginNextGameRoundTimer(duration:number=null){
@@ -819,7 +913,8 @@ export class GamePage implements OnInit {
     .then( async (res)=>{
       await Helpful.waitFor(1000);  // wait for loadNextRound() cloud actions
       let update = {
-        doBeginGameRound: this.gameDict.activeRound.round
+        doBeginGameRound: this.gameDict.activeRound.round,
+        doBeginPlayerRound: true,
       }
       // trigger showRoundInterstitial()
       await this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update)
@@ -1043,10 +1138,12 @@ export class GamePage implements OnInit {
 
     let {game, activeRound} = d || this.gameDict;
     let player = this.player$.value;
-    let playerSettings = FishbowlHelpers.getPlayerSettings(player.uid, game, activeRound);
+    let pid = player.uid; 
+    // let pid = this.getActingPlayerId(player);
+    let playerSettings = FishbowlHelpers.getPlayerSettings(pid, game, activeRound);
     let update = Object.assign({}, player, playerSettings);
     this.player$.next( update );
-    return game.entries && !!game.entries[player.uid];
+    return game.entries && !!game.entries[pid];
   }
 
   // Helpers
@@ -1060,7 +1157,7 @@ export class GamePage implements OnInit {
     return loading;
   }
   
-  // Helpers
+
   toggleVolumeIcon(volume:number = null, playSound=true){
 
     if (!volume) {
@@ -1111,6 +1208,11 @@ export class GamePage implements OnInit {
     return
   }
 
+  getActingPlayerId(player:Player=null) {
+    player = player || this.player$.value;
+    return player.playingAsUid || player.uid;
+  }
+
   onTimerRangeChange(range: CustomEvent) {
     this.initialTimerDuration = range.detail.value;
     let update = {timerDuration: range.detail.value} as GamePlayState;
@@ -1127,7 +1229,7 @@ export class GamePage implements OnInit {
     this.stash[key] = !this.stash[key]
     // not sure why this is necessary, but it is
     setTimeout( ()=>ev.target.checked = this.stash[key], 100)
-  } 
+  }
 
   /**
    * moderator hides a player from team assignment, spotlight. 
@@ -1402,7 +1504,7 @@ export class GamePage implements OnInit {
         let {doPlayerRoundComplete, gamePlay} = res;
         if (doPlayerRoundComplete) {
           // console.log("1:  ******* completePlayerRound, from onTimerDone() OVERTIME, clearTimer=false")
-          return this.completePlayerRound(gamePlay.spotlight, false);
+          return this.completePlayerRound(false);
         }
         else {
           // buzz=false/overtime=false silent OR playerRoundDidComplete()
@@ -1520,7 +1622,8 @@ export class GamePage implements OnInit {
               let waitFor = await this.onTimerDone( new Date(), false);
             }
             console.log("1: ******* completePlayerRound(), from wordAction(), next.remaining==0")
-            this.completePlayerRound(gamePlay.spotlight, isLastWord);
+            let isPlayerRoundComplete = isLastWord
+            this.completePlayerRound(isPlayerRoundComplete);
           }
         });
       }
@@ -1549,14 +1652,7 @@ export class GamePage implements OnInit {
    *    onTimerDone()
    * onTimerDone() or FishbowlHelpers.nextWord() is empty 
    */
-  async completePlayerRound(
-    spotlightState:{
-      teamIndex: number;
-      playerIndex: number[];
-      teamName?: string;
-    }
-    , gameRoundComplete=false
-  ):Promise<void>{
+  async completePlayerRound(gameRoundComplete=false):Promise<void>{
     let isOnTheSpot = this.stash.onTheSpot;
     if (!(isOnTheSpot || this.isModerator())) return;
 
@@ -1578,9 +1674,16 @@ export class GamePage implements OnInit {
       return this.gameHelpers.pushGameLog(this.gamePlayWatch, activeRound)
     })
     .then( ()=>{
+      // reset player.playingAsUid 
+      if (!!this.player.playingAsUid) {
+        let p = Object.assign({}, this.player$.value);
+        delete p.playingAsUid;
+        this.player$.next(p);
+      }
       // push complete game status to doInterstitials()
       let update = {
         playerRoundBegin: false,
+        doBeginPlayerRound: false,
         playerRoundComplete, gameRoundComplete, gameComplete,
         timer: null,
       }
@@ -1588,29 +1691,36 @@ export class GamePage implements OnInit {
       // NOTE: Handle UX response in doShowInterstitials()
     })
     .then( async ()=>{
-      // event: playerRoundDidComplete
+      // allow PlayerRoundComplete interstitial to appear
+      await Helpful.waitFor(1000)    
+      // wait for PlayerRoundComplete interstitial to dismiss
+      let done = await HelpComponent.last && HelpComponent.last.componentProps.waitForDismissal()
       console.info("\t>>>> playerRoundDidComplete()");
-      // NOTE: Handle UX response in doShowInterstitials()
-      await Helpful.waitFor(1000)    // allow PlayerRoundComplete interstitial to appear
-      return this.nextPlayerRound(spotlightState); // calls moveSpotlight()
-    })
-    .then( async ()=>{
+
       if (gameRoundComplete) {
         console.info("\t>>>> game Round WILL Complete()");
         return this._completeGameRound(this.gameDict.activeRound)
       }
+    })
+    .then( async ()=>{
+      // // event: playerRoundDidComplete
+      // // // allow PlayerRoundComplete interstitial to appear
+      // await Helpful.waitFor(1000);
+      // let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
+      // await waitFor
+      // // // wait for PlayerRoundComplete interstitial to dismiss
+      return this.nextPlayerRound(); // calls moveSpotlight()
+    })
+    .catch( err=>{
+      if (err=="game-over") return Promise.resolve();
     });
   }
+
 
   /**
    * queue next PlayerRound AFTER completePlayerRound() or 
    */
-  private nextPlayerRound(spotlightState:{
-      teamIndex: number;
-      playerIndex: number[];
-      teamName?: string;
-    }
-  ):Promise<void>{
+  private nextPlayerRound():Promise<void>{
     let isOnTheSpot = this.stash.onTheSpot;
     if (!(isOnTheSpot || this.isModerator())) {
       throw new Error( " spotlight changed before ready")
@@ -1634,6 +1744,7 @@ export class GamePage implements OnInit {
         isTicking: false,
         timerPausedAt: null,
         word: null,
+        // doBeginPlayerRound: true, set in moveSpotlight()
         playerRoundBegin: false,
         playerRoundComplete:false, 
         roundComplete: false,
@@ -1644,9 +1755,7 @@ export class GamePage implements OnInit {
       console.info("12:\t>>>> spotlightWillChange()");
     })
     .then(()=>{
-      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound
-        // , { spotlightState }
-      ).then( ()=>{
+      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound).then( ()=>{
         console.info("12: \t>>>> spotlightDidChange()");
       })
     })
@@ -1691,7 +1800,11 @@ export class GamePage implements OnInit {
   }
 
   async completeGame(){
-    console.log("GAME COMPLETE")
+    this.db.list<GamePlayState>('/gamePlay').update(this.gameId, {spotlight:null})
+    .then( ()=>{
+      console.log("GAME COMPLETE");
+      return Promise.reject("game-over");
+    })
   }
 
   async animate( el:any, animation="long-wobble" ){

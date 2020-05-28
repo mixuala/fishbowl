@@ -45,11 +45,20 @@ export class HelpComponent implements OnInit {
     };
     options = Object.assign( defaults, options);
     let done$ = new Subject<boolean>(); 
-
+    
+    console.log("14:2 HelpComponent.presentModal(), template=", options.template)
     return Promise.resolve()
     .then( ()=>{
       if (!!HelpComponent.last) {
-        return HelpComponent.last && HelpComponent.last.dismiss(true);
+        let template = HelpComponent.curTemplate();
+        if (template != options.template && options.replace===true){
+          console.warn("14:4 HelpComponent.last.dismiss(), template=", template)
+          return HelpComponent.dismissTemplate(template);
+        }
+        // else if (template==options.template && options.replace===true){
+        //   console.warn("14:4 XXXXXXX   HelpComponent suppress, template=", template)
+        //   return;
+        // }
       }
     })
     .then( async ()=>{
@@ -79,6 +88,7 @@ export class HelpComponent implements OnInit {
             tap(()=>modal.dismiss())
           ).subscribe();
         }
+
         modal.present()
         .then( async ()=>{
           await modal.onWillDismiss()
@@ -90,6 +100,7 @@ export class HelpComponent implements OnInit {
           .then( (resp)=>{
             let result = (options.onDidDismiss) ? options.onDidDismiss(resp) : resp;
             HelpComponent.last = null;
+            // console.warn("14:4 modal.onDidDismiss(), template=", modal.componentProps.template)
             resolve(result)
             // let {template} = modal.componentProps;
           });
@@ -106,6 +117,25 @@ export class HelpComponent implements OnInit {
     });
   }  
 
+  public static
+  curTemplate():string{
+    try {
+      return HelpComponent.last.componentProps.template;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  public static
+  dismissTemplate(template:string):Promise<boolean>{
+    try {
+      let lastTemplate = HelpComponent.curTemplate();
+      if (template && template==lastTemplate) {
+        return HelpComponent.last.dismiss(true);
+      }
+    } catch (err) {
+    }
+  }
 
 
   private static
