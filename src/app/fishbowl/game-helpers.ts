@@ -792,7 +792,13 @@ export class GameHelpers {
       this.db.object<GamePlayRound>(`/rounds/${rid}`).update(roundUpdate);
     });
   }
-
+  
+  pushGameState( gameId: string, update:Partial<Game>): Promise<void>{
+    let whitelist = ['label', 'activeGame', 'playerCount', 'isGameOpen', 'complete', 'public', 'doPassThePhone']
+    update = Helpful.pick( update, ...whitelist );
+    return this.db.object<Game>(`/games/${gameId}`).update( update )
+  }
+  
   pushCheckIn( gameId: string, checkIn:CheckInByUids): Promise<void>{
     let update = checkIn;
     return this.db.object<Game>(`/games/${gameId}/checkIn`).update( update )

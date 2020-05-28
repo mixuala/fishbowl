@@ -154,3 +154,26 @@ ion-toast {
     font-size: 32px;
   }
 }
+
+// condensed slots inside ion-item
+.condensed-flex-wrap-slots {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  align-items: center;
+
+  .start, .end { width: 25%; }
+  .middle { flex-grow: 1;}
+  .button-inner-wrap {
+    white-space: normal;
+    text-align: center;
+  }
+  }
+
+// wrap IonButton text with a span
+ion-button {
+  .button-inner-wrap {
+    white-space: normal;
+    text-align: center;
+  }
+}

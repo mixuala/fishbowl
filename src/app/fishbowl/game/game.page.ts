@@ -1177,16 +1177,13 @@ export class GamePage implements OnInit {
   }
 
 
-  toggleActiveGame(g:Game) {
+  toggleGameState(g:Game, field:string) {
     if (!this.isModerator()) return
-    this.gameRef.valueChanges().pipe(
-      first(),
-    ).subscribe( (g)=>{
-      let activeGame = g && !g.activeGame;
-      this.gameRef.update( {activeGame} )
-    })
+    let whitelist = ['activeGame', 'isGameOpen', 'complete', 'public', 'doPassThePhone'];
+    if (!whitelist.includes(field)) return;
+    let v = g[field];
+    this.gameHelpers.pushGameState( this.gameId, {[field]:!v} );
   }
-
 
   isActive(g:Game=null) {
     return FishbowlHelpers.isActive(g||this.game);

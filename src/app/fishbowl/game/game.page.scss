@@ -325,10 +325,33 @@ ion-card-content{
       text-align: center;
     }
   }
+
+  // condensed slots inside ion-item
+  .condensed-flex-wrap-slots {
+
+    .inline-stack-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      flex-direction: row;
+      justify-content: center;
+      text-align: center;
+      > * {
+        margin: 0 auto;
+      }
+      &.shorter {
+        height: 40px;
+        ion-toggle {
+          top:-12px;
+        }
+      }
+    }
+  }
+  
   ion-card-content ion-list {
     padding-bottom: 0px;
   }
   .game-controls-container {
+
     .spotlight {
       height: 36px;
     }
