@@ -49,3 +49,27 @@ ion-card.welcome {
     font-weight: 700;
   }
 }
+
+
+ion-fab-button[data-desc] {
+  position: relative;
+}
+
+ion-fab-button[data-desc]::after {
+  position: absolute;
+  content: attr(data-desc);
+  z-index: 99;
+  right: 55px;
+  bottom: 4px;
+  background-color: rgba(var(--ion-color-success-rgb), 1);
+  padding: 6px 16px;
+  border-radius: 3px;
+  color: var(--ion-color-dark);
+  box-shadow: 0 3px 5px -1px rgba(0,0,0,0.2), 0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12);
+}
+ion-fab-button[color="tertiary"][data-desc]::after {
+  background-color: rgba(var(--ion-color-tertiary-rgb), 1);
+}
+ion-fab-button[color="warning"][data-desc]::after {
+  background-color: rgba(var(--ion-color-warning-rgb), 1);
+}

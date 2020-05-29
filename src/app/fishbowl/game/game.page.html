@@ -277,6 +277,10 @@
             <ion-card-header color="tertiary">      
               <ion-card-title>
                 {{game.label}}
+                <div class="ion-float-right inline-text-wrap">
+                  <ion-badge  *ngIf="game.quickPlay" color="warning" >QuickPlay</ion-badge>
+                  <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
+                </div>
               </ion-card-title>
               <ion-card-subtitle>
                 Fishbowl
@@ -478,6 +482,17 @@
                 </div>
               </div>
               </ng-container>
+
+              <div class="pass-the-phone ion-text-center ion-margin-vertical ion-padding-top">
+                <ion-button class="tertiary" fill="outline" color="tertiary" [disabled]="hasSpotlight(p)"
+                (click)="doChangePlayerClick(gamePlay, game)">
+                  <ion-icon name="swap-horizontal-outline" slot="start"></ion-icon>
+                  <ion-label>Change Player</ion-label>
+                </ion-button>
+              </div>
+
+
+
 
               <ng-template #showPlayersLounge> 
                 <!-- ion-card-content -->

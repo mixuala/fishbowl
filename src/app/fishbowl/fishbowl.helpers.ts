@@ -16,6 +16,18 @@ import {
 } from './types';
 import { Player } from '../user/role';
 
+const WORDS_PER_QUICK_PLAYER = 6;
+const GAME_PACKS = {
+  'animals': [
+    'Aardvark','Anteater','Bumble Bee','Cheetah', 'Elephant','French Poodle', 'Giraffe', 'Gorilla', 'Tiger', 'Lion', 'Penguin', 'Polar Bear', 'Peacock', 'Pelican', 'Zebra', 'Meercat', 'Gazelle',
+    'Simba', 'Timon', 'Poombah', 'Nemo', 'Dory', 'Flounder', 'Scuttle', 'Sebastian', 'Toto', 'Old Yeller', 'Sonic the Hedge Hog', 'Donkey Kong', 'Flipper', 'Lassie', 'Snoopy', 'Scooby Doo', 'Pink Panther', 'Yogi Bear',
+    'Bugs Bunny', 'Road Runner', 'Woody the Woodpecker', 'Tom & Jerry', 'Rudolph',
+    'Starfish', 'Goldfish', 'Pufferfish', 'Morey Eel', 'Great White Shark', 'Stingray', 'Blue Whale', 'Orca', 'Dolphin', 'Octopus', 'Squid', 'Turtle', 'Whale Shark',
+    'Humu Humu Nuku Nuku Apua\'a', 'Sea Urchin', 'Tuna', 
+  ]
+}
+
+
 export class FishbowlHelpers {
 
   static
@@ -89,18 +101,27 @@ export class FishbowlHelpers {
       o[pid] = game.players[pid];
       return o;
     },{});
+    teams = teams || FishbowlHelpers.assignTeams(checkedInPlayers, teamNames);
 
     if (Object.entries(checkedInPlayers).length<2) 
       throw new Error("Not Enough Players CheckedIn");
 
-    let entries = Object.entries(game.entries).reduce( (o,[pid,_3words])=>{
-      if (checkedInPlayers[pid]){
-        _3words.forEach( w=>o[w]=true);
-      }
-      return o;
-    } ,{});
-    teams = teams || FishbowlHelpers.assignTeams(checkedInPlayers, teamNames);
-
+    let {quickPlay} = game;
+    let entries:{[word:string]:boolean};
+    if (quickPlay) {
+      let playerCount = Object.keys(checkedInPlayers).length;
+      let words = GAME_PACKS[quickPlay];
+      words = Helpful.shuffle(words, playerCount*WORDS_PER_QUICK_PLAYER );
+      entries = words.reduce( (o,w)=>(o[w]=true,o), {});
+    }
+    else {
+      entries = Object.entries(game.entries).reduce( (o,[pid,_3words])=>{
+        if (checkedInPlayers[pid]){
+          _3words.forEach( w=>o[w]=true);
+        }
+        return o;
+      } ,{});
+    }
 
     return {
       uid: null,    // firebase pushId

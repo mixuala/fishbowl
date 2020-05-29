@@ -37,6 +37,7 @@ export interface Game {
   teams?: TeamRosters;    // final team roster
   public?: boolean;
   doPassThePhone?: boolean;
+  quickPlay?:string;
 }
 
 // TODO: refactor

@@ -24,6 +24,7 @@
               <ion-card-title>
                 {{game.label}}
                 <div class="ion-float-right inline-text-wrap">
+                  <ion-badge  *ngIf="game.quickPlay" color="warning" >QuickPlay</ion-badge>
                   <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
                   <ion-badge  *ngIf="isGameOver(game)" color="tertiary" >Game Over</ion-badge>
                   <ion-badge  *ngIf="isActive(game)" color="success" class="is-live">live</ion-badge>
@@ -112,9 +113,23 @@
   </ion-grid>
   <ion-fab vertical="bottom" horizontal="end" slot="fixed">
     <ion-fab-button type="button" show="true" color="success" 
-      routerDirection="forward" [routerLink]="['/app/game/new/settings']" 
     >
       <ion-icon name="add"></ion-icon>
     </ion-fab-button>
+    <ion-fab-list side="top">
+      <ion-fab-button color="success"  data-desc="Schedule a Game"
+        routerDirection="forward" [routerLink]="['/app/game/new/settings']" >
+        <ion-icon name="calendar-outline" color="dark"></ion-icon>
+      </ion-fab-button>
+      <!-- <ion-fab-button color="success" data-desc="Play Now"
+        routerDirection="forward" [routerLink]="['/app/game/new/settings', {now:1}]" >
+        <ion-icon name="game-controller-outline" color="dark"></ion-icon>
+      </ion-fab-button> -->
+      <ion-fab-button color="warning" data-desc="[QuickPlay] Animal Pack!"
+      routerDirection="forward" [routerLink]="['/app/game/new/settings', {quickPlay:'animals'}]" >
+        <ion-icon name="game-controller-outline" color="dark"></ion-icon>
+      </ion-fab-button>
+    </ion-fab-list>
+  
   </ion-fab>
 </ion-content>

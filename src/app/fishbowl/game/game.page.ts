@@ -527,6 +527,11 @@ export class GamePage implements OnInit {
     this.beginNextGameRound();
   }
 
+  doChangePlayerClick(gamePlay, game) {
+    let forceChangePlayer = true;
+    this.showBeginPlayerRoundInterstitial(gamePlay, game, true);
+  }
+
   resetGameClick(ev){
     let hard = ev.ctrlKey || ev.shiftKey;
     if (AppConfig.platform.is('mobile')) {
@@ -770,7 +775,7 @@ export class GamePage implements OnInit {
   }
 
 
-  async showBeginPlayerRoundInterstitial(gamePlay:GamePlayState, game:Game){
+  async showBeginPlayerRoundInterstitial(gamePlay:GamePlayState, game:Game, doChangePlayer:boolean = false){
     if (this.isModerator()) return;
     
     // role & state guards
@@ -781,8 +786,10 @@ export class GamePage implements OnInit {
 
     // confirm state, gamePlay.doBeginPlayerRound has not changed
     gamePlay = await this.gameDict.gamePlayWatch.gamePlay$.pipe( first() ).toPromise();
-    if (gamePlay.doBeginPlayerRound==false) {
-      return
+    if (!doChangePlayer){
+      if (gamePlay.doBeginPlayerRound==false) {
+        return
+      }
     }
 
     let _resetOnTheSpot = (p:Player=null):boolean=>{
@@ -819,6 +826,7 @@ export class GamePage implements OnInit {
         setTimeout( ()=>this.beginPlayerRoundClick(), 1500);
       },
       // playAs different player
+      doChangePlayer,
       getActingPlayerId: this.getActingPlayerId,
       playAs(assumePlayerAlias:SpotlightPlayer){
         if (assumePlayerAlias) {

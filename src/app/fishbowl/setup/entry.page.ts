@@ -39,7 +39,7 @@ export class EntryPage implements OnInit {
   public player: Player;
 
   public entryForm: FormGroup;
-  validation_messages = {
+  public validation_messages = {
     'name':[
       { type: 'required', message: 'Please enter your game name.' },
       // { type: 'unique', message: 'Wow, that name is already taken. You better choose another.' },
@@ -157,14 +157,14 @@ export class EntryPage implements OnInit {
       word_5: "",
     }
     let words = this.game.entries && this.game.entries[this.player.uid] || [];
+    let name = this.game.players && this.game.players[this.player.uid] || this.player.displayName || "";
+
     words.forEach( (v,i)=>{
       entry[`word_${i+1}`] = v;
     });
     if (words.length>3) {
       this.stash.addMoreWords = true;
     }
-
-    let name = this.game.players && this.game.players[this.player.uid] || this.player.displayName || "";
     entry['name'] = name as string;
     this.entryForm.setValue(entry)
   }
@@ -252,9 +252,15 @@ export class EntryPage implements OnInit {
   }
   
   doEntry(){
-    if (!this.entryForm.valid) {
-      this.doValidate(this.entryForm)
-      return
+    this.doValidate(this.entryForm);
+    if (this.game.quickPlay) {
+      // validate just the name control
+      let nameControl = this.entryForm.get('name');
+      if (!!nameControl.errors)
+        return
+    }
+    else if (!this.entryForm.valid) {
+        return
     }
     let formData = this.entryForm.value;
     let u = this.player;
@@ -262,11 +268,18 @@ export class EntryPage implements OnInit {
     players[u.uid]=formData.name;
     let playerCount = Object.keys(players).length;
     let entries = this.game.entries || {};
-    // trim
-    Object.keys(entries).forEach( k=>{
-      entries[k] = entries[k].map( v=>v.trim() )
-    })
-    entries[u.uid] = Object.entries(formData).filter( ([k,v])=>k.startsWith('word_')&&!!(v as string).trim()).map( ([k,v])=>v as string);
+    if (this.game.quickPlay) {
+      entries[u.uid]=['~quickPlay~'];
+    }
+    else {
+      // trim
+      Object.keys(entries).forEach( k=>{
+        entries[k] = entries[k].map( v=>v.trim() )
+      })
+      entries[u.uid] = Object.entries(formData).filter( ([k,v])=>k.startsWith('word_')&&!!(v as string).trim()).map( ([k,v])=>v as string);
+    }
+
+
     let update = {players, playerCount, entries} as Game;
     this.gameRef.update( update ).then(
       res=>{

@@ -95,7 +95,7 @@
                 <ion-item class="input-item">
                   <ion-label position="stacked">Video Link</ion-label>
                   <ion-textarea class="url-wrap" type="url" inputmode="url" rows="2" auto-grow="true"
-                  placeholder="The Zoom/Google Meet link all players will join" formControlName="chatRoom" clearInput></ion-textarea>
+                  [placeholder]="chatRoomPlaceholder" formControlName="chatRoom" clearInput></ion-textarea>
                 </ion-item>
                 <div class="error-container">
                   <ng-container *ngFor="let validation of validation_messages.chatRoom">
@@ -110,7 +110,7 @@
 
 
             
-              <ion-list class="inputs-list" lines="full">
+              <ion-list class="inputs-list wide" lines="full">
                 <ion-item class="input-item">
                   <ion-label position="stacked">Game Master Name</ion-label>
                   <ion-input type="text" placeholder="Your all-powerful screen name" formControlName="name" clearInput inputmode="text"></ion-input>

@@ -41,6 +41,7 @@ export class GameSettingsPage implements OnInit {
   public game:Game;
   private gameId:string;
   public player: Player;
+  public chatRoomPlaceholder: string;
 
   public entryForm: FormGroup;
   public gameForm: FormGroup;
@@ -49,22 +50,46 @@ export class GameSettingsPage implements OnInit {
       { type: 'required', message: 'Please enter the title for this game.' },
       { type: 'pattern', message: 'Your word must be letters and numbers only.' }
     ],
-    'team':[
-      { type: 'required', message: 'Please enter team names for this game.' },
-      { type: 'pattern', message: 'Your word must be letters and numbers only.' }
-    ],    
-    'startTime':[
-      { type: 'required', message: 'Please enter a the start time for this game.' },
-    ],
-    'time':[
-      { type: 'required', message: 'Please enter a the start time for this game.' },
-    ],
     'chatRoom': [
       { type: 'required', message: 'Please enter the video meeting invitation for this game.' },
       { type: 'pattern', message: 'Must be a valid `https` web link' }
     ],
+    'name':[
+      { type: 'required', message: 'Please enter your game name.' },
+      { type: 'pattern', message: 'Your name must be letters and numbers only.' }
+    ],  
+    'teamA':[
+      { type: 'required', message: 'Please enter a team name.' },
+      { type: 'pattern', message: 'Your team must be letters and numbers only.' }
+    ],
+    'teamB':[
+      { type: 'required', message: 'Please enter another team name.' },
+      { type: 'pattern', message: 'Your team must be letters and numbers only.' }
+    ],    
+    'startTime':[
+      { type: 'required', message: 'Please enter a the start time for this game.' },
+    ],
+
   };  
 
+  private _gameDefaults = {
+    label: "",
+    chatRoom: "",
+    public: true,
+    // gameTime: dayjs().add(1,'hour').startOf('hour').toDate().getTime(),
+    // moderators: {
+    //   [this.player.uid]: true
+    // }
+  }
+
+  private _quickPlayDefaults = {
+    activeGame:true,
+    isGameOpen: false,
+    public: false,
+    doPassThePhone: false,
+    // entries: "animals"
+    // gameTime: dayjs().startOf('minute').toDate().getTime(),
+  }
   
   constructor(
     private activatedRoute: ActivatedRoute,
@@ -136,8 +161,8 @@ export class GameSettingsPage implements OnInit {
       switchMap( ()=>{
         let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
         if (gameId=="new"){
-          this.createNewGame();
           this.gameId = this.db.createPushId();
+          this.createNewGame();
           return of({});
         }
         else {
@@ -209,6 +234,7 @@ export class GameSettingsPage implements OnInit {
 
   ionViewDidEnter() {
     this.stash.listen = true;
+    this.chatRoomPlaceholder = "The Zoom/Google Meet link all players will join";
   }
   ionViewDidLeave() {
     this.stash.listen = false;
@@ -249,16 +275,32 @@ export class GameSettingsPage implements OnInit {
   }
 
   createNewGame() {
+    let _initialCap = (string):string =>{
+      return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+
     // create skeleton for new Game
-    let gameDefaults = {
-      label: "",
+    let now = this.activatedRoute.snapshot.paramMap.get('now')
+    let quickPlay = this.activatedRoute.snapshot.paramMap.get('quickPlay');
+    let gameDefaults = Object.assign({
       gameTime: dayjs().add(1,'hour').startOf('hour').toDate().getTime(),
-      chatRoom: "",
-      public: false,
       moderators: {
         [this.player.uid]: true
       }
+    }, this._gameDefaults )
+    if (!!quickPlay) {
+      let label = [_initialCap(quickPlay), this.gameId.slice(-3).toUpperCase()].join('-');
+      let teamNames = ['Flounder', 'Nemo'];
+      Object.assign(gameDefaults, this._quickPlayDefaults, {label, teamNames, quickPlay})
     }
+    if (now || quickPlay) {
+      Object.assign(gameDefaults, {
+        public:true,  // or find a better way to seach for game
+        gameTime: dayjs().startOf('minute').toDate().getTime(),
+      });
+      this.chatRoomPlaceholder = "[skip if players are already together]";
+    }
+    this.stash.gameDefaults = gameDefaults;
     this.inviteLink = null;
     this.loadData(gameDefaults)
   }
@@ -289,16 +331,18 @@ export class GameSettingsPage implements OnInit {
     let timezoneOffset = new Date(startTime).getTimezoneOffset();
     let teamNames = [formData.teamA, formData.teamB];
     
-    let update = {players, playerCount, label, 
+    let update = { 
+      players, playerCount, label, 
       gameTime:startTime,  timezoneOffset, chatRoom , teamNames, 
       public: formData.game.public
     } as Partial<Game>;
+
+    update = Object.assign(this.stash.gameDefaults|| {}, update);
 
     let gameId = this.activatedRoute.snapshot.paramMap.get('uid');
     if (gameId=="new"){
       update.moderators = { [u.uid]: true };
       update.checkIn = { [u.uid]: false };    // default moderators are hidden from gameplay
-      // show toast
     }
     
     this.gameRef = this.db.object(`/games/${this.gameId}`);

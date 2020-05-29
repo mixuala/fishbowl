@@ -202,48 +202,82 @@
 
         <ion-card-content>
 
-          <h1 class="content-header inline-text-wrap">
-            <span>
-              <ion-text color="tertiary"><strong> {{gameTitle}} </strong></ion-text>
-              is now
-            </span> 
-            <ion-badge color="success" class="is-live">live</ion-badge>
-          </h1>
+          <ng-container *ngIf="game && !game.quickPlay; else quickPlayWelcome">
+            <h1 class="content-header inline-text-wrap">
+              <span>
+                <ion-text color="tertiary"><strong> {{gameTitle}} </strong></ion-text>
+                is waiting for Player Entries.
+              </span> 
+            </h1>
 
-          <div *ngIf="hasEntry; else doEntry">
-            <div class="ion-text-center">
-              <div class="hero">
-                <ion-note class="ion-text-left" color="tertiary">player</ion-note>
-                <p class="player-name"><ion-text color="light">
-                  {{playerName}}
-                </ion-text></p>
+            <div *ngIf="hasEntry; else doEntry">
+              <div class="ion-text-center">
+                <div class="hero">
+                  <ion-note class="ion-text-left" color="tertiary">player</ion-note>
+                  <p class="player-name"><ion-text color="light">
+                    {{playerName}}
+                  </ion-text></p>
+                </div>
               </div>
+
+              <h3><ion-text color="light">
+                Join the video stream and relax until the game begins...
+              </ion-text></h3>
+              <ion-button expand="block" color="success" class="ion-margin-vertical taller"
+              [href]="chatRoom" [title]="chatRoom" target="_blank">
+                <ion-icon name="videocam" slot="start"></ion-icon>
+                Open Video Chat Room
+              </ion-button>
+              <div class="ion-margin-vertical"></div>
             </div>
 
-            <h3><ion-text color="light">
-              Join the video stream and relax until the game begins...
-            </ion-text></h3>
-            <ion-button expand="block" color="success" class="ion-margin-vertical taller"
-            [href]="chatRoom" [title]="chatRoom" target="_blank">
-              <ion-icon name="videocam" slot="start"></ion-icon>
-              Open Video Chat Room
-            </ion-button>
-            <div class="ion-margin-vertical"></div>
-          </div>
+            <ng-template #doEntry>
+              <div class="ion-margin-vertical">
+                <h2><ion-text color="tertiary">Game Entry</ion-text></h2>
+                <h3><ion-text color="light">
+                  To join this game, you must put 3 secret words into the fishbowl.
+                </ion-text></h3>
+              </div>
 
-          <ng-template #doEntry>
-            <div class="ion-margin-vertical">
-              <h2><ion-text color="tertiary">Game Entry</ion-text></h2>
-              <h3><ion-text color="light">
-                To join this game, you must put 3 secret words into the fishbowl.
+              <ion-button expand="block" color="tertiary" size="large" class="ion-margin-vertical"
+              routerDirection="forward" [routerLink]="entryLink" (click)="onDismissClick(true)">
+                Create Game Entry
+              </ion-button>
+              <div class="ion-margin-vertical"></div>
+            </ng-template>
+          </ng-container>
+
+          <ng-template #quickPlayWelcome>
+            <ion-label class="ion-text-center">
+              <h1 class="content-header">
+                <ion-text color="tertiary"><strong> {{gameTitle}} </strong></ion-text>
+                <br />
+                is waiting for Players.
+              </h1>
+            </ion-label>
+
+            <div *ngIf="hasEntry; else doEntry">
+              <div class="ion-text-center">
+                <div class="hero">
+                  <ion-note class="ion-text-left" color="tertiary">player</ion-note>
+                  <p class="player-name"><ion-text color="light">
+                    {{playerName}}
+                  </ion-text></p>
+                </div>
+              </div>
+
+              <h3 class="ion-text-center"><ion-text color="light">
+                Just relax until the game begins...
               </ion-text></h3>
             </div>
+            <ng-template #doEntry>
+              <ion-button expand="block" color="tertiary" size="large" class="ion-margin-vertical"
+              routerDirection="forward" [routerLink]="entryLink" (click)="onDismissClick(true)">
+                Join Game
+              </ion-button>
+              <div class="ion-margin-vertical"></div>
+            </ng-template>
 
-            <ion-button expand="block" color="tertiary" size="large" class="ion-margin-vertical"
-            routerDirection="forward" [routerLink]="entryLink" (click)="onDismissClick(true)">
-              Create Game Entry
-            </ion-button>
-            <div class="ion-margin-vertical"></div>
           </ng-template>
 
         </ion-card-content>        
@@ -385,6 +419,7 @@
                   <app-team-roster
                     [gameDict$]="gameDict$"
                     [spotlight]="spotlight"
+                    [changePlayer]="doChangePlayer"
                     spotlightTeam="true"
                     (onPlayAs)="playAs($event)"
                   ></app-team-roster>

@@ -135,6 +135,19 @@ ion-badge.wide {
   --padding-end: 16px;
 }
 
+ion-list.wide {
+  --inner-padding-end: 0;
+  ion-item {
+    --inner-padding-end: 0;
+    ion-button[slot="end"] {
+      margin-inline-start: 4px;
+    }
+  }
+  &.toggle-hide {
+    padding: 0;
+  }
+}
+
 
 ion-toast {
   &.toast-below-header{

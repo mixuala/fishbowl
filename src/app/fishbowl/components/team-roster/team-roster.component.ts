@@ -42,6 +42,8 @@ export class TeamRosterComponent implements OnInit {
 
   @Input() spotlightTeam:boolean = false;
 
+  @Input() changePlayer:boolean = false;
+
   @Output() onChange = new EventEmitter<TeamRosters>();
 
   @Output() onPlayAs = new EventEmitter<SpotlightPlayer>();
@@ -116,7 +118,7 @@ export class TeamRosterComponent implements OnInit {
         this.teamRostersAsRows = this.getRostersForDisplay(teams, players, orderOfPlay);
         this.gameDict = gameDict;
 
-        this.passThePhone = this.gameDict.game.doPassThePhone;
+        this.passThePhone = this.gameDict.game.doPassThePhone || this.changePlayer;
       }),
     ).subscribe();
   }
