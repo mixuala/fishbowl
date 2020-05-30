@@ -40,7 +40,7 @@ export class TeamRosterComponent implements OnInit {
 
   @Input() asModerator:boolean = false;
 
-  @Input() spotlightTeam:boolean = false;
+  @Input() spotlightTeam:boolean = false;     // just render one (spotlight) team, 
 
   @Input() changePlayer:boolean = false;
 

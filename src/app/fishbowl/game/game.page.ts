@@ -528,8 +528,7 @@ export class GamePage implements OnInit {
   }
 
   doChangePlayerClick(gamePlay, game) {
-    let forceChangePlayer = true;
-    this.showBeginPlayerRoundInterstitial(gamePlay, game, true);
+    this.showChangePlayerInterstitial(gamePlay, game);
   }
 
   resetGameClick(ev){
@@ -857,6 +856,72 @@ export class GamePage implements OnInit {
     await HelpComponent.presentModal(this.modalCtrl, modalOptions);
     // dismissed
     this.gameHelpers.pushGamePlayState(this.gamePlayWatch, { doBeginPlayerRound:false, });
+    return;
+  }
+
+  async showChangePlayerInterstitial(gamePlay:GamePlayState, game:Game,){
+    // role & state guards
+    let player = this.player$.getValue();
+    if (!game.activeRound) return
+
+
+    // confirm state, gamePlay.doBeginPlayerRound has not changed
+    gamePlay = await this.gameDict.gamePlayWatch.gamePlay$.pipe( first() ).toPromise();
+    if (!!gamePlay.playerRoundBegin) return // round has already begun
+    let round = this.gameDict.activeRound;
+    let spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
+
+    let _resetOnTheSpot = (p:Player=null):boolean=>{
+      let onTheSpot = this.hasSpotlight(p)
+      return this.stash.onTheSpot = onTheSpot;
+    }
+
+    let playSound = (sound:string) =>{
+      this.audio.play(sound);
+    }
+
+    let modalOptions = {
+      template:'change-player',
+      backdropDismiss: false,
+      replaceSame: false,
+      swipeToClose: true,
+      dismissKeyPrefix: game.label,
+      throttleTime: 2*1000,
+      player,
+      player$: this.player$,
+      spotlight,
+      // playAs different player
+      getActingPlayerId: this.getActingPlayerId,
+      doPlayAsClick(assumePlayerAlias:SpotlightPlayer){
+        if (assumePlayerAlias) {
+          console.warn("14: pass the phone to uid=", assumePlayerAlias)
+          let sound = assumePlayerAlias ? 'ok' : 'click'
+          playSound(sound);
+
+          // trigger: let isOnTheSpot = this.stash.onTheSpot;
+          let {player$} = modalOptions;
+          let p = Object.assign({}, player$.value);
+          if (player.uid == assumePlayerAlias.uid) {
+            delete p.playingAsUid;
+          }
+          else {
+            p.playingAsUid = assumePlayerAlias.uid;
+          }
+          player$.next(p);
+          _resetOnTheSpot(p)
+        }
+      },
+      // // for TeamRoster
+      // gameDict$: this.gameWatch.gameDict$,
+      dismiss: (v:boolean)=>{
+        this.modalCtrl.dismiss(true);
+        return null;
+      }
+    }
+    await HelpComponent.presentModal(this.modalCtrl, modalOptions);
+    // dismissed
+    await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, { doBeginPlayerRound:false, });
+    // TODO: add announce change player?
     return;
   }
 
@@ -1246,6 +1311,7 @@ export class GamePage implements OnInit {
       let player = (typeof v != "string") && v;
       switch (v) {
         case 'team':
+          if (this.hasSpotlight('player')) return true;
           return !!this.game.activeRound && this.player$.value.teamName==this.spotlight.teamName;
         case 'player':
         default:          
