@@ -48,13 +48,6 @@ export class GamePage implements OnInit {
   public game: Game;
   public gamePlay$: Observable<GamePlayState>;      // for async pipes
   public scoreboard:Scoreboard;
-  
-
-  public roundDesc = {
-    1: "give clues but don\'t say the word (\"Taboo\") ",
-    2: "only ONE word",
-    3: "act it out (\"Charades\")"
-  }
 
   // from ionViewWillEnter() > watchGame()
   public loadGame$(gameId):Observable<GameDict>{

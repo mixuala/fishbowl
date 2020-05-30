@@ -168,7 +168,6 @@
                     </ion-button>
                     <div class="teleprompter">
                       <ion-item class="short" lines="none">
-                        <!-- <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p> -->
                         <ion-label class="inline-text-wrap">
                           <ion-note class="ion-margin-horizontal">remaining</ion-note>
                           <ion-badge color="tertiary" class="ion-padding-horizontal">{{gamePlay.remaining?.length || 0}}</ion-badge>
@@ -414,11 +413,7 @@
                 </ion-item-divider>
                 <ng-container *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
 
-                  <!-- <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p>
-                  <p><ion-note>word</ion-note></p> -->
-
                   <ion-item class="short" lines="none">
-                    <!-- <p class="ion-float-right"><ion-note>Round:</ion-note>&nbsp;<b>{{roundDesc[activeRound?.round]}}</b></p> -->
                     <ion-label class="inline-text-wrap">
                       <ion-note class="ion-margin-horizontal">remaining</ion-note>
                       <ion-badge color="tertiary" class="ion-padding-horizontal">{{gamePlay.remaining?.length || 0}}</ion-badge>
