@@ -224,11 +224,18 @@ export class EntryPage implements OnInit {
       if (!this.game.players[oldPid]) throw new Error('cancel');
       
       let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
+      // TODO: add a [force] button, so Moderator can change devices
+      let allowChangePlayerIfALREADYcheckedIn = true;
       let done = await this.gameHelpers.patchPlayerId( gameId, this.game, {
-        old: oldPid, 
-        new: this.player.uid,
-      }).then( ()=>{
-        this.entryForm.reset(this.entryForm.value);
+          old: oldPid, 
+          new: this.player.uid,
+        }, allowChangePlayerIfALREADYcheckedIn
+      ).then( 
+        ()=>{
+          this.entryForm.reset(this.entryForm.value);
+        }
+        , (err)=>{
+          return Promise.reject(err)
       });
       return;
       // let game$ do the rest
@@ -283,7 +290,7 @@ export class EntryPage implements OnInit {
     let update = {players, playerCount, entries} as Game;
     this.gameRef.update( update ).then(
       res=>{
-        let msg = "Your entry was accepted";
+        let msg = this.game.quickPlay ? "You are in the game." :  "Your entry was accepted";
         this.presentToast(msg);
         let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
         this.router.navigate(['/app/game', gameId]);

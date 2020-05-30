@@ -89,6 +89,32 @@ export class FishbowlHelpers {
     return teams;
   }
 
+  /**
+   * assign a new checkIn player to the smaller team
+   * use for in-game, activeRound assignments
+   * @param pid 
+   * @param teams 
+   */
+  static
+  assignPlayerToTeam( pid:string, teams:TeamRosters):TeamRosters {
+    let doTeamAssignment = !Object.values(teams).find( playerIds=>playerIds.includes(pid));
+    if (doTeamAssignment) {
+      let playerCounts = Object.values(teams).map( playerIds=>playerIds.length);
+      let smaller = Math.min(...playerCounts);
+      let i = Object.values(teams).findIndex( playerIds=>playerIds.length==smaller );
+      let newTeams:TeamRosters = Object.entries(teams).reduce( (o,[k,v])=>{
+        o[k]=v.slice();
+        if (v.length==smaller) {
+          o[k].push(pid);
+          smaller = -1;
+        }
+        return o;
+      }, {})
+      return newTeams;
+    }
+    return null;
+  }
+
   static
   buildGamePlayRound(gameId: string, game:Game, type:RoundEnum, teams:TeamRosters=null): GamePlayRound{
     let teamNames = game.teamNames;

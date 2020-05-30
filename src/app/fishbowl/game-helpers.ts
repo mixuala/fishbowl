@@ -805,10 +805,10 @@ export class GameHelpers {
     return this.db.object<Game>(`/games/${gameId}/checkIn`).update( update )
   }
 
-  async patchPlayerId( gameId: string, game:Game, changeId:{old:string, new:string}): Promise<any>{
+  async patchPlayerId( gameId: string, game:Game, changeId:{old:string, new:string}, force:boolean=false): Promise<any>{
     if (!!game.activeRound) {
       // reject if already checkedIn
-      if (!!game.checkIn[changeId.old])
+      if (!!game.checkIn[changeId.old] && !force)
         return Promise.reject("ERROR: player already checked in")
     }
     let update = {}

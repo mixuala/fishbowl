@@ -119,7 +119,7 @@
                     <ion-toggle color="success" slot="end"
                     [disabled]="checkInAction(p[0], game)=='~done'"
                     [checked]="!!game.checkIn[p[0]]" 
-                    (click)="hidePlayerClick(p[0], checkInAction(p[0], game))">
+                    (click)="checkInPlayerToggle(p[0], checkInAction(p[0], game))">
                     ></ion-toggle>
                   </ion-item>
                   <ion-item>

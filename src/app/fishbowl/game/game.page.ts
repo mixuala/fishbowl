@@ -1354,15 +1354,41 @@ export class GamePage implements OnInit {
    * @param pid 
    * @param keep 
    */
-  hidePlayerClick(pid:string, action: string){
-    switch (action){
-      case '~hide': 
-        this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: false });
-        break;
-      case '~show': 
-        this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: true });
-        break;
-    }
+  checkInPlayerToggle(pid:string, action: string){
+    Promise.resolve()
+    .then( async ()=>{
+      switch (action){
+        case '~hide': 
+          await this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: false });
+          return false
+        case '~show': 
+          await this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: true });
+          return true
+      }
+    })
+    .then( async (added:boolean)=>{
+      // assign new CheckIns to a team ONCE, 
+      if (!added) return;
+      if (!this.game.activeRound) return;
+      
+      // add player team assignment
+      let {teams} = this.gameDict.activeRound;
+      let newTeams = FishbowlHelpers.assignPlayerToTeam(pid, teams);
+      if (newTeams) {
+        console.warn("15: checkInPlayer AFTER game begins", pid, newTeams)
+        let patchRoundIds = Object.entries(this.gameDict).filter( ([k,round])=>{
+          let isRound = this.game.rounds[k];
+          return (isRound && !round['complete']);
+        }).map( ([k,round])=>k );
+        let waitFor = patchRoundIds.map( rid=>{
+          let round = this.gameDict[rid] as GamePlayRound;
+          let players = Object.assign( {}, round.players, {[pid]: this.game.players[pid] });
+          return this.db.object<GamePlayRound>(`/rounds/${rid}`).update( {players, teams:newTeams} )
+        });
+        await Promise.all(waitFor)
+        // update spotlight.playerIndex limits
+      }
+    })
   }
 
   checkInAction(pid:string, game:Game):string{
