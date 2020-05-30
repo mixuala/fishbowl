@@ -310,6 +310,12 @@ ion-card-content{
 }
 
 
+@media (max-width: 576px) {
+  .teleprompter .short {
+    font-size: small;
+  }
+}
+
 
 
 
@@ -341,7 +347,7 @@ ion-card-content{
       .flex-row {
         width: 100%;
       }
-      &.shorter {
+      &.short {
         height: 40px;
         ion-toggle {
           top:-12px;

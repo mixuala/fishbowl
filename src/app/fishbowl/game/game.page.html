@@ -58,7 +58,7 @@
                     [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer()">
                       <span class="button-inner-wrap">Next Player</span>
                     </ion-button>
-                    <div class="middle inline-stack-wrap shorter">
+                    <div class="middle inline-stack-wrap short">
                       <ion-note class="flex-row">Pass the Phone</ion-note>
                       <ion-toggle  color="success" [checked]="game.doPassThePhone"
                       (click)="toggleGameState(game, 'doPassThePhone')"></ion-toggle>
