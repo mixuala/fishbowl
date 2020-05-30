@@ -249,7 +249,7 @@ export class GameHelpers {
     }
     let HOT_gamePlay$ = new ReplaySubject<GamePlayState>(1);
     
-    console.warn("121: 0>> gameWatch.gamePlay$ has changed!!! uid=", rid);
+    // console.warn("121: 0>> gameWatch.gamePlay$ has changed!!! uid=", rid);
     this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges().pipe(
       takeUntil(this._memo_GamePlayWatch.done$),
       startWith(undefined),
@@ -270,11 +270,11 @@ export class GameHelpers {
             }
             return gamePlay[k]!==prev[k];
           });
-          // if (changedKeys.length==1 && changedKeys[0]=="timestamp") {
-          //   // HACK: [OK] skipPlayer does NOT go through pairwise correctly
-          //   //    prev.spotlight is ALREADY changed, only cur.timestamp is detected
-          //   changedKeys.push('spotlight');
-          // }
+          if (changedKeys.length==1 && changedKeys[0]=="timestamp") {
+            // HACK: skipPlayer does NOT go through pairwise correctly
+            //    prev.spotlight is ALREADY changed, only cur.timestamp is detected
+            changedKeys.push('spotlight');
+          }
           console.warn( `120: ===>>> getGamePlay changedKeys=` , changedKeys)
           gamePlay.changedKeys = changedKeys;
         }
