@@ -150,7 +150,7 @@
 
 
 
-              <ion-list class="game-controls-container wide toggle-hide" [class.on-the-spot]="stash.onTheSpot">
+              <ion-list class="game-controls-container wide toggle-hide" [class.on-the-spot]="onTheSpot">
                 <ion-item lines="none">
                   <ion-label>Player Round Controls</ion-label>
                   <ion-toggle color="tertiary" [checked]="stash.showModeratorGameControls"
@@ -287,7 +287,7 @@
               </ion-card-subtitle>
             </ion-card-header>
               
-            <ion-card-content [ngClass]="{'on-the-spot': stash.onTheSpot}">
+            <ion-card-content [ngClass]="{'on-the-spot': onTheSpot}">
 
             <!-- <ion-list class="ion-no-padding"> -->
 
@@ -396,7 +396,7 @@
                     <ion-row><ion-col>
                       <p><ion-note>on the spot</ion-note></p>
                       <ion-button expand="block" id="spotlight-button" class="spotlight" 
-                      [class.on-the-spot]="stash.onTheSpot"
+                      [class.on-the-spot]="onTheSpot"
                       [class.even]="spotlight?.teamIndex%2==0"
                       (click)="onTheSpotClick($event)"
                       >
@@ -408,7 +408,7 @@
                 <!-- </ion-item> -->
               </div>
 
-              <div class="teleprompter" *ngIf="stash.onTheSpot" [class.on-the-spot]="stash.onTheSpot">
+              <div class="teleprompter" *ngIf="onTheSpot" [class.on-the-spot]="onTheSpot">
                 <ion-item-divider class="ion-margin-top">
                   <ion-note>on the spot</ion-note>
                 </ion-item-divider>
@@ -462,7 +462,7 @@
                   <ion-note>play timer</ion-note>
                 </ion-item-divider>
                 <div #animateTarget class="wrapper">
-                  <ion-button id="play-timer" expand="block" color="success" [disabled]="stash.onTheSpot==false" 
+                  <ion-button id="play-timer" expand="block" color="success" [disabled]="onTheSpot==false" 
                     (click)="onTimerClick()"   
                     [class.is-ticking]="gamePlay?.isTicking"
                     [class.pause]="gamePlay?.timerPausedAt"

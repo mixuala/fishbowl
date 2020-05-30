@@ -75,7 +75,7 @@ export class GamePage implements OnInit {
     );
   }
 
-  private pipeCloudEventLoop_Bkg(player:Player) {
+  private pipeCloudEventLoop_Bkg() {
     return pipe(
       tap( (res:[GamePlayState, GameDict])=>{
         if (!res) return;
@@ -85,7 +85,7 @@ export class GamePage implements OnInit {
         let changed = gamePlay.changedKeys || [];
         if (changed.includes('spotlight')) {
           this.spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
-          this.stash.onTheSpot = this.hasSpotlight(player)
+          this.onTheSpot = this.hasSpotlight('player');
         }        
         let isThrottling = this.throttleTimeAndWordEvents(gamePlay);        
         this.doGamePlayUx(gamePlay);
@@ -334,7 +334,6 @@ export class GamePage implements OnInit {
       doPlayerWelcome = doPlayerWelcome && !gamePlay.checkInComplete
       doPlayerWelcome = doPlayerWelcome || !this.isPlayerRegistered;
       if (doPlayerWelcome) {
-        this.stash.onTheSpot = null;
         this.showWelcomeInterstitial(game);
         return Promise.reject('skip')
       }
@@ -397,8 +396,6 @@ export class GamePage implements OnInit {
     // GameWatch changes
     audioVolumeIcon: null,
     activeGame: false,    // activeGame can be true between game.activeRound
-    // activePlayer only
-    onTheSpot: null,
     // end GameWatch
     playersSorted: [],          // Object.entries(game.players) sorted by player name
     showCheckInDetails: false,
@@ -419,6 +416,7 @@ export class GamePage implements OnInit {
   public isPlayerRegistered: boolean;
   private player$ = new BehaviorSubject<Player>(null);
   public spotlight:SpotlightPlayer;
+  public onTheSpot:boolean;
   public gameSummary: any;      // for game.complete==true
 
 
@@ -792,8 +790,7 @@ export class GamePage implements OnInit {
     }
 
     let _resetOnTheSpot = (p:Player=null):boolean=>{
-      let onTheSpot = this.hasSpotlight(p)
-      return this.stash.onTheSpot = onTheSpot;
+      return this.onTheSpot = this.hasSpotlight(p);
     }
 
     let playSound = (sound:string) =>{
@@ -833,7 +830,7 @@ export class GamePage implements OnInit {
           let sound = assumePlayerAlias ? 'ok' : 'click'
           playSound(sound);
 
-          // trigger: let isOnTheSpot = this.stash.onTheSpot;
+          // trigger: let isOnTheSpot = this.onTheSpot;
           let {player$} = modalOptions;
           let p = Object.assign({}, player$.value);
           if (player.uid == assumePlayerAlias.uid) {
@@ -872,8 +869,8 @@ export class GamePage implements OnInit {
     let spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
 
     let _resetOnTheSpot = (p:Player=null):boolean=>{
-      let onTheSpot = this.hasSpotlight(p)
-      return this.stash.onTheSpot = onTheSpot;
+      this.onTheSpot = this.hasSpotlight(p);
+      return
     }
 
     let playSound = (sound:string) =>{
@@ -898,7 +895,7 @@ export class GamePage implements OnInit {
           let sound = assumePlayerAlias ? 'ok' : 'click'
           playSound(sound);
 
-          // trigger: let isOnTheSpot = this.stash.onTheSpot;
+          // trigger: let isOnTheSpot = this.onTheSpot;
           let {player$} = modalOptions;
           let p = Object.assign({}, player$.value);
           if (player.uid == assumePlayerAlias.uid) {
@@ -1197,7 +1194,7 @@ export class GamePage implements OnInit {
       withLatestFrom( this.gameWatch.gameDict$ ),
       // automatcally completes when game.activeRound changes
       throttleTime(100),
-      this.pipeCloudEventLoop_Bkg( this.player$.value), 
+      this.pipeCloudEventLoop_Bkg(), 
       this.pipeCloudEventLoop_Foreground( this.player$.value), 
     ).subscribe(null,null,
       ()=>{
@@ -1308,10 +1305,12 @@ export class GamePage implements OnInit {
   
   hasSpotlight(v:Player|string) {
     try {
-      let player = (typeof v != "string") && v;
+      let player = (typeof v != "string") ? v : this.player$.value;
+      if (player && !!player.playingAsUid) {
+        v=player;   // override with playAs player
+      }
       switch (v) {
         case 'team':
-          if (this.hasSpotlight('player')) return true;
           return !!this.game.activeRound && this.player$.value.teamName==this.spotlight.teamName;
         case 'player':
         default:          
@@ -1402,8 +1401,7 @@ export class GamePage implements OnInit {
     if (!this.gameDict.activeRound) return
 
     // role guard
-    let isOnTheSpot = this.stash.onTheSpot;
-    if (!(isOnTheSpot || this.isModerator())) return;
+    if (!(this.onTheSpot || this.isModerator())) return;
 
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),
@@ -1432,9 +1430,8 @@ export class GamePage implements OnInit {
     }
 
     // role guard
-    let isOnTheSpot = this.stash.onTheSpot;
     let canModeratorStart = this.isModerator() && this.spotlight && this.spotlight.uid
-    if (!(isOnTheSpot || canModeratorStart)) return;
+    if (!(this.onTheSpot || canModeratorStart)) return;
 
     // load round
     let rid = this.game.activeRound;
@@ -1510,8 +1507,7 @@ export class GamePage implements OnInit {
     if (!gamePlay.isTicking) return;
 
     // role guard
-    let isOnTheSpot = this.stash.onTheSpot;
-    if (!(isOnTheSpot || this.isModerator())) return;
+    if (!(this.onTheSpot || this.isModerator())) return;
 
 
     let update = {} as GamePlayState;
@@ -1574,8 +1570,7 @@ export class GamePage implements OnInit {
     if (!this.gameDict.activeRound) 
       return;
 
-    let isOnTheSpot = this.stash.onTheSpot;
-    let isAuthorized = isOnTheSpot || this.isModerator();
+    let isAuthorized = this.onTheSpot || this.isModerator();
     let gamePlay:GamePlayState;
 
     return Promise.resolve()
@@ -1646,8 +1641,7 @@ export class GamePage implements OnInit {
     if (!this.gameDict.activeRound) return
 
     // role guard
-    let isOnTheSpot = this.stash.onTheSpot;
-    if (!(isOnTheSpot || this.isModerator())) return;
+    if (!(this.onTheSpot || this.isModerator())) return;
 
     this.gamePlayWatch.gamePlay$.pipe(
       take(1),
@@ -1668,8 +1662,7 @@ export class GamePage implements OnInit {
     if (!gamePlay) return;
 
     // role guard
-    let isOnTheSpot = this.stash.onTheSpot;
-    if (!(isOnTheSpot || this.isModerator())) return;
+    if (!(this.onTheSpot || this.isModerator())) return;
 
     /**
      * NOTES: round begins with beginPlayerRoundClick() => startTimer() => nextWord()
@@ -1772,8 +1765,7 @@ export class GamePage implements OnInit {
    * onTimerDone() or FishbowlHelpers.nextWord() is empty 
    */
   async completePlayerRound(gameRoundComplete=false):Promise<void>{
-    let isOnTheSpot = this.stash.onTheSpot;
-    if (!(isOnTheSpot || this.isModerator())) return;
+    if (!(this.onTheSpot || this.isModerator())) return;
 
     // only active player pushes updates to the cloud
     let activeRound = this.gameDict.activeRound;
@@ -1840,8 +1832,7 @@ export class GamePage implements OnInit {
    * queue next PlayerRound AFTER completePlayerRound() or 
    */
   private nextPlayerRound():Promise<void>{
-    let isOnTheSpot = this.stash.onTheSpot;
-    if (!(isOnTheSpot || this.isModerator())) {
+    if (!(this.onTheSpot || this.isModerator())) {
       throw new Error( " spotlight changed before ready")
     }
 
