@@ -11,6 +11,7 @@ import { map, tap, switchMap, take, takeWhile, takeUntil, first, filter, withLat
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
+import { GamePackService } from '../../fishbowl/game-pack.service';
 import { Player, } from '../../user/role';
 import { AudioService } from '../../services/audio.service';
 import { CountdownTimerComponent } from '../../components/countdown-timer/countdown-timer.component';
@@ -426,6 +427,7 @@ export class GamePage implements OnInit {
     private db: AngularFireDatabase,
     private authService: AuthService,
     private gameHelpers: GameHelpers,
+    private gamePackService: GamePackService,
   ) {
 
     if (environment.production==false){
@@ -654,18 +656,27 @@ export class GamePage implements OnInit {
 
     let existingRoundEnums = Object.values(this.game.rounds || {});
 
+    const WORDS_PER_QUICK_PLAYER = 3;
+    let words = await this.gamePackService.getWords(this.game.quickPlay, 3);
+    if ((!words) && this.game.quickPlay) {
+      // DEV only
+      this.gamePackService.setWords(  this.game.quickPlay )
+      words = await this.gamePackService.getWords(this.game.quickPlay, 3);
+    }
+    let checkedInPlayers = FishbowlHelpers.getCheckedInPlayers(this.game);
+    let playerCount = Object.keys(checkedInPlayers).length;
+    words = Helpful.shuffle(words, playerCount * WORDS_PER_QUICK_PLAYER );
     let teams: TeamRosters;
     let rounds:GamePlayRound[];
     try {
       rounds = [RoundEnum.Taboo, RoundEnum.OneWord, RoundEnum.Charades]
       .filter( e=>existingRoundEnums.find( ex=>ex==e )==null )
       .map( (round)=>{
-          let gameRound = FishbowlHelpers.buildGamePlayRound(this.gameId, this.game, round, teams );
-          teams = Object.assign({}, gameRound.teams); // copy teams between rounds
-          gameRound.uid = this.db.createPushId();
-          return gameRound;
-        });
-
+        let gameRound = FishbowlHelpers.buildGamePlayRound(this.gameId, this.game, round, teams, words);
+        teams = Object.assign({}, gameRound.teams); // copy teams between rounds
+        gameRound.uid = this.db.createPushId();
+        return gameRound;
+      });
     } catch(err) {
       if (err="Not Enough Players CheckedIn") {
         // present Toast

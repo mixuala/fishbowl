@@ -16,16 +16,7 @@ import {
 } from './types';
 import { Player } from '../user/role';
 
-const WORDS_PER_QUICK_PLAYER = 6;
-const GAME_PACKS = {
-  'animals': [
-    'Aardvark','Anteater','Bumble Bee','Cheetah', 'Elephant','French Poodle', 'Giraffe', 'Gorilla', 'Tiger', 'Lion', 'Penguin', 'Polar Bear', 'Peacock', 'Pelican', 'Zebra', 'Meercat', 'Gazelle',
-    'Simba', 'Timon', 'Poombah', 'Nemo', 'Dory', 'Flounder', 'Scuttle', 'Sebastian', 'Toto', 'Old Yeller', 'Sonic the Hedge Hog', 'Donkey Kong', 'Flipper', 'Lassie', 'Snoopy', 'Scooby Doo', 'Pink Panther', 'Yogi Bear',
-    'Bugs Bunny', 'Road Runner', 'Woody the Woodpecker', 'Tom & Jerry', 'Rudolph',
-    'Starfish', 'Goldfish', 'Pufferfish', 'Morey Eel', 'Great White Shark', 'Stingray', 'Blue Whale', 'Orca', 'Dolphin', 'Octopus', 'Squid', 'Turtle', 'Whale Shark',
-    'Humu Humu Nuku Nuku Apua\'a', 'Sea Urchin', 'Tuna', 
-  ]
-}
+const WORDS_PER_QUICK_PLAYER = 3;
 
 
 export class FishbowlHelpers {
@@ -116,17 +107,22 @@ export class FishbowlHelpers {
   }
 
   static
-  buildGamePlayRound(gameId: string, game:Game, type:RoundEnum, teams:TeamRosters=null): GamePlayRound{
-    let teamNames = game.teamNames;
-    if (!teamNames) teamNames = ['mahi mahi', 'yoko ono']
-    let combined = Object.assign({}, game.players, game.checkIn)
-    let checkedInPlayers:PlayerByUids = Object.entries(game.checkIn).reduce( (o, [pid, v])=>{
+  getCheckedInPlayers(game:Game):PlayerByUids {
+    return Object.entries(game.checkIn).reduce( (o, [pid, v])=>{
       if (typeof v=='boolean' && v===false) {
         return o; // skip
       }
       o[pid] = game.players[pid];
       return o;
     },{});
+  }
+
+  static
+  buildGamePlayRound(gameId: string, game:Game, type:RoundEnum, teams:TeamRosters=null, words:string[]=null): GamePlayRound{
+    let teamNames = game.teamNames;
+    if (!teamNames) teamNames = ['mahi mahi', 'yoko ono']
+    let combined = Object.assign({}, game.players, game.checkIn)
+    let checkedInPlayers = FishbowlHelpers.getCheckedInPlayers(game);
     teams = teams || FishbowlHelpers.assignTeams(checkedInPlayers, teamNames);
 
     if (Object.entries(checkedInPlayers).length<2) 
@@ -134,9 +130,8 @@ export class FishbowlHelpers {
 
     let {quickPlay} = game;
     let entries:{[word:string]:boolean};
-    if (quickPlay) {
+    if (words) {
       let playerCount = Object.keys(checkedInPlayers).length;
-      let words = GAME_PACKS[quickPlay];
       words = Helpful.shuffle(words, playerCount*WORDS_PER_QUICK_PLAYER );
       entries = words.reduce( (o,w)=>(o[w]=true,o), {});
     }

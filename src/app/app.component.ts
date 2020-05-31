@@ -5,7 +5,6 @@ import { Plugins, App, AppState } from '@capacitor/core';
 import { AppConfig } from './services/app.helpers';
 import { AuthService } from './services/auth-service.service';
 import { PwaUpdateService } from './services/pwa-update.service';
-
 import { environment } from '../environments/environment';
 
 const { SplashScreen, StatusBar, Storage } = Plugins;
