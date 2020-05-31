@@ -20,6 +20,10 @@
             <ion-card-header color="tertiary">
               <ion-card-title>
                 {{game.label}}
+                <div class="ion-float-right inline-text-wrap">
+                  <ion-badge  *ngIf="game.quickPlay" color="warning" >QuickPlay</ion-badge>
+                  <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
+                </div>
               </ion-card-title>
               <ion-card-subtitle>
                 Fishbowl
