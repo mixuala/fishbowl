@@ -15,7 +15,7 @@ const LATENCY_MS = 900;  // add time so timer display begins at 30
   ]
 })
 export class CountdownTimerComponent implements OnInit, OnDestroy {
-  _endingTime: any;
+  _endingTime: dayjs.Dayjs;
   _initialUnit = 'hour';
   _endingUnit = 'second';
 
@@ -67,6 +67,9 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
    *  o=={ pause:true } pauses timer, without  clearing ending time
    */
   set duration( o: {seconds?: number, pause?:boolean, key?: number}) {
+
+    const MAX_OFFSET_MS = 2000  // max timer offset to account for network latency
+
     if (!o || o.seconds===null) {
       // reset timer
       this._endingTime=null;
@@ -74,7 +77,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     }
     
     if (o && o.key && o.key==this.key){
-      // console.info("-1> $$$ timer ending time:", this._endingTime.toDate())
+      console.info("16: countdown timer >>> CACHE HIT, SKIP, timer ending time:", this._endingTime.toDate())
       return
     }
 
@@ -100,7 +103,16 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     }
 
     let duration = seconds*1000 - this.offset + LATENCY_MS;
+    duration = Math.min(duration, seconds*1000+MAX_OFFSET_MS);
+    duration = Math.max(duration, seconds*1000-MAX_OFFSET_MS);
     this._endingTime = dayjs().add(duration, 'millisecond');
+    // console.info("16: countdown timer> $$$ CREATE TIMER seconds seconds/local/remove/offset/latency =", 
+    //   seconds,
+    //   (this._endingTime.toDate().getTime()- Date.now())/1000,
+    //   (this._endingTime.toDate().getTime() - o.key)/1000, // relative to remote startTimer client time
+    //   this.offset/1000,      // latency between time on client and time gamePlay.timer was updated, <10s
+    //   LATENCY_MS/1000        // latency of angular event loop
+    // )
     // => onto ngOnChange()
   }
 
@@ -254,7 +266,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
             }
           }
           else {
-            this.startCountdown(this._endingTime);
+            this.startCountdown();
           }
           break;
         }
@@ -263,10 +275,10 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
           if (change.firstChange) {  // skip firstChange from ngOnInit()
             return
           }
-          if (this._endingTime>0 && change.currentValue.pause!=true)  {
+          if (!!this._endingTime && change.currentValue.pause!=true)  {
             this.startCountdown(change.currentValue);
           }
-          else if (this._endingTime===null || this._endingTime===0) {
+          else if (!this._endingTime) {
             this.complete$.next(true);
             this.pauseTimer$.next(true);
             this._secondsLeft = 0;
