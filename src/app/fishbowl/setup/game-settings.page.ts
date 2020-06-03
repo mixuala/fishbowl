@@ -262,6 +262,7 @@ export class GameSettingsPage implements OnInit {
     if (gameId == "new") return;
 
     let baseurl = 'https://fishbowl-the-game.web.app';
+    baseurl = 'https://fishbowl-the-game.firebaseapp.com';
     return `${baseurl}/app/invite/${gameId}`
   }
 
