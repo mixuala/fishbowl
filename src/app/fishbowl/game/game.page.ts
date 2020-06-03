@@ -659,13 +659,14 @@ export class GamePage implements OnInit {
     const WORDS_PER_QUICK_PLAYER = 3;
     let words = await this.gamePackService.getWords(this.game.quickPlay, 3);
     if ((!words) && this.game.quickPlay) {
-      // DEV only
-      this.gamePackService.setWords(  this.game.quickPlay )
-      words = await this.gamePackService.getWords(this.game.quickPlay, 3);
+      if (!environment.production){
+        this.gamePackService.setWords(  this.game.quickPlay )
+        words = await this.gamePackService.getWords(this.game.quickPlay, 3);
+      }  
     }
     let checkedInPlayers = FishbowlHelpers.getCheckedInPlayers(this.game);
     let playerCount = Object.keys(checkedInPlayers).length;
-    words = Helpful.shuffle(words, playerCount * WORDS_PER_QUICK_PLAYER );
+    words = words && Helpful.shuffle(words, playerCount * WORDS_PER_QUICK_PLAYER );
     let teams: TeamRosters;
     let rounds:GamePlayRound[];
     try {
