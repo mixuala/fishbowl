@@ -178,7 +178,7 @@
                         </ion-label>
                         <ion-label class="inline-text-wrap">
                           <ion-note class="ion-margin-horizontal">round</ion-note>
-                          <ion-badge color="light" class="ion-padding-horizontal">{{activeRound?.round || "--"}}</ion-badge>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{gameDict.activeRound?.round || "--"}}</ion-badge>
                         </ion-label>
                       </ion-item>
     
@@ -350,7 +350,7 @@
                       <ion-col size=6>
                         <ion-item>
                           <ion-label><ion-note>round</ion-note></ion-label>
-                          <ion-badge color="light" class="ion-padding-horizontal">{{activeRound?.round || "––"}}</ion-badge>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{gameDict.activeRound?.round || "––"}}</ion-badge>
                         </ion-item>
                       </ion-col>
                       <ion-col size=6>
@@ -358,7 +358,7 @@
                           <ion-label>
                             <ion-note>players</ion-note> 
                           </ion-label>
-                          <ion-badge color="light" class="ion-padding-horizontal">{{game.playerCount}}</ion-badge>
+                          <ion-badge color="light" class="ion-padding-horizontal">{{stash.playerCount || game.playerCount}}</ion-badge>
                         </ion-item>
                       </ion-col>
                       <ion-col size=12>
@@ -424,7 +424,7 @@
                     </ion-label>
                     <ion-label class="inline-text-wrap">
                       <ion-note class="ion-margin-horizontal">round</ion-note>
-                      <ion-badge color="light" class="ion-padding-horizontal">{{activeRound?.round || "--"}}</ion-badge>
+                      <ion-badge color="light" class="ion-padding-horizontal">{{gameDict.activeRound?.round || "--"}}</ion-badge>
                     </ion-label>
                   </ion-item>
                   

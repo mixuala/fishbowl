@@ -785,7 +785,7 @@ export class GamePage implements OnInit {
     if (!game.checkIn[ this.getActingPlayerId(player) ]) return
     if (!game.activeRound) return
 
-
+    this.stash.playerCount = Object.keys(FishbowlHelpers.getCheckedInPlayers(game)).length;
     // confirm state, gamePlay.doBeginPlayerRound has not changed
     gamePlay = await this.gameDict.gamePlayWatch.gamePlay$.pipe( first() ).toPromise();
     if (!doChangePlayer){

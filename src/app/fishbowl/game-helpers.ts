@@ -647,7 +647,7 @@ export class GameHelpers {
           if (spotlight.playerIndex[ i ] >= limits.playerIndex[ i ]) spotlight.playerIndex[ i ] = 0;
         }
         spotlight.teamName = teamNamesInPlayOrder[spotlight.teamIndex];
-        // where does gamePlayTimerDuration first get set?
+        // where does gamePlayTimerDuration first get set? initGamePlayState()
         let timerDuration = gamePlay.timerDuration || options.defaultDuration;
 
         let update = {
