@@ -1311,6 +1311,9 @@ export class GamePage implements OnInit {
   hasSpotlight(v:Player|string) {
     try {
       let player = (typeof v != "string") ? v : this.player$.value;
+      if (!player) {
+        return
+      }
       if (player && !!player.playingAsUid) {
         v=player;   // override with playAs player
       }

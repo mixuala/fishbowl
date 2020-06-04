@@ -810,7 +810,10 @@ export class GameHelpers {
       // reject if already checkedIn
       if (!!game.checkIn[changeId.old] && !force)
         return Promise.reject("ERROR: player already checked in")
+      
     }
+
+    // patch Games
     let update = {}
     let keys = ['players', 'entries', 'checkIn', 'moderators'];
     keys.map( k=>{
@@ -825,6 +828,33 @@ export class GameHelpers {
     let waitFor = Object.entries(update).map( ([k,v])=>{
       return this.db.object<Game>(`/games/${gameId}/${k}`).set( v as any )
     });
+
+    // patch Rounds: players & Team Assignments
+    let roundIds = Object.keys(game.rounds);
+    let waitFor2 = roundIds.map( (rid=>{
+      return this.db.object<GamePlayRound>(`/rounds/${rid}`).valueChanges().pipe(first()).toPromise()
+      .then( round=>{
+        let update2 = {};
+        let {players, teams} = round;
+        if (players.hasOwnProperty(changeId.old)) {
+          players[changeId.new] = players[changeId.old];
+          players[changeId.old] = null;
+          Object.assign( update2, {players});
+        };
+        Object.entries(teams).find( ([teamName,pids])=>{
+          let foundIndex = pids.findIndex( pid=>pid==changeId.old );
+          if (~foundIndex) {
+            teams[teamName].splice( foundIndex, 1, changeId.new)
+            Object.assign( update2, {teams});
+            return true;
+          }
+        })
+        return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(update2);
+      });
+    }));
+
+    waitFor = [].concat( ...waitFor, ...waitFor2 );
+
     return Promise.all(waitFor).then( ()=>{
       console.warn( "patchPlayerid DONE  ", gameId, update)
     },
