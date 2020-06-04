@@ -272,7 +272,7 @@
           </ion-card>
         </ion-col>
 
-
+      <!-- pre-game and gamePlay: player control panel -->
       <ng-container *ngIf="!isGameOver(); else showGameOver">
         <!--  game-control-panel -->
         <ion-col size="12" size-sm="8" size-md="6" *ngIf="isPlayerRegistered; else playerEntryCTA">
@@ -294,7 +294,7 @@
 
             <!-- <ion-list class="ion-no-padding"> -->
 
-              <ng-container  *ngIf="isGameOpen(); else showPlayersLounge">
+              <ng-container  *ngIf="isGameOpen() ; else showPlayersLounge">
 
               <div class="user-controls">
                 <ion-item-divider class="ion-margin-top">
@@ -330,6 +330,9 @@
                 </ion-grid>
               </div>                  
             
+
+            <!-- gamePlay: (main gamePlay template) -->
+            <ng-container *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
               <div class="game-summary">
                 <ion-item-divider class="ion-margin-top">
                   <ion-note>game summary</ion-note>
@@ -415,7 +418,6 @@
                 <ion-item-divider class="ion-margin-top">
                   <ion-note>on the spot</ion-note>
                 </ion-item-divider>
-                <ng-container *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
 
                   <ion-item class="short" lines="none">
                     <ion-label class="inline-text-wrap">
@@ -449,14 +451,13 @@
                     </ion-col>
                   </ion-row></ion-grid>
 
-                </ng-container>
               </div>
 
               <div class="round-scores">
                 <app-score-card [gamePlay$]="gamePlay$"></app-score-card>
               </div>
               
-              <div  class="timer-controls ion-margin-bottom" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
+              <div  class="timer-controls ion-margin-bottom">
                 <ion-item-divider class="ion-margin-top">
                   <ion-note>play timer</ion-note>
                 </ion-item-divider>
@@ -482,7 +483,7 @@
               </div>
               </ng-container>
 
-              <div class="pass-the-phone check ion-text-center ion-margin-vertical ion-padding-top" *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
+              <div class="pass-the-phone check ion-text-center ion-margin-vertical ion-padding-top">
                 <ion-button class="tertiary" fill="outline" color="tertiary" 
                 [disabled]="!game.doPassThePhone || gamePlay.playerRoundBegin || hasSpotlight('player')"
                 (click)="doChangePlayerClick(gamePlay, game)">
@@ -490,6 +491,8 @@
                   <ion-label>Change Player</ion-label>
                 </ion-button>
               </div>
+
+            </ng-container>
 
 
 
@@ -503,34 +506,43 @@
                     </ion-item-divider>
                     <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"
                     (onBuzz)="onGameTime($event)"
-                    ></app-countdown-timer>
+                    >
+                      <ion-col class="ion-justify-content-center ion-text-center">
+                        <ion-text color="dark">
+                          Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
+                        </ion-text>
+                      </ion-col>
+                    </app-countdown-timer>
                   </div>
-                  <div class="game-time ion-text-center">
-                    <ion-text  color="dark">
-                      Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
-                    </ion-text>
 
-                    <div class="review-game-entry">
-                      <ion-label>
-                        <h1>Welcome to the <span>Players Lounge</span></h1>
-                        <p><ion-text color="tertiary">
-                        Just chill while the other players arrive.
-                        </ion-text></p>
-                      </ion-label>
-  
-                      <ion-button expand="block" color="success" class="taller" [disabled]="!game.chatRoom"
-                      [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">
-                        <ion-icon name="videocam" slot="start"></ion-icon>
-                        Open Video Chat Room
-                      </ion-button>
+                  <div class="game-time ion-text-center review-game-entry">
+                      <div class="rounded outline ion-color-dark">
+                        <ion-label color="light">
+                          <h1>Welcome to the <ion-text color="tertiary" style="white-space: nowrap;">Players Lounge</ion-text></h1>
+                        </ion-label>
+                      </div>
+                      <div class="ion-margin-top"><ion-text color="tertiary">Just chill while the other players arrive.</ion-text></div>
+
+                      <div class="ion-text-center ion-margin-top">
+                        <div class="hero inline-text-wrap">
+                          <ion-note class="ion-text-left" color="dark">You are Player</ion-note> &nbsp;
+                          <ion-badge color="success" class="name wide" >
+                            {{player.displayName}}
+                          </ion-badge>
+                        </div>
+                      </div>
+
   
                       <ion-button expand="block" color="tertiary" class="taller ion-margin-top"
                       routerDirection="forward" [routerLink]="['/app/game', gameId, 'player']">
                         {{player ? 'Review Game Entry for' : 'Create Game Entry'}}
                         <ion-text color="light" *ngIf="player">&nbsp;{{player.displayName}}</ion-text>
                       </ion-button>
-                    </div>
-                    
+                      <ion-button expand="block" color="success" class="taller ion-margin-top" [disabled]="!game.chatRoom"
+                      [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">
+                        <ion-icon name="videocam" slot="start"></ion-icon>
+                        Open Video Chat Room
+                      </ion-button>
                   </div>
                 </div>
 
@@ -545,6 +557,26 @@
                       <ion-note *ngIf="isModerator(p[0])">moderator</ion-note>
                     </ion-col>
                   </ion-row>
+                  <ion-row class="ion-content-justify-center">
+                    <ion-col size="12" class="pass-the-phone check ion-text-center ion-margin-top ion-padding-top">
+                      <ion-button class="tertiary" fill="outline" color="tertiary"
+                      [disabled]="player && game.players[player.uid]"
+                      (click)="stash.show_SearchByStageName = !stash.show_SearchByStageName">
+                        <ion-label>Change Player</ion-label>
+                      </ion-button>
+                    </ion-col>
+                    <ion-col size="12"  *ngIf="stash.show_SearchByStageName">
+                      <ion-searchbar showCancelButton="focus" animated mode="md"
+                        placeholder="Search by Stage Name"
+                        (ionBlur)="doFindStageName($event.target)"
+                        (ionCancel)="doFindStageName($event.target, true)"
+                      ></ion-searchbar>
+                      <ion-label *ngIf="stash.show_SearchByStageName_Empty">
+                        <ion-text color="tertiary">
+                          Sorry, that player was not found.</ion-text>
+                        </ion-label>
+                    </ion-col>
+                  </ion-row>                
                 </ion-grid>
 
               </ng-template>
@@ -553,8 +585,6 @@
             </ion-card-content>
           </ion-card>
         </ion-col>
-
-
 
 
         <!-- game-new-player -->
@@ -583,10 +613,13 @@
                   <div class="game-time ion-text-center">
                     <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"
                     (onBuzz)="onGameTime($event)"
-                    ></app-countdown-timer>
-                    <ion-text  color="dark">
-                      Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
-                    </ion-text>
+                    >
+                      <ion-col class="ion-justify-content-center ion-text-center">
+                        <ion-text color="dark">
+                          Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
+                        </ion-text>
+                      </ion-col>                    
+                    </app-countdown-timer>
                   </div>
                 </div>
 
@@ -628,6 +661,26 @@
                         <ion-note *ngIf="isModerator(p[0])">moderator</ion-note>
                       </ion-col>
                     </ion-row>
+                    <ion-row class="ion-content-justify-center">
+                      <ion-col size="12" class="pass-the-phone check ion-text-center ion-margin-top ion-padding-top">
+                        <ion-button class="tertiary" fill="outline" color="tertiary"
+                        [disabled]="player && game[player.uid]"
+                        (click)="stash.show_SearchByStageName = !stash.show_SearchByStageName">
+                          <ion-label>Find Entry</ion-label>
+                        </ion-button>
+                      </ion-col>
+                      <ion-col size="12"  *ngIf="stash.show_SearchByStageName">
+                        <ion-searchbar showCancelButton="focus" animated mode="md"
+                          placeholder="Search by Stage Name"
+                          (ionBlur)="doFindStageName($event.target)"
+                          (ionCancel)="doFindStageName($event.target, true)"
+                        ></ion-searchbar>
+                        <ion-label *ngIf="stash.show_SearchByStageName_Empty">
+                          <ion-text color="tertiary">
+                            Sorry, that player was not found.</ion-text>
+                          </ion-label>
+                      </ion-col>
+                    </ion-row>
                   </ion-grid>
                 </div>
 
@@ -641,6 +694,7 @@
         </ng-template>
       </ng-container>        
 
+      <!-- gameOver template -->
       <ng-template #showGameOver>
         <ion-col size="12" size-sm="8" size-md="6">
           <ion-card>

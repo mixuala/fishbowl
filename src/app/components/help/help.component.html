@@ -213,7 +213,7 @@
             <div *ngIf="hasEntry; else doEntry">
               <div class="ion-text-center">
                 <div class="hero">
-                  <ion-note class="ion-text-left" color="tertiary">player</ion-note>
+                  <ion-note class="ion-text-left" color="tertiary">You are Player</ion-note>
                   <p class="player-name"><ion-text color="light">
                     {{playerName}}
                   </ion-text></p>
@@ -259,7 +259,7 @@
             <div *ngIf="hasEntry; else doEntry">
               <div class="ion-text-center">
                 <div class="hero">
-                  <ion-note class="ion-text-left" color="tertiary">player</ion-note>
+                  <ion-note class="ion-text-left" color="tertiary">You are Player</ion-note>
                   <p class="player-name"><ion-text color="light">
                     {{playerName}}
                   </ion-text></p>
@@ -271,11 +271,14 @@
               </ion-text></h3>
             </div>
             <ng-template #doEntry>
-              <ion-button expand="block" color="tertiary" size="large" class="ion-margin-vertical"
+              <ion-button expand="block" color="tertiary" size="large" class="taller ion-margin-top"
               routerDirection="forward" [routerLink]="entryLink" (click)="onDismissClick(true)">
                 Join Game
               </ion-button>
-              <div class="ion-margin-vertical"></div>
+              <!-- <ion-button expand="block" color="success" size="large" class="taller ion-margin-top"
+              click="">
+                Find Entry
+              </ion-button> -->
             </ng-template>
 
           </ng-template>

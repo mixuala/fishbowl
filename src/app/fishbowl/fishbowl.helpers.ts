@@ -118,6 +118,21 @@ export class FishbowlHelpers {
   }
 
   static
+  doPlayerEntryLookup(name:string=null, game:Game):[string, string] {
+    let {players, checkIn} = game;
+
+    if (game.activeRound){
+      // confirm player has not checked in
+      let pid = Object.keys(players).find( k=>players[k]==name);
+      if (pid && !!checkIn[pid]) {
+        return null;  // already checkedIn
+      }
+    }
+    let found = Object.entries(players).find( ([k,v])=>v.trim().toLowerCase()==name.toLowerCase());
+    return !!found ? found : null;
+  }
+
+  static
   buildGamePlayRound(gameId: string, game:Game, type:RoundEnum, teams:TeamRosters=null, words:string[]=null): GamePlayRound{
     let teamNames = game.teamNames;
     if (!teamNames) teamNames = ['mahi mahi', 'yoko ono']

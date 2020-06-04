@@ -159,6 +159,12 @@ export class EntryPage implements OnInit {
     let words = this.game.entries && this.game.entries[this.player.uid] || [];
     let name = this.game.players && this.game.players[this.player.uid] || this.player.displayName || "";
 
+    let replace = this.activatedRoute.snapshot.paramMap.get('replace');
+    if (replace) {
+      let {uid, playerName} = JSON.parse(replace)
+      name = playerName;
+    }
+
     words.forEach( (v,i)=>{
       entry[`word_${i+1}`] = v;
     });
@@ -166,7 +172,12 @@ export class EntryPage implements OnInit {
       this.stash.addMoreWords = true;
     }
     entry['name'] = name as string;
-    this.entryForm.setValue(entry)
+    this.entryForm.setValue(entry);
+
+    if (replace) {
+      const control = this.entryForm.get('name');
+      control.markAsTouched({ onlySelf: true });
+    }
   }
 
   ionViewDidEnter() {
@@ -200,28 +211,18 @@ export class EntryPage implements OnInit {
   }
 
   doPlayerEntryLookup(name:string=null):[string, string] {
-    name = this.entryForm.get('name').value;
-    let {players, checkIn} = this.game;
-
-    if (this.game.activeRound){
-      // confirm player has not checked in
-      let pid = Object.keys(players).find( k=>players[k]==name);
-      if (pid && !!checkIn[pid]) {
-        return null;  // already checkedIn
-      }
-    }
-    let found = Object.entries(players).find( ([k,v])=>v.trim().toLowerCase()==name.toLowerCase());
-    return !!found ? found : null;
+    name = name || this.entryForm.get('name').value;
+    return FishbowlHelpers.doPlayerEntryLookup(name, this.game);
   }
 
   async onTakePlayerIdentity(v:any) {
     try {
-      if (v==false) throw new Error('cancel');
+      if (v==false) throw 'cancel';
 
       let found = this.doPlayerEntryLookup();
-      if (!found) throw new Error('cancel');
+      if (!found) throw 'cancel';
       let [oldPid, name] = found;
-      if (!this.game.players[oldPid]) throw new Error('cancel');
+      if (!this.game.players[oldPid]) throw 'cancel';
       
       let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
       // TODO: add a [force] button, so Moderator can change devices

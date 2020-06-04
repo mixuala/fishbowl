@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LoadingController, ModalController, } from '@ionic/angular';
+import { LoadingController, ModalController, IonSearchbar, } from '@ionic/angular';
 import { Title } from '@angular/platform-browser';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import { Plugins, } from '@capacitor/core';
@@ -248,8 +248,13 @@ export class GamePage implements OnInit {
     game: Game,
   ) {
     let changed = gamePlay.changedKeys || [];
-
+    
     let dontWait = Promise.resolve()
+    // .then( ()=>{   
+    //   // debug interstitial
+    //   this.showBeginPlayerRoundInterstitial(gamePlay, game, true); 
+    //   return Promise.reject('skip')
+    // })
     .then( ()=>{   
       if (changed.includes('doGameOver')) {
         // gameOver interstitial
@@ -521,7 +526,12 @@ export class GamePage implements OnInit {
   }
 
   doChangePlayerClick(gamePlay, game) {
-    this.showChangePlayerInterstitial(gamePlay, game);
+    return this.showChangePlayerInterstitial(gamePlay, game);
+    // let player = this.player$.getValue();
+    // let isCheckedIn = !!game.checkIn[player.uid];
+    // if (this.isGameOpen() && isCheckedIn) {
+    //   return this.showChangePlayerInterstitial(gamePlay, game);
+    // }
   }
 
   resetGameClick(ev){
@@ -1335,6 +1345,39 @@ export class GamePage implements OnInit {
       return player.playingAsUid || player.uid;
     } catch(err) {
       return null;
+    }
+  }
+
+  async doFindStageName (o:IonSearchbar, reset:boolean=false){
+    // guard
+    let player = this.player$.getValue();
+    let isPlayer = !!this.game.players[player.uid];
+    let isCheckedIn = !!this.game.checkIn[player.uid];
+    if (isPlayer) return;
+
+
+    this.stash.show_SearchByStageName_Empty = false;
+    if (reset) {
+      this.stash.show_SearchByStageName = false;
+      o.value = "";
+      return;
+    }
+
+    let allowChangePlayerIfALREADYcheckedIn = false;
+    let name = o.value;
+    if (!name) return;
+    let found = FishbowlHelpers.doPlayerEntryLookup(name, this.game);
+    let pid = found && found[0];
+    if (pid) {
+      let replace = JSON.stringify({uid:pid, playerName: name })
+      setTimeout( ()=>{
+        this.stash.show_SearchByStageName = false;
+        o.value = "";
+      },1000)
+      return this.router.navigate( ['/app/game', this.gameId, "player", {replace}] );
+    }
+    else {
+      this.stash.show_SearchByStageName_Empty = true;
     }
   }
 
