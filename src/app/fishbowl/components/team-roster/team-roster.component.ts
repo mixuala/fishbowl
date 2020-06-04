@@ -162,9 +162,10 @@ export class TeamRosterComponent implements OnInit {
     });
   }
 
-  doPassThePhone() {
-    return this.passThePhone
-  }
+  // // deprecate
+  // doPassThePhone() {
+  //   return this.passThePhone
+  // }
 
   isOnlyPlayer(teamName) {
     return this.asModerator && this.teams[teamName].length==1;
@@ -176,10 +177,11 @@ export class TeamRosterComponent implements OnInit {
 
   }
 
-  doPlayAsClick(spotlight:SpotlightPlayer, ev:CustomEvent) {
-    ev.stopImmediatePropagation();
-    if (!!this.passThePhone) this.onPlayAs.emit(spotlight);
-  }
+  // // deprecate, replace with GamePage.doChangePlayerClick()
+  // doPlayAsClick(spotlight:SpotlightPlayer, ev:CustomEvent) {
+  //   ev.stopImmediatePropagation();
+  //   if (!!this.passThePhone) this.onPlayAs.emit(spotlight);
+  // }
 
   switchTeams(item:any){
     if (!this.isModerator) return;

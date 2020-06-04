@@ -230,6 +230,13 @@ ion-card.pre-game {
 
   .begin-player-round-help {
     margin: 60px auto;
+    .ready-button {
+      min-height: 180px;
+      line-height: 1;
+      font-size: 3em;
+      font-weight:400;
+      text-transform: none;
+    }
   }
 
   .image-wrap.ready-button-image {

@@ -186,7 +186,7 @@
                       (click)="beginPlayerRoundClick()"
                       >
                         <ion-label class="ion-text-wrap ion-text-center">
-                          {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[ready]')}}
+                          {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[start]')}}
                         </ion-label>
                       </ion-item>
 
@@ -433,7 +433,7 @@
                   (click)="beginPlayerRoundClick()"
                   >
                     <ion-label class="ion-text-wrap ion-text-center">
-                      {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[ready]')}}
+                      {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[start]')}}
                     </ion-label>
                   </ion-item>
                   <ion-grid class="ion-no-padding"><ion-row>
@@ -482,8 +482,9 @@
               </div>
               </ng-container>
 
-              <div class="pass-the-phone ion-text-center ion-margin-vertical ion-padding-top">
-                <ion-button class="tertiary" fill="outline" color="tertiary" [disabled]="hasSpotlight(p)"
+              <div class="pass-the-phone check ion-text-center ion-margin-vertical ion-padding-top" *ngIf="game.doPassThePhone && (gamePlayWatch?.gamePlay$ | async) as gamePlay">
+                <ion-button class="tertiary" fill="outline" color="tertiary" 
+                [disabled]="hasSpotlight(p) || gamePlay.playerRoundBegin"
                 (click)="doChangePlayerClick(gamePlay, game)">
                   <ion-icon name="swap-horizontal-outline" slot="start"></ion-icon>
                   <ion-label>Change Player</ion-label>
