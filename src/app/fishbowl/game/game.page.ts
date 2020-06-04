@@ -1312,7 +1312,7 @@ export class GamePage implements OnInit {
     try {
       let player = (typeof v != "string") ? v : this.player$.value;
       if (!player) {
-        return
+        return false
       }
       if (player && !!player.playingAsUid) {
         v=player;   // override with playAs player
