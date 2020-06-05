@@ -485,7 +485,7 @@
 
               <div class="pass-the-phone check ion-text-center ion-margin-vertical ion-padding-top">
                 <ion-button class="tertiary" fill="outline" color="tertiary" 
-                [disabled]="!game.doPassThePhone || gamePlay.playerRoundBegin || hasSpotlight('player')"
+                [disabled]="!game.doPassThePhone || gamePlay?.playerRoundBegin || hasSpotlight('player')"
                 (click)="doChangePlayerClick(gamePlay, game)">
                   <ion-icon name="swap-horizontal-outline" slot="start"></ion-icon>
                   <ion-label>Change Player</ion-label>
