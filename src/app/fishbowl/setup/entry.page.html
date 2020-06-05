@@ -33,12 +33,11 @@
             <ion-card-content>
               <ng-container *ngIf="game && !game.quickPlay; else quickPlay">
 
-                <div class="game-time ion-text-center" *ngIf="isPregame()">
+                <div class="game-time ion-text-center" *ngIf="isPregame(); else isGameTime">
                   <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true">
+                    <!-- BUG: this ng-content does NOT show -->
                     <ion-col class="ion-justify-content-center ion-text-center"  slot="footer">
                       <ion-text color="dark">
-                        Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
-                    Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                         Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                       </ion-text>
                     </ion-col>
@@ -54,6 +53,21 @@
                   </div>
                   <ion-item-divider></ion-item-divider>
                 </div>
+
+                <ng-template #isGameTime>
+                  <div class="ion-margin-vertical">
+                    <ion-button class="taller" color="tertiary" expand="block" fill="outline" size="large" *ngIf="!game?.players[player.uid]"
+                    disabled="true" style="opacity:1 !important; text-transform:none;"
+                    >
+                      <ion-label color="medium">
+                        <h2>
+                          Just enter your <ion-text color="tertiary">Stage Name</ion-text>
+                          <br />to find an earlier entry.
+                        </h2>
+                      </ion-label>
+                    </ion-button>
+                  </div>
+                </ng-template>
 
               <form [formGroup]="entryForm" (ngSubmit)="doEntry()">
 
