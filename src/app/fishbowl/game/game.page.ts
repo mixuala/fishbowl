@@ -312,6 +312,7 @@ export class GamePage implements OnInit {
     })
     .then( async ()=>{
       if (changed.includes('doTeamRosters')) {
+        // HACK: use Date.now() to force change detection
         this.showTeamRostersInterstitial();
         return Promise.reject('skip')
       }    
@@ -323,8 +324,10 @@ export class GamePage implements OnInit {
     })
     .then( async ()=>{
       if (changed.includes('doCheckIn')) {
-        let status = game.checkIn && game.checkIn[this.playerId]
-        this.showCheckInInterstitial(status);
+        let status = game.checkIn && game.checkIn[this.playerId];
+        // HACK: use Date.now() to force change detection
+        let repeatCheckIn = typeof gamePlay.doCheckIn == "number";
+        this.showCheckInInterstitial(status, repeatCheckIn);
         return Promise.reject('skip')
       }    
     })
@@ -519,8 +522,12 @@ export class GamePage implements OnInit {
     if (!ok) return;
     this.stash.showCheckInDetails = false;
     this.beginTeamAssignments()
-    
   }
+
+  repeatTeamRosterClick() {
+    this.beginTeamAssignments();
+  }
+
   beginGameRoundClick(){
     this.beginNextGameRound();
   }
@@ -568,6 +575,16 @@ export class GamePage implements OnInit {
    */
   async beginCheckIn(gameId:string){
     if (!this.isModerator()) return;
+
+    let gamePlay = await this.gamePlayWatch.gamePlay$.pipe(first()).toPromise();
+    let doRepeat = gamePlay && !!gamePlay.doCheckIn && !gamePlay.checkInComplete;
+    if (doRepeat) {
+      // repeat checkIn 
+      await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, { doCheckIn: Date.now() as any });
+      return 
+    }
+
+
     let update = { 
       doCheckIn: true,
       checkInComplete: false,
@@ -575,7 +592,7 @@ export class GamePage implements OnInit {
     await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
     await this.gameHelpers.pushGameState( this.gameId, {isGameOpen:true} );
 
-    this.stash.showCheckInDetails = true;
+    this.stash.showCheckInDetails = true;  // moderator control panel
   }
 
 /**
@@ -620,11 +637,15 @@ export class GamePage implements OnInit {
   /**
    * cloud action, trigger on gamePlay.doCheckIn==true, GameAdminState
    */ 
-  showCheckInInterstitial(status:string | boolean) {
+  showCheckInInterstitial(status:string | boolean, doRepeatCheckIn: boolean=false) {
     // if (!!status) return;
 
-    const ALREADY_CHECKED_IN_DISMISS = 10000;
     let isCheckedIn = !!status;
+    if (doRepeatCheckIn) {
+      if (isCheckedIn) return
+    }
+
+    const ALREADY_CHECKED_IN_DISMISS = 10000;
     this.player$.pipe(
       filter( p=>!!p.displayName),
       take(1),
@@ -742,6 +763,14 @@ export class GamePage implements OnInit {
   async beginTeamAssignments(){
     if (!this.isModerator()) return;
 
+    let gamePlay = await this.gamePlayWatch.gamePlay$.pipe(first()).toPromise();
+    let doRepeat = gamePlay && !!gamePlay.doTeamRosters && !gamePlay.teamRostersComplete;
+    if (doRepeat) {
+      // repeat teamRosters
+      await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, { doTeamRosters: Date.now() as any });
+      return 
+    }
+  
     let update = { 
       doTeamRosters: true,
       teamRostersComplete: false,
@@ -768,6 +797,7 @@ export class GamePage implements OnInit {
           once:false,
           playerName: player.displayName,
           backdropDismiss: false,
+          replaceSame: false,
           duration: TEAM_ROSTER_DISMISS,
           swipeToClose: true,
           gameDict$: this.gameWatch.gameDict$,

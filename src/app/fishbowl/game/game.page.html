@@ -128,7 +128,9 @@
                   </ion-item>
                   <ion-item>
                     <ion-button size="small" color="primary" 
-                  [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="loadRoundClick()">Load Rounds</ion-button>
+                    [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="loadRoundClick()">Load Rounds</ion-button>
+                    <ion-button size="small" color="primary" slot="end"
+                    (click)="repeatTeamRosterClick()">Show Team Rosters</ion-button>
                   </ion-item>
                 </ng-container>                
               </ion-list>
@@ -149,6 +151,10 @@
                     [player$]="player$"
                     (onChange)="doTeamRostersChangedByModerator($event)"
                   ></app-team-roster>
+                  <ion-item>
+                    <ion-button size="small" color="primary" slot="end"
+                    (click)="repeatTeamRosterClick()">Show Team Rosters</ion-button>
+                  </ion-item>
                 </ng-container>                
               </ion-list>              
 
