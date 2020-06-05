@@ -478,7 +478,7 @@
                   </ion-button>
                   <app-countdown-timer #countdownTimer fill="time" [duration]="gamePlay?.timer" [units]="{from: 'second', to: 'second'}"
                     [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
-                  >[done]</app-countdown-timer>
+                  ><span slot="body">[done]</span></app-countdown-timer>
                 </div>
               </div>
               </ng-container>
@@ -507,7 +507,7 @@
                     <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"
                     (onBuzz)="onGameTime($event)"
                     >
-                      <ion-col class="ion-justify-content-center ion-text-center">
+                      <ion-col class="ion-justify-content-center ion-text-center" slot="footer">
                         <ion-text color="dark">
                           Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                         </ion-text>
@@ -614,7 +614,7 @@
                     <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"
                     (onBuzz)="onGameTime($event)"
                     >
-                      <ion-col class="ion-justify-content-center ion-text-center">
+                      <ion-col class="ion-justify-content-center ion-text-center"  slot="footer">
                         <ion-text color="dark">
                           Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                         </ion-text>

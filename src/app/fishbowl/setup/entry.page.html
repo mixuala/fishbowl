@@ -35,7 +35,7 @@
 
                 <div class="game-time ion-text-center" *ngIf="isPregame()">
                   <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true">
-                    <ion-col class="ion-justify-content-center ion-text-center">
+                    <ion-col class="ion-justify-content-center ion-text-center"  slot="footer">
                       <ion-text color="dark">
                         Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
                     Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
