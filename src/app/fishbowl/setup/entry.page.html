@@ -108,14 +108,21 @@
                       <h2><strong>Put 3 secret words into the Fishbowl</strong></h2>
                       <p><ion-text color="light">
                         Players will guess these words during game play.
-                      </ion-text>
+                        </ion-text>
                       </p>
                     </ion-label>
                   </ion-item>
-
+                
+                  <div class="ion-text-center">
+                    <ion-button slot="end" color="tertiary" (click)="doAutoFillClick(game)">
+                      <ion-icon slot="start" name="bulb-outline"></ion-icon>
+                      Give Me Ideas
+                    </ion-button>
+                  </div>
                   <ion-item class="input-item">
                     <ion-label position="stacked">3 Words</ion-label>
-                    <ion-input type="text" placeholder="a Person, Place, or Thing" formControlName="word_1" clearInput inputmode="text"></ion-input>
+                      <ion-input [color]="stash.autoFillIndex?.includes(0) && 'tertiary'" (ionInput)="onWordChanged($event.target, 0)" (ionChange)="onWordCleared($event.target, 0)"
+                      type="text" placeholder="a Person, Place, or Thing" formControlName="word_1" clearInput inputmode="text"></ion-input>
                   </ion-item>
                   <div class="error-container">
                     <ng-container *ngFor="let validation of validation_messages.word">
@@ -127,7 +134,8 @@
                   </div>
 
                   <ion-item class="input-item">
-                    <ion-input type="text" placeholder="like 'fishbowl'" formControlName="word_2" clearInput inputmode="text"></ion-input>
+                    <ion-input [color]="stash.autoFillIndex?.includes(1) && 'tertiary'"  (ionInput)="onWordChanged($event.target, 1)"  (ionChange)="onWordCleared($event.target, 1)"
+                    type="text" placeholder="like 'fishbowl'" formControlName="word_2" clearInput inputmode="text"></ion-input>
                   </ion-item>
                   <div class="error-container">
                     <ng-container *ngFor="let validation of validation_messages.word">
@@ -139,7 +147,8 @@
                   </div>
 
                   <ion-item class="input-item">
-                    <ion-input type="text" placeholder="or 'Dory'" formControlName="word_3" clearInput inputmode="text"></ion-input>
+                    <ion-input  [color]="stash.autoFillIndex?.includes(2) && 'tertiary'"  (ionInput)="onWordChanged($event.target, 2)"  (ionChange)="onWordCleared($event.target, 2)"
+                    type="text" placeholder="or 'Dory'" formControlName="word_3" clearInput inputmode="text"></ion-input>
                   </ion-item>
                   <div class="error-container">
                     <ng-container *ngFor="let validation of validation_messages.word">
@@ -159,7 +168,8 @@
 
                     <div [class.ion-hide]="!stash.addMoreWords">
                       <ion-item class="input-item">
-                        <ion-input type="text" placeholder="more words" formControlName="word_4" clearInput inputmode="text"></ion-input>
+                        <ion-input  [color]="stash.autoFillIndex?.includes(3) && 'tertiary'"  debounce="100" (ionInput)="onWordChanged($event.target, 3)"  (ionChange)="onWordCleared($event.target, 3)"
+                        type="text" placeholder="more words" formControlName="word_4" clearInput inputmode="text"></ion-input>
                       </ion-item>
                       <div class="error-container">
                         <ng-container *ngFor="let validation of validation_messages.word">
@@ -171,7 +181,8 @@
                       </div>
       
                       <ion-item class="input-item">
-                        <ion-input type="text" placeholder="even more" formControlName="word_5" clearInput inputmode="text"></ion-input>
+                        <ion-input  [color]="stash.autoFillIndex?.includes(4) && 'tertiary'"  (ionInput)="onWordChanged($event.target, 4)"  (ionChange)="onWordCleared($event.target, 4)"
+                        type="text" placeholder="even more" formControlName="word_5" clearInput inputmode="text"></ion-input>
                       </ion-item>
                       <div class="error-container">
                         <ng-container *ngFor="let validation of validation_messages.word">

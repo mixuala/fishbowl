@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LoadingController, IonButton, ToastController } from '@ionic/angular';
+import { LoadingController, IonButton, ToastController, IonInput } from '@ionic/angular';
 import { Validators, FormGroup, FormControl, ValidatorFn, AbstractControl } from '@angular/forms';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
@@ -9,8 +9,10 @@ import { Observable, Subject, of, from, } from 'rxjs';
 import { map, tap, switchMap, take, filter } from 'rxjs/operators';
 
 import { AuthService } from '../../services/auth-service.service';
+import { GamePackService } from '../../fishbowl/game-pack.service';
 import { Player } from '../../user/role';
 import { AudioService } from '../../services/audio.service';
+import { Helpful } from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers';
 import { GameHelpers } from '../game-helpers';
 import { 
@@ -68,6 +70,7 @@ export class EntryPage implements OnInit {
     private db: AngularFireDatabase,
     private authService: AuthService,
     private gameHelpers: GameHelpers,
+    private gamePackService: GamePackService,
     ) {
       
     let validEntry = Validators.compose([
@@ -180,6 +183,76 @@ export class EntryPage implements OnInit {
     }
   }
 
+  onWordChanged(o:IonInput, i:number) {
+    
+    this.stash.autoFillIndex = this.stash.autoFillIndex.filter( v=>v!=i);
+  }
+
+  onWordCleared(o:IonInput, i:number) {
+    let value = o.value;
+    if (!value) {
+      this.stash.autoFillIndex.push(i);
+    }
+  }
+
+  async doAutoFillClick(game:Game){
+    let keys = ["word_1", "word_2", "word_3", "word_4", "word_5",]
+    let categories = ['person', 'place', 'thing'];
+
+    let _getEntries = (game:Game):string[]=>{
+      return Object.values(game.entries).reduce( (arr, v)=>arr.concat(...v), []);
+    }
+    let _getSuggestions = async (categories:string[], whitelist:string[]=[]) =>{
+      if (categories==null) categories = whitelist
+      else if (categories.length) categories = categories.filter( v=>whitelist.includes(v) );
+      else return; // use cached words
+
+      let suggestions = await categories.reduce( async (o,k)=>{
+        let words = await this.gamePackService.getWords(k);
+        (await o)[k] = Helpful.shuffle(words);
+        return o;
+      }, {});
+      return suggestions;
+    }
+
+    let autoFillWords = this.stash.autoFillWords || null;
+    let refresh = autoFillWords && categories.filter( k=>!autoFillWords[k] || !autoFillWords[k].length );
+    let suggestions = await _getSuggestions( refresh, categories );
+    this.stash.autoFillWords = autoFillWords = Object.assign(autoFillWords || {}, suggestions);
+
+    // track autoFill word slots, do NOT replace manually entered/modified words
+    this.stash.autoFillIndex = this.stash.autoFillIndex ||  keys.map( (k,i)=>{
+      let input = this.entryForm.get(k);
+      if (!input.value) return i;
+      return null;
+    }).filter( v=>v!==null);
+
+    // console.log( "autoFillIndex", this.stash.autoFillIndex)
+
+    let exclude = keys.reduce( (arr,k,i)=>{ 
+      if (!this.stash.autoFillIndex.includes(i)) {
+        let word = this.entryForm.get(k).value as string;
+        arr.push(word);
+      }
+      return arr;
+    }, []);
+    exclude = exclude.concat( _getEntries(game) )
+
+    this.stash.autoFillIndex.forEach( (i,j)=>{
+      if (!this.stash.addMoreWords && i>=3) return;
+      let k = keys[i];
+      let input = this.entryForm.get(k);
+      let word:string;
+      let categoryIndex = i<3 ? i%categories.length : (Date.now()%categories.length);
+      let categoryWords = autoFillWords[ categories[categoryIndex]];
+      do {
+        word = categoryWords.pop();
+      } while (exclude.includes(word) && categoryWords.length)
+      input.patchValue(word);
+    });
+  }
+
+
   ionViewDidEnter() {
     this.stash.listen = true;
   }
@@ -283,8 +356,18 @@ export class EntryPage implements OnInit {
       // trim
       Object.keys(entries).forEach( k=>{
         entries[k] = entries[k].map( v=>v.trim() )
-      })
-      entries[u.uid] = Object.entries(formData).filter( ([k,v])=>k.startsWith('word_')&&!!(v as string).trim()).map( ([k,v])=>v as string);
+      });
+      let keys = [
+        "word_1", "word_2", "word_3", "word_4", "word_5",
+      ]
+      let entry = keys.filter( (k,i)=>{
+        if (!this.stash.addMoreWords && i>=3) return false;
+        return true;
+      }).map( k=>{
+        let v = formData[k];
+        return (v as string).trim();
+      }); 
+      entries[u.uid] = entry;
     }
 
 
