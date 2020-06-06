@@ -541,8 +541,9 @@
   
                       <ion-button expand="block" color="tertiary" class="taller ion-margin-top"
                       routerDirection="forward" [routerLink]="['/app/game', gameId, 'player']">
-                        {{player ? 'Review Game Entry for' : 'Create Game Entry'}}
-                        <ion-text color="light" *ngIf="player">&nbsp;{{player.displayName}}</ion-text>
+                        <ion-label style="white-space: normal;">{{player ? 'Review Game Entry for' : 'Create Game Entry'}}
+                          <ion-text color="light" style="white-space: nowrap;" *ngIf="player">&nbsp;{{player.displayName}}</ion-text>
+                        </ion-label>
                       </ion-button>
                       <ion-button expand="block" color="success" class="taller ion-margin-top" [disabled]="!game.chatRoom"
                       [href]="game.chatRoom" [title]="game.chatRoom" target="_blank">
