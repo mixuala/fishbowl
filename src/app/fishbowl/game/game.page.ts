@@ -29,6 +29,7 @@ import {
 
 const { Storage } = Plugins;
 declare let window;
+declare let document;
 
 
 

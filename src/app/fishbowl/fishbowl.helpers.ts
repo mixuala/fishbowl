@@ -120,12 +120,18 @@ export class FishbowlHelpers {
   static
   doPlayerEntryLookup(name:string=null, game:Game):[string, string] {
     let {players, checkIn} = game;
-
+    // console.warn( "doPlayerEntryLookup()")
     if (game.activeRound){
       // confirm player has not checked in
-      let pid = Object.keys(players).find( k=>players[k]==name);
+      let pid = Object.keys(players).find( k=>players[k].toLowerCase()==name.trim().toLowerCase());
       if (pid && !!checkIn[pid]) {
-        return null;  // already checkedIn
+        // return null;  
+        // already checkedIn, show Toast
+        if (!game['isDev']) {
+          let msg = `Player \'${name}\' is already checked in on another device. Are you sure?`;
+          let resp = window.confirm(msg)
+          if (!resp) return;
+        }
       }
     }
     let found = Object.entries(players).find( ([k,v])=>v.trim().toLowerCase()==name.toLowerCase());

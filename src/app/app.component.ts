@@ -10,6 +10,7 @@ import { environment } from '../environments/environment';
 const { SplashScreen, StatusBar, Storage } = Plugins;
 
 declare let window;
+declare let document;
 
 
 @Component({
