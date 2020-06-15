@@ -118,7 +118,6 @@ export interface GamePlayState extends GameAdminState {
   playerRoundBegin?: boolean;
   playerRoundComplete?: boolean;
   gameRoundComplete?: boolean;
-  doGameOver?: boolean;
 }
 
 export interface GamePlayLogEntries {

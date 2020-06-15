@@ -601,29 +601,36 @@ export class GameHelpers {
           // get spotlight state from gameLog
           let roundKey = `round${gamePlay.doBeginGameRound}`;
           let log = gameLog[roundKey]
-          let sortedTimestamps = Object.keys(log).map( v=>parseInt(v) ).sort().reverse();  // sort Timestamps in MostRecent first, DESC order
-          let lastWordResult = log[ sortedTimestamps[0] ];
-          let {playerName, teamName } = lastWordResult;
-          let teamIndex = teamNamesInPlayOrder.findIndex( v=>v==teamName);
-          let playerIndex = teamNamesInPlayOrder.map( (t,i)=>{
-            let found = sortedTimestamps.find( k=> log[k] && log[k].teamName==t );
-            let wordResult = found && log[found];
-            if (!wordResult) return 0;
-            let j = round.teams[t].findIndex( k=>round.players[k]==wordResult.playerName );
-            if (~j) {
-              if (i>teamIndex) {
-                j++; // pre-increment playerIndex, for teamIndex++
+          if (log) {
+            // get spotlight from gameLog
+            let sortedTimestamps = Object.keys(log).map( v=>parseInt(v) ).sort().reverse();  // sort Timestamps in MostRecent first, DESC order
+            let lastWordResult = log[ sortedTimestamps[0] ];
+            let {playerName, teamName } = lastWordResult;
+            let teamIndex = teamNamesInPlayOrder.findIndex( v=>v==teamName);
+            let playerIndex = teamNamesInPlayOrder.map( (t,i)=>{
+              let found = sortedTimestamps.find( k=> log[k] && log[k].teamName==t );
+              let wordResult = found && log[found];
+              if (!wordResult) return 0;
+              let j = round.teams[t].findIndex( k=>round.players[k]==wordResult.playerName );
+              if (~j) {
+                if (i>teamIndex) {
+                  j++; // pre-increment playerIndex, for teamIndex++
+                }
+                if (j>=limits.playerIndex[i]) {
+                  j=0;
+                }
               }
-              if (j>=limits.playerIndex[i]) {
-                j=0;
-              }
-            }
-            return ~j ? j : 0;
-          });
-          
-          let spotlight0 = {teamIndex, teamName, playerIndex };
-          console.warn("13:a gameLog spotlight=", JSON.stringify(spotlight0), limits.playerIndex)
-          spotlight = {teamIndex, teamName, playerIndex };
+              return ~j ? j : 0;
+            });
+            let spotlight0 = {teamIndex, teamName, playerIndex };
+            console.warn("13:a gameLog spotlight=", JSON.stringify(spotlight0), limits.playerIndex)
+            spotlight = {teamIndex, teamName, playerIndex };
+          }
+          else {
+            // new GameRound, gameLog[roundkey]==undefined
+            // WARNING: check for echo, this should be called only by moderator
+            spotlight = gamePlay.spotlight;  // copied from lastRound 
+          }
         }
 
         if (options.nextTeam!==false){

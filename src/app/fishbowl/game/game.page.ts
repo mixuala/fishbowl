@@ -257,8 +257,9 @@ export class GamePage implements OnInit {
     //   return Promise.reject('skip')
     // })
     .then( ()=>{   
-      if (changed.includes('doGameOver')) {
-        // gameOver interstitial
+      if (changed.includes('gameComplete')) {
+        // just in case we missed the gameComplete trigger, the moderator will rerun on reload, skip interstitials
+        return Promise.reject('skip');
       }  
     })
     .then( async ()=>{
@@ -1070,14 +1071,12 @@ export class GamePage implements OnInit {
       await this.gameHelpers.beginRound(rid);
       return res;
     })
-    .then( ()=>{   
-      // ONLY for round 1
-      if (isFirstRound) {
-        return this.nextPlayer();
-      } else {
+    .then( ()=>{
+      if (!isFirstRound) {
         // clean up: gamePlay for last round
         let dontWait = this.db.list<GamePlayState>('/gamePlay').remove(roundIndex.prev)
       }
+      return this.nextPlayerRound( {timerDuration: this.initialTimerDuration}); // TEST
     })
     .catch( err=>{
       if (err=="gameComplete") {
@@ -1240,6 +1239,9 @@ export class GamePage implements OnInit {
       withLatestFrom( this.gameWatch.gameDict$ ),
       // automatcally completes when game.activeRound changes
       throttleTime(100),
+      tap( (res:[GamePlayState, GameDict])=>{
+        this.patchGameOver(res);
+      }),
       this.pipeCloudEventLoop_Bkg(), 
       this.pipeCloudEventLoop_Foreground( this.player$.value), 
     ).subscribe(null,null,
@@ -1250,6 +1252,10 @@ export class GamePage implements OnInit {
     );
   }
 
+  /**
+   * render gameOver page
+   * @param d 
+   */
   doGameOver( d:GameDict ): boolean {
     if (!this.isGameOver(d.game)) return false
 
@@ -1266,6 +1272,30 @@ export class GamePage implements OnInit {
       console.warn("game over", this.gameSummary)
     });
     return true;
+  }
+
+  /**
+   * trigger GameOver on reload + delay, if moderator missed the original event
+   * @param d
+   */
+  patchGameOver(res:[GamePlayState, GameDict]){
+    try {
+      let gamePlay = res[0];
+      if (gamePlay.gameComplete==true && this.isModerator()) {
+        // if we somehow missed gameComplete event, moderator triggers on page reload()
+        let dontWait = Helpful.waitFor(3000).then( ()=>{
+          // how do we detect a reload? wait a moment
+          this.gameWatch.game$.pipe( first() )
+          .subscribe( game=>{
+            if (!!game.complete) return;
+            let round3 = res[1].activeRound;
+            if (round3 && round3.round==3) {
+              return this._completeGameRound(round3);
+            }
+          })
+        });
+      }
+    } catch (err){}
   }
 
   /**
@@ -1573,7 +1603,7 @@ export class GamePage implements OnInit {
         Object.assign( update, next);   // add next word to GamePlayState
         if (next.remaining.length==0){
           console.warn("INVALID STATE: playerRound should not begin with next.remaining.length=0")
-          return this._completeGameRound(round);
+          return this._completeGameRound(round)
         }
 
         let {playerName, teamName} = this.spotlight;
@@ -1916,30 +1946,37 @@ export class GamePage implements OnInit {
       let done = await HelpComponent.last && HelpComponent.last.componentProps.waitForDismissal()
       console.info("\t>>>> playerRoundDidComplete()");
 
-      if (gameRoundComplete) {
+      if (!gameRoundComplete) {
+        console.log("12: nextPlayerRound")
+        return this.nextPlayerRound(); // calls moveSpotlight()
+      }
+      else {
         console.info("\t>>>> game Round WILL Complete()");
         return this._completeGameRound(this.gameDict.activeRound)
+        // completePlayerRound()
+        // => _completeGameRound()
+        //  => pipeCloudEventLoop_Foreground() => doInterstitialsWithScoreboard()
+        //    => beginNextGameRoundTimer()
+        // => beginNextGameRound() 
+            // guard [role=moderator]
+            //  init gamePlay state; 
+            // loadNextRound()
+            // doBeginGameRound
+            // doBeginPlayerRound
+            // GameHelpers.beginRound()
+            // => !isFirstRound
+            //   => remove /gamePlay for previous round
+            // nextPlayerRound()
+
       }
     })
-    .then( async ()=>{
-      // // event: playerRoundDidComplete
-      // // // allow PlayerRoundComplete interstitial to appear
-      // await Helpful.waitFor(1000);
-      // let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
-      // await waitFor
-      // // // wait for PlayerRoundComplete interstitial to dismiss
-      return this.nextPlayerRound(); // calls moveSpotlight()
-    })
-    .catch( err=>{
-      if (err=="game-over") return Promise.resolve();
-    });
   }
 
 
   /**
    * queue next PlayerRound AFTER completePlayerRound() or 
    */
-  private nextPlayerRound():Promise<void>{
+  private nextPlayerRound( options:any={} ):Promise<void>{
     if (!(this.onTheSpot || this.isModerator())) {
       throw new Error( " spotlight changed before ready")
     }
@@ -1964,7 +2001,7 @@ export class GamePage implements OnInit {
         word: null,
         // doBeginPlayerRound: true, set in moveSpotlight()
         playerRoundBegin: false,
-        playerRoundComplete:false, 
+        playerRoundComplete: false, 
         roundComplete: false,
       }
       return this.db.list<GamePlayState>('/gamePlay').update(rid, updateGamePlay)
@@ -1973,7 +2010,8 @@ export class GamePage implements OnInit {
       console.info("12:\t>>>> spotlightWillChange()");
     })
     .then(()=>{
-      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound).then( ()=>{
+      let defaultDuration = options.timerDuration || this.initialTimerDuration;
+      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound, {defaultDuration}).then( ()=>{
         console.info("12: \t>>>> spotlightDidChange()");
       })
     })
@@ -1981,8 +2019,8 @@ export class GamePage implements OnInit {
 
   private
   async _completeGameRound(round:GamePlayRound){
-    // no guard here, because spotlight player has already changed
-    
+    if (!round || !this.game.activeRound) return; // echo?
+
     console.info("12:\t>>>> gameRoundWillComplete()");
     let rid = this.game.activeRound;
     let isGameComplete = round.round == 3
@@ -2017,11 +2055,11 @@ export class GamePage implements OnInit {
     });
   }
 
+  // this is incomplete, should do more than just update gamePlay.spotlight
   async completeGame(){
     this.db.list<GamePlayState>('/gamePlay').update(this.gameId, {spotlight:null})
     .then( ()=>{
       console.log("GAME COMPLETE");
-      return Promise.reject("game-over");
     })
   }
 
