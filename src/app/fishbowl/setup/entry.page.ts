@@ -200,7 +200,7 @@ export class EntryPage implements OnInit {
     let categories = ['person', 'place', 'thing'];
 
     let _getEntries = (game:Game):string[]=>{
-      return Object.values(game.entries).reduce( (arr, v)=>arr.concat(...v), []);
+      return Object.values(game.entries || []).reduce( (arr, v)=>arr.concat(...v), []);
     }
     let _getSuggestions = async (categories:string[], whitelist:string[]=[]) =>{
       if (categories==null) categories = whitelist
