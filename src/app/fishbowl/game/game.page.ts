@@ -36,7 +36,7 @@ declare let document;
 @Component({
   selector: 'app-game',
   templateUrl: './game.page.html',
-  styleUrls: ['./game.page.scss'],
+  styleUrls: ['./game.page.scss', './wobble.scss'],
 })
 export class GamePage implements OnInit {
 
