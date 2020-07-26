@@ -30,7 +30,7 @@
               </ion-card-title>
               <div class="slot-end-wrap">
                 <ion-toggle color="success"  [disabled]="isGameTime()" 
-                [checked]="isActive()" (click)="toggleGameState(game, 'activeGame')"></ion-toggle>
+                [checked]="isActive()" (click)="gameStateToggle(game, 'activeGame')"></ion-toggle>
                 <ion-badge color="success" class="is-live"  *ngIf="isActive()" 
                 >live</ion-badge>
               </div>
@@ -65,7 +65,7 @@
                     <div class="middle inline-stack-wrap short">
                       <ion-note class="flex-row">Pass the Phone</ion-note>
                       <ion-toggle  color="success" [checked]="game.doPassThePhone"
-                      (click)="toggleGameState(game, 'doPassThePhone')"></ion-toggle>
+                      (click)="gameStateToggle(game, 'doPassThePhone')"></ion-toggle>
                     </div>
                     <ion-button size="small" color="tertiary" class="end"
                     [disabled]="!game.rounds || !game.activeRound" (click)="nextPlayer(false)">
@@ -82,7 +82,7 @@
 
                       [value]="initialTimerDuration"
                       min="5" max="60" step="5"  color="secondary" 
-                      (ionChange)="onTimerRangeChange($event)">
+                      (ionChange)="timerRangeChangeClick($event)">
                       <ion-label slot="start">5</ion-label>
                       <ion-label slot="end">60</ion-label>
                     </ion-range>
@@ -91,7 +91,7 @@
 
               <ion-list class="game-admin wide">
                 <ion-item lines="full">
-                  <ion-button size="small" color="success" (click)="doGameSettings()">
+                  <ion-button size="small" color="success" (click)="goGameSettingsClick()">
                     <ion-icon name="settings" slot="start"></ion-icon>
                     Settings
                   </ion-button>
@@ -114,23 +114,23 @@
                 <ng-container *ngIf="stash.showCheckInDetails">
                   <ion-item *ngFor="let p of stash.playersSorted" class="player">
                     <ion-icon slot="start" 
-                    [color]="checkInAction(p[0], game)=='~done' && 'success'"
-                    [name]="checkInAction(p[0], game)=='~done' ? 'checkbox' : 'close-circle-outline'"></ion-icon>
+                    [color]="checkInPlayerClick(p[0], game)=='~done' && 'success'"
+                    [name]="checkInPlayerClick(p[0], game)=='~done' ? 'checkbox' : 'close-circle-outline'"></ion-icon>
                     <ion-label [color]="!!game.checkIn[p[0]] ? 'dark' : 'medium'" class="name" >
                       {{p[1]}}
                       <ion-note class="ion-float-right" *ngIf="isModerator(p[0])">moderator</ion-note>
                     </ion-label>
                     <ion-toggle color="success" slot="end"
-                    [disabled]="checkInAction(p[0], game)=='~done'"
+                    [disabled]="checkInPlayerClick(p[0], game)=='~done'"
                     [checked]="!!game.checkIn[p[0]]" 
-                    (click)="checkInPlayerToggle(p[0], checkInAction(p[0], game))">
+                    (click)="checkInPlayerToggle(p[0], checkInPlayerClick(p[0], game))">
                     ></ion-toggle>
                   </ion-item>
                   <ion-item>
                     <ion-button size="small" color="primary" 
                     [disabled]="!!game.rounds && (game.rounds | keyvalue).length==3" (click)="loadRoundClick()">Load Rounds</ion-button>
                     <ion-button size="small" color="primary" slot="end"
-                    (click)="repeatTeamRosterClick()">Show Team Rosters</ion-button>
+                    (click)="showTeamRosterClick()">Show Team Rosters</ion-button>
                   </ion-item>
                 </ng-container>                
               </ion-list>
@@ -149,11 +149,11 @@
                     [spotlight]="spotlight"
                     asModerator="true"
                     [player$]="player$"
-                    (onChange)="doTeamRostersChangedByModerator($event)"
+                    (onChange)="teamRosterChangeClick($event)"
                   ></app-team-roster>
                   <ion-item>
                     <ion-button size="small" color="primary" slot="end"
-                    (click)="repeatTeamRosterClick()">Show Team Rosters</ion-button>
+                    (click)="showTeamRosterClick()">Show Team Rosters</ion-button>
                   </ion-item>
                 </ng-container>                
               </ion-list>              
@@ -226,7 +226,7 @@
                           [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
                           >[done]
                         </app-countdown-timer>
-                        <ion-button class="volume" color="light" (click)="toggleVolumeIcon()">
+                        <ion-button class="volume" color="light" (click)="volumeClick()">
                           <ion-icon [name]="stash.audioVolumeIcon" >
                             <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
                           </ion-icon>
@@ -243,14 +243,14 @@
                 asModerator="true"
                 [game$]="gameWatch?.game$"
                 [player$]="player$"
-                (onChange)="doGameLogChangedByModerator($event)"
+                (onChange)="gameLogChangedByAuditorClick($event)"
               ></app-score-card>
             </div>
 
             <ng-template #moderator_preGameAdmin>
               <ion-list class="game-admin wide">
                 <ion-item lines="full">
-                  <ion-button size="small" color="success" (click)="doGameSettings()">
+                  <ion-button size="small" color="success" (click)="goGameSettingsClick()">
                     <ion-icon name="settings" slot="start"></ion-icon>
                     Settings
                   </ion-button>
@@ -326,7 +326,7 @@
                     <ion-col size=2>
                       <ion-item class="ion-no-padding" lines="none">
                         <ion-button color="dark" size="small" [disabled]="isActive(game) && 0" 
-                        (click)="doSettings()">
+                        (click)="goPlayerSettingsClick()">
                           <ion-icon name="settings"> </ion-icon>
                         </ion-button>                           
                       </ion-item>
@@ -477,7 +477,7 @@
                     <!-- <ion-spinner class="when-ticking" name="circles" color="dark"></ion-spinner> -->
                     <ion-icon name="pause" color="dark" *ngIf="gamePlay?.isTicking && !gamePlay?.timerPausedAt"></ion-icon>
                   </ion-button>
-                  <ion-button color="light" (click)="toggleVolumeIcon()">
+                  <ion-button color="light" (click)="volumeClick()">
                     <ion-icon [name]="stash.audioVolumeIcon" >
                       <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
                     </ion-icon>
@@ -492,7 +492,7 @@
               <div class="pass-the-phone check ion-text-center ion-margin-vertical ion-padding-top">
                 <ion-button class="tertiary" fill="outline" color="tertiary" 
                 [disabled]="!game.doPassThePhone || gamePlay?.playerRoundBegin || hasSpotlight('player')"
-                (click)="doChangePlayerClick(gamePlay, game)">
+                (click)="beginChangePlayerClick(gamePlay, game)">
                   <ion-icon name="swap-horizontal-outline" slot="start"></ion-icon>
                   <ion-label>Change Player</ion-label>
                 </ion-button>
@@ -575,8 +575,8 @@
                     <ion-col size="12"  *ngIf="stash.show_SearchByStageName">
                       <ion-searchbar showCancelButton="focus" animated mode="md"
                         placeholder="Search by Stage Name"
-                        (ionBlur)="doFindStageName($event.target)"
-                        (ionCancel)="doFindStageName($event.target, true)"
+                        (ionBlur)="handleStageNameSearchbarChanged($event.target)"
+                        (ionCancel)="handleStageNameSearchbarChanged($event.target, true)"
                       ></ion-searchbar>
                       <ion-label *ngIf="stash.show_SearchByStageName_Empty">
                         <ion-text color="tertiary">
@@ -679,8 +679,8 @@
                       <ion-col size="12"  *ngIf="stash.show_SearchByStageName">
                         <ion-searchbar showCancelButton="focus" animated mode="md"
                           placeholder="Search by Stage Name"
-                          (ionBlur)="doFindStageName($event.target)"
-                          (ionCancel)="doFindStageName($event.target, true)"
+                          (ionBlur)="handleStageNameSearchbarChanged($event.target)"
+                          (ionCancel)="handleStageNameSearchbarChanged($event.target, true)"
                         ></ion-searchbar>
                         <ion-label *ngIf="stash.show_SearchByStageName_Empty">
                           <ion-text color="tertiary">

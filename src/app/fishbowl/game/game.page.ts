@@ -347,34 +347,7 @@ export class GamePage implements OnInit {
     })
   }
 
-  private doGamePlayUx( 
-    gamePlay: GamePlayState,
-  ){
-    let changed = gamePlay.changedKeys || [];
-
-    // in order of priority
-    if (changed.includes('isTicking')) {
-      this.audio.play("click");
-      console.info( "*** detect timer Start, sound=click");
-      return;
-    }
-    else if (changed.includes('timerPausedAt')) {
-      let sound = gamePlay.timerPausedAt ? "pause" : "click";
-      this.audio.play(sound);
-      console.info( "*** detect timer PAUSE, sound=", sound);
-      return;
-    }
-
-    if (changed.includes('log')) {
-      try {
-        let lastKey = Object.keys(gamePlay.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
-        let sound = gamePlay.log[-lastKey].result ? 'ok' : 'pass';
-        this.audio.play(sound);
-        // console.info( "*** doGamePlayUx(): detect timer WORD action by change in gamePlay.log", sound);
-        return;
-      } catch (err) {}
-    }
-  }
+  
 
   private doGamePlayExtras( 
     gamePlay: GamePlayState,
@@ -452,7 +425,7 @@ export class GamePage implements OnInit {
     console.info("0>>> ***** ngOnInit(): load ******")
     Storage.get({key:'volume'}).then( (res)=>{
       let value = parseInt(res.value)
-      this.toggleVolumeIcon( value||0, false)
+      this.volumeClick( value||0, false)
     });
     
     let loading = await this.presentLoading();
@@ -1279,23 +1252,9 @@ export class GamePage implements OnInit {
   }
   
 
-  toggleVolumeIcon(volume:number = null, playSound=true){
+  
 
-    if (!volume) {
-      volume = this.audioVolumeIcons.findIndex(v=>v==this.stash.audioVolumeIcon);
-      volume += 1;
-    }
-    if (volume<0 || volume > 3) volume = 0;
-    Storage.set({key:'volume', value: volume.toString() })
-    .then( ()=>{
-      this.stash.audioVolumeIcon = this.audioVolumeIcons[volume];
-      this.audio.setVolume(volume, playSound);
-    })
-  }
-
-  preloadAudio(){
-    ["click","buzz","ok","pass","dq", "pause"].forEach( k=>this.audio.preload(k));
-  }
+  
 
 
   
@@ -1350,27 +1309,37 @@ export class GamePage implements OnInit {
     }
   }
 
+  /**
+   * (not fully tested) 
+   * navigate to Player Settings page for a given stage name, prepare for EntryPage.onTakePlayerIdentity()
+   * - called by IonSearchbar:ionBlur/ionChange event handler
+   * 
+   * @param o 
+   * @param reset 
+   */
   async doFindStageName (o:IonSearchbar, reset:boolean=false){
-    // guard
+    // guard(?)
     let player = this.player$.getValue();
     let isPlayer = !!this.game.players[player.uid];
     let isCheckedIn = !!this.game.checkIn[player.uid];
     if (isPlayer) return;
 
-
+    // user does NOT have a spot in game
     this.stash.show_SearchByStageName_Empty = false;
     if (reset) {
       this.stash.show_SearchByStageName = false;
       o.value = "";
-      return;
     }
 
     let allowChangePlayerIfALREADYcheckedIn = false;
     let name = o.value;
     if (!name) return;
+
+    // find a game player by stage name
     let found = FishbowlHelpers.doPlayerEntryLookup(name, this.game);
     let pid = found && found[0];
     if (pid) {
+      // goto Player Setting to allow EntryPage.onTakePlayerIdentity()
       let replace = JSON.stringify({uid:pid, playerName: name })
       setTimeout( ()=>{
         this.stash.show_SearchByStageName = false;
@@ -1387,7 +1356,9 @@ export class GamePage implements OnInit {
 
   
 
-  checkInAction(pid:string, game:Game):string{
+
+
+
     if (!this.isModerator()) return;
 
     if (!game.checkIn) return '~show';
@@ -1838,8 +1809,7 @@ export class GamePage implements OnInit {
     })
   }
 
-  private
-  async _completeGameRound(round:GamePlayRound){
+  private async _completeGameRound(round:GamePlayRound){
     if (!round || !this.game.activeRound) return; // echo?
 
     console.info("12:\t>>>> gameRoundWillComplete()");
@@ -1884,6 +1854,36 @@ export class GamePage implements OnInit {
     })
   }
 
+  /** ************************************************************************************************
+   * check state methods
+   */
+  
+
+
+
+  /** ************************************************************************************************
+   * nav methods
+   */
+  
+
+
+
+
+
+  /** ************************************************************************************************
+   * UX methods
+   */
+
+  preloadAudio(){
+    ["click","buzz","ok","pass","dq", "pause"].forEach( k=>this.audio.preload(k));
+  }
+
+  /**
+   * apply CSS animation to HTMLElement
+   *  - see animate.css, https://daneden.github.io/animate.css/
+   * @param el HTMLElement to animate
+   * @param animation 
+   */
   async animate( el:any, animation="long-wobble" ){
     el = Helpful.findHtmlElement(el);
     el.classList.add("animated", "slow", animation)
@@ -1895,21 +1895,51 @@ export class GamePage implements OnInit {
     return
   }
 
-  doSettings() {
-    let gameId = this.game.uid || this.activatedRoute.snapshot.paramMap.get('uid');
-    this.router.navigate( ['/app/game', gameId, "player"] );
-  }
 
   
+  /**
+   * play audio sounds based on changes in game state
+   * 
+   * TODO: exclude originator of state change
+   * 
+   * @param gamePlay 
+   */
+  private doGamePlayUx( 
+    gamePlay: GamePlayState,
+  ){
+    const _alreadyDone = (gamePlay:GamePlayState):boolean => {
+      // ignore Ux state changes if player was the source of the state change
+      return false;
+    }
 
-  check() {
-    this.gameHelpers.DEV_set_DayOfWeekTeams(this.gameDict, this.gameId)
+    if (_alreadyDone(gamePlay)) return;
+
+
+    let changed = gamePlay.changedKeys || [];
+
+    // in order of priority
+    if (changed.includes('isTicking')) {
+      this.audio.play("click");
+      console.info( "*** detect timer Start, sound=click");
+      return;
+    }
+    else if (changed.includes('timerPausedAt')) {
+      let sound = gamePlay.timerPausedAt ? "pause" : "click";
+      this.audio.play(sound);
+      console.info( "*** detect timer PAUSE, sound=", sound);
+      return;
+    }
+
+    if (changed.includes('log')) {
+      try {
+        let lastKey = Object.keys(gamePlay.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
+        let sound = gamePlay.log[-lastKey].result ? 'ok' : 'pass';
+        this.audio.play(sound);
+        // console.info( "*** doGamePlayUx(): detect timer WORD action by change in gamePlay.log", sound);
+        return;
+      } catch (err) {}
+    }
   }
-
-
-
-
-
 
 
 
@@ -1926,15 +1956,40 @@ export class GamePage implements OnInit {
   /** ************************************************************************************************
    * player UX event handlers
    */
-  doChangePlayerClick(gamePlay, game) {
-    return this.showChangePlayerInterstitial(gamePlay, game);
-    // let player = this.player$.getValue();
-    // let isCheckedIn = !!game.checkIn[player.uid];
-    // if (this.isGameOpen() && isCheckedIn) {
-    //   return this.showChangePlayerInterstitial(gamePlay, game);
-    // }
+  goPlayerSettingsClick() {
+    let gameId = this.game.uid || this.activatedRoute.snapshot.paramMap.get('uid');
+    this.router.navigate( ['/app/game', gameId, "player"] );
   }
 
+  beginChangePlayerClick(gamePlay, game) {
+    return this.showChangePlayerInterstitial(gamePlay, game);
+  }
+
+  handleStageNameSearchbarChanged(o:IonSearchbar, reset:boolean=false) {
+    this.doFindStageName(o, reset);
+  }
+
+  toggleStashClick(key, ev){
+    let reqModerator = ['showCheckInDetails', 'showTeamRosters', 'showModeratorGameControls'];
+    if (reqModerator.includes(key) && !this.isModerator()) return
+    
+    this.stash[key] = !this.stash[key]
+    // not sure why this is necessary, but it is
+    setTimeout( ()=>ev.target.checked = this.stash[key], 100)
+  }
+
+  volumeClick(volume:number = null, playSound=true){
+    if (!volume) {
+      volume = this.audioVolumeIcons.findIndex(v=>v==this.stash.audioVolumeIcon);
+      volume += 1;
+    }
+    if (volume<0 || volume > 3) volume = 0;
+    Storage.set({key:'volume', value: volume.toString() })
+    .then( ()=>{
+      this.stash.audioVolumeIcon = this.audioVolumeIcons[volume];
+      this.audio.setVolume(volume, playSound);
+    })
+  }
 
   /** ************************************************************************************************
    * spotlight player UX event handlers
@@ -2007,17 +2062,16 @@ export class GamePage implements OnInit {
 
   /**
    * TODO: 
-   *  - rename: doGameLogChangedByAuditor
    *  - allow spotlight/designated player to make corrections(?), this would allow moderator to join gameplay
    * @param correction 
    */
-  doGameLogChangedByModerator(correction: GamePlayLogEntries) {
+  gameLogChangedByAuditorClick(correction: GamePlayLogEntries) {
     if (!this.isModerator()) return;
 
     let entries = this.gameDict.activeRound && this.gameDict.activeRound.entries;
     this.gameHelpers.pushGamePlayLogUpdate(this.gamePlayWatch, correction, this.playerId, entries)
     .then( (res)=>{
-      console.log( "126: doGameLogChangedByModerator, changed=", res)
+      console.log( "126: gameLogChangedByAuditorClick, changed=", res)
     })
   }
 
@@ -2025,20 +2079,14 @@ export class GamePage implements OnInit {
    * moderator UX event handlers
    */
 
-  doGameSettings() {
+  goGameSettingsClick() {
     if (!this.isModerator()) return;
     
     let gameId = this.game.uid || this.activatedRoute.snapshot.paramMap.get('uid');
     this.router.navigate( ['/app/game', gameId, "settings"] );
   }
 
-  toggleStashClick(key, ev){
-    this.stash[key] = !this.stash[key]
-    // not sure why this is necessary, but it is
-    setTimeout( ()=>ev.target.checked = this.stash[key], 100)
-  }
-
-  toggleGameState(g:Game, field:string) {
+  gameStateToggle(g:Game, field:string) {
     if (!this.isModerator()) return
     let whitelist = ['activeGame', 'isGameOpen', 'complete', 'public', 'doPassThePhone'];
     if (!whitelist.includes(field)) return;
@@ -2057,6 +2105,20 @@ export class GamePage implements OnInit {
   doCheckInClick() {
     this.beginCheckIn(this.gameId);
     this.stash.showCheckInDetails = true;
+  }
+
+  checkInPlayerClick(pid:string, game:Game):string{
+    if (!this.isModerator()) return;
+
+    if (!game.checkIn) return '~show';
+    let resp = game.checkIn[pid];
+    if (typeof resp=="undefined") return '~show';
+    if (typeof resp=="string") {
+      if (!this.isModerator(pid))
+        return '~done';
+      else return '~hide';  // moderators can still toggle after checkin
+    }
+    return (resp===false) ? '~show' : '~hide';  // toggle logic, set game.checkIn[pid]=undefined
   }
 
   /**
@@ -2109,13 +2171,13 @@ export class GamePage implements OnInit {
     this.beginTeamAssignments()
   }
 
-  doTeamRostersChangedByModerator(teams:TeamRosters) {
+  teamRosterChangeClick(teams:TeamRosters) {
     if (!this.isModerator()) return;
 
     this.gameHelpers.pushTeamRosters(this.gameDict, teams);
   }
 
-  repeatTeamRosterClick() {
+  showTeamRosterClick() {
     this.beginTeamAssignments();
   }
 
@@ -2123,7 +2185,7 @@ export class GamePage implements OnInit {
     this.beginNextGameRound();
   }
 
-  onTimerRangeChange(range: CustomEvent) {
+  timerRangeChangeClick(range: CustomEvent) {
     this.initialTimerDuration = range.detail.value;
     let update = {timerDuration: range.detail.value} as GamePlayState;
     this.gamePlayWatch.gamePlay$.pipe(
