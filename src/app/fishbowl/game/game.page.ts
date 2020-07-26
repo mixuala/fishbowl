@@ -510,48 +510,10 @@ export class GamePage implements OnInit {
     pid = pid || this.playerId;
     return this.game && this.game.moderators && this.game.moderators[pid] == true
   }
-
-  /**
-   * GameMaster components
-   */
-
-  doCheckInClick() {
-    this.beginCheckIn(this.gameId);
-    this.stash.showCheckInDetails = true;
-  }
-  async loadRoundClick(){
-    let ok = await this.loadGameRounds();
-    if (!ok) return;
-    this.stash.showCheckInDetails = false;
-    this.beginTeamAssignments()
-  }
-
-  repeatTeamRosterClick() {
-    this.beginTeamAssignments();
-  }
-
-  beginGameRoundClick(){
-    this.beginNextGameRound();
-  }
-
-  doChangePlayerClick(gamePlay, game) {
-    return this.showChangePlayerInterstitial(gamePlay, game);
-    // let player = this.player$.getValue();
-    // let isCheckedIn = !!game.checkIn[player.uid];
-    // if (this.isGameOpen() && isCheckedIn) {
-    //   return this.showChangePlayerInterstitial(gamePlay, game);
-    // }
-  }
-
-  resetGameClick(ev){
-    let hard = ev.ctrlKey || ev.shiftKey;
-    if (AppConfig.platform.is('mobile')) {
-      hard=true;
-    }
-    this.doGameReset(hard)
-  }
-
-
+  
+  
+  
+  
   doGameReset(hard=false){
     if (!this.isModerator()) return;
 
@@ -861,13 +823,7 @@ export class GamePage implements OnInit {
         })
       ),
       // beginPlayerRound
-      spotlightPlayerReadyClick:()=>{
-        let target = document.querySelector('#spotlight-button')
-        let ev = {target}
-        this.onTheSpotClick(ev);
-        setTimeout( ()=>this.onTheSpotClick(ev), 100);
-        setTimeout( ()=>this.beginPlayerRoundClick(), 1500);
-      },
+      spotlightPlayerReadyClick: this.spotlightPlayerReadyClick(),
       // playAs different player
       doChangePlayer,
       getActingPlayerId: this.getActingPlayerId,
@@ -914,17 +870,9 @@ export class GamePage implements OnInit {
     if (!!gamePlay.playerRoundBegin) return // round has already begun
     let round = this.gameDict.activeRound;
     let spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
-
-    let _resetOnTheSpot = (p:Player=null):boolean=>{
-      this.onTheSpot = this.hasSpotlight(p);
-      return
-    }
-
-    let playSound = (sound:string) =>{
-      this.audio.play(sound);
-    }
-
+    let self = this;
     let modalOptions = {
+      // modalOptions: this instanceof HelpComponent, self instanceof GamePage
       template:'change-player',
       backdropDismiss: false,
       replaceSame: false,
@@ -932,29 +880,11 @@ export class GamePage implements OnInit {
       dismissKeyPrefix: game.label,
       throttleTime: 2*1000,
       player,
-      player$: this.player$,
+      player$: self.player$,
       spotlight,
       // playAs different player
-      getActingPlayerId: this.getActingPlayerId,
-      doPlayAsClick(assumePlayerAlias:SpotlightPlayer){
-        if (assumePlayerAlias) {
-          console.warn("14: pass the phone to uid=", assumePlayerAlias)
-          let sound = assumePlayerAlias ? 'ok' : 'click'
-          playSound(sound);
-
-          // trigger: let isOnTheSpot = this.onTheSpot;
-          let {player$} = modalOptions;
-          let p = Object.assign({}, player$.value);
-          if (player.uid == assumePlayerAlias.uid) {
-            delete p.playingAsUid;
-          }
-          else {
-            p.playingAsUid = assumePlayerAlias.uid;
-          }
-          player$.next(p);
-          _resetOnTheSpot(p)
-        }
-      },
+      getActingPlayerId: self.getActingPlayerId.bind(self),
+      doPlayAsClick: self.doPlayAsAlias.bind(self),
       // // for TeamRoster
       // gameDict$: this.gameWatch.gameDict$,
       dismiss: (v:boolean)=>{
@@ -988,6 +918,23 @@ export class GamePage implements OnInit {
         });
       }
     });
+  }
+
+
+  doPlayAsAlias( assumePlayerAlias:SpotlightPlayer ) {
+    console.warn("14: pass the phone to uid=", assumePlayerAlias);
+    let p = Object.assign({}, this.player$.getValue()); // mutate
+    let sound = assumePlayerAlias ? 'ok' : 'click'
+    this.audio.play(sound);
+
+    if (p.uid == assumePlayerAlias.uid) {
+      delete p.playingAsUid;
+    }
+    else {
+      p.playingAsUid = assumePlayerAlias.uid;
+    }
+    this.player$.next(p);
+    this.onTheSpot = this.hasSpotlight(p);
   }
 
   beginNextGameRoundTimer(duration:number=null){
@@ -1351,13 +1298,7 @@ export class GamePage implements OnInit {
   }
 
 
-  toggleGameState(g:Game, field:string) {
-    if (!this.isModerator()) return
-    let whitelist = ['activeGame', 'isGameOpen', 'complete', 'public', 'doPassThePhone'];
-    if (!whitelist.includes(field)) return;
-    let v = g[field];
-    this.gameHelpers.pushGameState( this.gameId, {[field]:!v} );
-  }
+  
 
   isActive(g:Game=null) {
     return FishbowlHelpers.isActive(g||this.game);
@@ -1442,66 +1383,9 @@ export class GamePage implements OnInit {
     }
   }
 
-  onTimerRangeChange(range: CustomEvent) {
-    this.initialTimerDuration = range.detail.value;
-    let update = {timerDuration: range.detail.value} as GamePlayState;
-    this.gamePlayWatch.gamePlay$.pipe(
-      take(1),
-      tap( gamePlay=>{
-        if (!gamePlay || gamePlay.isTicking==false)
-          this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
-      })
-    ).subscribe()
-  }
+  
 
-  toggleStashClick(key, ev){
-    this.stash[key] = !this.stash[key]
-    // not sure why this is necessary, but it is
-    setTimeout( ()=>ev.target.checked = this.stash[key], 100)
-  }
-
-  /**
-   * moderator hides a player from team assignment, spotlight. 
-   * AFTER responses from doCheckIn => showCheckInInterstitial()
-   * @param pid 
-   * @param keep 
-   */
-  checkInPlayerToggle(pid:string, action: string){
-    Promise.resolve()
-    .then( async ()=>{
-      switch (action){
-        case '~hide': 
-          await this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: false });
-          return false
-        case '~show': 
-          await this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: true });
-          return true
-      }
-    })
-    .then( async (added:boolean)=>{
-      // assign new CheckIns to a team ONCE, 
-      if (!added) return;
-      if (!this.game.activeRound) return;
-      
-      // add player team assignment
-      let {teams} = this.gameDict.activeRound;
-      let newTeams = FishbowlHelpers.assignPlayerToTeam(pid, teams);
-      if (newTeams) {
-        console.warn("15: checkInPlayer AFTER game begins", pid, newTeams)
-        let patchRoundIds = Object.entries(this.gameDict).filter( ([k,round])=>{
-          let isRound = this.game.rounds[k];
-          return (isRound && !round['complete']);
-        }).map( ([k,round])=>k );
-        let waitFor = patchRoundIds.map( rid=>{
-          let round = this.gameDict[rid] as GamePlayRound;
-          let players = Object.assign( {}, round.players, {[pid]: this.game.players[pid] });
-          return this.db.object<GamePlayRound>(`/rounds/${rid}`).update( {players, teams:newTeams} )
-        });
-        await Promise.all(waitFor)
-        // update spotlight.playerIndex limits
-      }
-    })
-  }
+  
 
   checkInAction(pid:string, game:Game):string{
     if (!this.isModerator()) return;
@@ -1517,40 +1401,7 @@ export class GamePage implements OnInit {
     return (resp===false) ? '~show' : '~hide';  // toggle logic, set game.checkIn[pid]=undefined
   }
 
-  beginPlayerRoundClick(){
-    this.gamePlayWatch.gamePlay$.pipe(
-      take(1),
-      tap( gamePlay=>{
-        // onTimerClick() while timer isTicking => pause
-        if (!gamePlay.isTicking) this.startTimer(gamePlay);
-      })
-    ).subscribe();
-  }
-
-  onTheSpotClick(ev) {
-    let target = ev.target;
-    let onTheSpot = this.hasSpotlight('player')
-    if (onTheSpot) {
-      target.scrollIntoView();
-    }
-  }
-
-  onTimerClick(duration=null){
-    if (!this.gameDict.activeRound) return
-
-    // role guard
-    if (!(this.onTheSpot || this.isModerator())) return;
-
-    this.gamePlayWatch.gamePlay$.pipe(
-      take(1),
-      tap( gamePlay=>{
-        // onTimerClick() while timer isTicking => pause
-        if (gamePlay.isTicking && !gamePlay.timerPausedAt) 
-          this.pauseTimer(gamePlay)
-        else this.startTimer(gamePlay, duration);
-      })
-    ).subscribe();
-  }
+  
 
   /**
    * push gamePlay.timer to cloud, timer actually starts from cloud event loop
@@ -1775,24 +1626,7 @@ export class GamePage implements OnInit {
     })
   }
 
-  onWordActionClick(action:string) {
-    if (!this.gameDict.activeRound) return
-
-    // role guard
-    if (!(this.onTheSpot || this.isModerator())) return;
-
-    this.gamePlayWatch.gamePlay$.pipe(
-      take(1),
-      tap( gamePlay=>{
-        if (gamePlay.playerRoundBegin==true) {
-          if (gamePlay.isTicking==false){
-            // OK. use button[disabled=true] to add overtime
-          }
-          this.wordAction(gamePlay, action);
-        }
-      })
-    ).subscribe();
-  }
+  
 
 
   private wordAction( gamePlay: GamePlayState, action:string ){
@@ -1880,22 +1714,9 @@ export class GamePage implements OnInit {
     })
   }
 
-  doGameLogChangedByModerator(correction: GamePlayLogEntries) {
-    if (!this.isModerator()) return;
+  
 
-    let entries = this.gameDict.activeRound && this.gameDict.activeRound.entries;
-    this.gameHelpers.pushGamePlayLogUpdate(this.gamePlayWatch, correction, this.playerId, entries)
-    .then( (res)=>{
-      console.log( "126: doGameLogChangedByModerator, changed=", res)
-    })
-  }
-
-  doTeamRostersChangedByModerator(teams:TeamRosters) {
-    if (!this.isModerator()) return;
-
-    this.gameHelpers.pushTeamRosters(this.gameDict, teams);
-  }
-
+  
   /**
    * orchestrate the timed sequence to complete the playerRound
    * [before]
@@ -2079,6 +1900,131 @@ export class GamePage implements OnInit {
     this.router.navigate( ['/app/game', gameId, "player"] );
   }
 
+  
+
+  check() {
+    this.gameHelpers.DEV_set_DayOfWeekTeams(this.gameDict, this.gameId)
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  /** ************************************************************************************************
+   * player UX event handlers
+   */
+  doChangePlayerClick(gamePlay, game) {
+    return this.showChangePlayerInterstitial(gamePlay, game);
+    // let player = this.player$.getValue();
+    // let isCheckedIn = !!game.checkIn[player.uid];
+    // if (this.isGameOpen() && isCheckedIn) {
+    //   return this.showChangePlayerInterstitial(gamePlay, game);
+    // }
+  }
+
+
+  /** ************************************************************************************************
+   * spotlight player UX event handlers
+   */
+  spotlightPlayerReadyClick() {
+    let target = document.querySelector('#spotlight-button')
+    let ev = {target}
+    this.onTheSpotClick(ev);
+    setTimeout( ()=>this.onTheSpotClick(ev), 100);
+    setTimeout( ()=>this.beginPlayerRoundClick(), 1500);
+  }
+
+  /** ************************************************************************************************
+   * spotlight player + moderator UX event handlers
+   */
+
+  beginPlayerRoundClick(){
+    this.gamePlayWatch.gamePlay$.pipe(
+      take(1),
+      tap( gamePlay=>{
+        // onTimerClick() while timer isTicking => pause
+        if (!gamePlay.isTicking) this.startTimer(gamePlay);
+      })
+    ).subscribe();
+  }
+
+  onTheSpotClick(ev) {
+    let target = ev.target;
+    let onTheSpot = this.hasSpotlight('player')
+    if (onTheSpot) {
+      target.scrollIntoView();
+    }
+  }
+
+  onTimerClick(duration=null){
+    if (!this.gameDict.activeRound) return
+
+    // role guard
+    if (!(this.onTheSpot || this.isModerator())) return;
+
+    this.gamePlayWatch.gamePlay$.pipe(
+      take(1),
+      tap( gamePlay=>{
+        // onTimerClick() while timer isTicking => pause
+        if (gamePlay.isTicking && !gamePlay.timerPausedAt) 
+          this.pauseTimer(gamePlay)
+        else this.startTimer(gamePlay, duration);
+      })
+    ).subscribe();
+  }
+
+  onWordActionClick(action:string) {
+    if (!this.gameDict.activeRound) return
+
+    // role guard
+    if (!(this.onTheSpot || this.isModerator())) return;
+
+    this.gamePlayWatch.gamePlay$.pipe(
+      take(1),
+      tap( gamePlay=>{
+        if (gamePlay.playerRoundBegin==true) {
+          if (gamePlay.isTicking==false){
+            // OK. use button[disabled=true] to add overtime
+          }
+          this.wordAction(gamePlay, action);
+        }
+      })
+    ).subscribe();
+  }
+
+  /**
+   * TODO: 
+   *  - rename: doGameLogChangedByAuditor
+   *  - allow spotlight/designated player to make corrections(?), this would allow moderator to join gameplay
+   * @param correction 
+   */
+  doGameLogChangedByModerator(correction: GamePlayLogEntries) {
+    if (!this.isModerator()) return;
+
+    let entries = this.gameDict.activeRound && this.gameDict.activeRound.entries;
+    this.gameHelpers.pushGamePlayLogUpdate(this.gamePlayWatch, correction, this.playerId, entries)
+    .then( (res)=>{
+      console.log( "126: doGameLogChangedByModerator, changed=", res)
+    })
+  }
+
+  /** ************************************************************************************************
+   * moderator UX event handlers
+   */
+
   doGameSettings() {
     if (!this.isModerator()) return;
     
@@ -2086,8 +2032,110 @@ export class GamePage implements OnInit {
     this.router.navigate( ['/app/game', gameId, "settings"] );
   }
 
-  check() {
-    this.gameHelpers.DEV_set_DayOfWeekTeams(this.gameDict, this.gameId)
+  toggleStashClick(key, ev){
+    this.stash[key] = !this.stash[key]
+    // not sure why this is necessary, but it is
+    setTimeout( ()=>ev.target.checked = this.stash[key], 100)
   }
 
+  toggleGameState(g:Game, field:string) {
+    if (!this.isModerator()) return
+    let whitelist = ['activeGame', 'isGameOpen', 'complete', 'public', 'doPassThePhone'];
+    if (!whitelist.includes(field)) return;
+    let v = g[field];
+    this.gameHelpers.pushGameState( this.gameId, {[field]:!v} );
+  }
+
+  resetGameClick(ev){
+    let hard = ev.ctrlKey || ev.shiftKey;
+    if (AppConfig.platform.is('mobile')) {
+      hard=true;
+    }
+    this.doGameReset(hard)
+  }
+
+  doCheckInClick() {
+    this.beginCheckIn(this.gameId);
+    this.stash.showCheckInDetails = true;
+  }
+
+  /**
+   * moderator hides a player from team assignment, spotlight. 
+   * AFTER responses from doCheckIn => showCheckInInterstitial()
+   * @param pid 
+   * @param keep 
+   */
+  checkInPlayerToggle(pid:string, action: string){
+    Promise.resolve()
+    .then( async ()=>{
+      switch (action){
+        case '~hide': 
+          await this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: false });
+          return false
+        case '~show': 
+          await this.gameHelpers.pushCheckIn(this.gameId, {   [pid]: true });
+          return true
+      }
+    })
+    .then( async (added:boolean)=>{
+      // assign new CheckIns to a team ONCE, 
+      if (!added) return;
+      if (!this.game.activeRound) return;
+      
+      // add player team assignment
+      let {teams} = this.gameDict.activeRound;
+      let newTeams = FishbowlHelpers.assignPlayerToTeam(pid, teams);
+      if (newTeams) {
+        console.warn("15: checkInPlayer AFTER game begins", pid, newTeams)
+        let patchRoundIds = Object.entries(this.gameDict).filter( ([k,round])=>{
+          let isRound = this.game.rounds[k];
+          return (isRound && !round['complete']);
+        }).map( ([k,round])=>k );
+        let waitFor = patchRoundIds.map( rid=>{
+          let round = this.gameDict[rid] as GamePlayRound;
+          let players = Object.assign( {}, round.players, {[pid]: this.game.players[pid] });
+          return this.db.object<GamePlayRound>(`/rounds/${rid}`).update( {players, teams:newTeams} )
+        });
+        await Promise.all(waitFor)
+        // update spotlight.playerIndex limits
+      }
+    })
+  }
+
+  async loadRoundClick(){
+    let ok = await this.loadGameRounds();
+    if (!ok) return;
+    this.stash.showCheckInDetails = false;
+    this.beginTeamAssignments()
+  }
+
+  doTeamRostersChangedByModerator(teams:TeamRosters) {
+    if (!this.isModerator()) return;
+
+    this.gameHelpers.pushTeamRosters(this.gameDict, teams);
+  }
+
+  repeatTeamRosterClick() {
+    this.beginTeamAssignments();
+  }
+
+  beginGameRoundClick(){
+    this.beginNextGameRound();
+  }
+
+  onTimerRangeChange(range: CustomEvent) {
+    this.initialTimerDuration = range.detail.value;
+    let update = {timerDuration: range.detail.value} as GamePlayState;
+    this.gamePlayWatch.gamePlay$.pipe(
+      take(1),
+      tap( gamePlay=>{
+        if (!gamePlay || gamePlay.isTicking==false)
+          this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
+      })
+    ).subscribe()
+  }
+
+  
+  
+  
 }
