@@ -797,7 +797,16 @@ export class GamePage implements OnInit {
       //    OR, dismiss interstitial when spotlight player has changed
       // playAs spotlight player
       spotlight,
-      doPlayAsClick: this.doPlayAsAlias.bind(this),
+      doPlayAsClick: (args:SpotlightPlayer)=>{
+        let p = this.doPlayAsAlias(args);
+        if (!!p){
+          setTimeout( ()=>{
+            gamePlay.doBeginPlayerRound = true;
+            this.showBeginPlayerRoundInterstitial(gamePlay, game)
+          }, 10);
+        }
+        modalOptions.dismiss(true);
+      },
       dismiss: (v:boolean)=>{
         this.modalCtrl.dismiss(true);
         return null;
@@ -965,13 +974,14 @@ export class GamePage implements OnInit {
    * 
    * @param assumePlayerAlias 
    */
-  doPlayAsAlias( assumePlayerAlias:SpotlightPlayer ) {
+  doPlayAsAlias( assumePlayerAlias:SpotlightPlayer ):Player {
 
     // NOTE: this.spotlight is responsive?  updated in pipeCloudEventLoop_Bkg()
     if (assumePlayerAlias.uid != this.spotlight.uid) {
       const msg="spotlight player has changed, please try again"
       // Toast 
       console.warn(msg);
+      debugger;
       return;
     }
 
@@ -989,6 +999,7 @@ export class GamePage implements OnInit {
     }
     this.player$.next(p);
     this.onTheSpot = this.hasSpotlight(p);
+    return p;
   }
 
   
