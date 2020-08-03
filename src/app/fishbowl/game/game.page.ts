@@ -729,14 +729,8 @@ export class GamePage implements OnInit {
       }
     }
 
-    let _resetOnTheSpot = (p:Player=null):boolean=>{
-      return this.onTheSpot = this.hasSpotlight(p);
-    }
-
-    let playSound = (sound:string) =>{
-      this.audio.play(sound);
-    }
-
+    let round = this.gameDict.activeRound;
+    let spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
     let modalOptions = {
       template:'begin-player-round',
       backdropDismiss: false,
@@ -744,45 +738,32 @@ export class GamePage implements OnInit {
       swipeToClose: true,
       dismissKeyPrefix: game.label,
       throttleTime: 10*1000,
-      self:this,
       player$: this.player$,
+      // react to spotlight changes
       spotlight$: this.gameDict.gamePlayWatch.gamePlay$.pipe( 
-        map( gamePlay=>{        
+        map( gamePlay=>{
+          // this instanceof GamePage
           let round = this.gameDict.activeRound;
           let spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
           return spotlight;
         })
-      ),
+      ),   
       // beginPlayerRound
-      spotlightPlayerReadyClick: this.spotlightPlayerReadyClick(),
-      // playAs different player
-      doChangePlayer,
-      getActingPlayerId: this.getActingPlayerId,
-      playAs(assumePlayerAlias:SpotlightPlayer){
-        if (assumePlayerAlias) {
-          console.warn("14: pass the phone to uid=", assumePlayerAlias)
-          let sound = assumePlayerAlias ? 'ok' : 'click'
-          playSound(sound);
-
-          // trigger: let isOnTheSpot = this.onTheSpot;
-          let {player$} = modalOptions;
-          let p = Object.assign({}, player$.value);
-          if (player.uid == assumePlayerAlias.uid) {
-            delete p.playingAsUid;
-          }
-          else {
-            p.playingAsUid = assumePlayerAlias.uid;
-          }
-          player$.next(p);
-          _resetOnTheSpot(p)
-        }
-      },
+      spotlightPlayerReadyClick: this.spotlightPlayerReadyClick.bind(this),
+      getActingPlayerId: this.getActingPlayerId.bind(this),
       // for TeamRoster
       gameDict$: this.gameWatch.gameDict$,
       dismiss: (v:boolean)=>{
         this.modalCtrl.dismiss(true);
         return null;
-      }
+      },
+      
+      
+      // unused
+      self:this,
+        // deprecate: playAs different player
+      doChangePlayer,
+      playAs : this.doPlayAsAlias.bind(this),
     }
     await HelpComponent.presentModal(this.modalCtrl, modalOptions);
     // dismissed
@@ -801,7 +782,6 @@ export class GamePage implements OnInit {
     if (!!gamePlay.playerRoundBegin) return // round has already begun
     let round = this.gameDict.activeRound;
     let spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
-    let self = this;
     let modalOptions = {
       // modalOptions: this instanceof HelpComponent, self instanceof GamePage
       template:'change-player',
@@ -811,17 +791,19 @@ export class GamePage implements OnInit {
       dismissKeyPrefix: game.label,
       throttleTime: 2*1000,
       player,
-      player$: self.player$,
+      player$: this.player$,
+      // NOTE: do NOT react to spotlight changes, player should only be able 
+      //    to playAs() a known spotlight player.
+      //    OR, dismiss interstitial when spotlight player has changed
+      // playAs spotlight player
       spotlight,
-      // playAs different player
-      getActingPlayerId: self.getActingPlayerId.bind(self),
-      doPlayAsClick: self.doPlayAsAlias.bind(self),
-      // // for TeamRoster
-      // gameDict$: this.gameWatch.gameDict$,
+      doPlayAsClick: this.doPlayAsAlias.bind(this),
       dismiss: (v:boolean)=>{
         this.modalCtrl.dismiss(true);
         return null;
-      }
+      },
+      // unused
+      getActingPlayerId: this.getActingPlayerId.bind(this),
     }
     await HelpComponent.presentModal(this.modalCtrl, modalOptions);
     // dismissed
@@ -984,6 +966,16 @@ export class GamePage implements OnInit {
    * @param assumePlayerAlias 
    */
   doPlayAsAlias( assumePlayerAlias:SpotlightPlayer ) {
+
+    // NOTE: this.spotlight is responsive?  updated in pipeCloudEventLoop_Bkg()
+    if (assumePlayerAlias.uid != this.spotlight.uid) {
+      const msg="spotlight player has changed, please try again"
+      // Toast 
+      console.warn(msg);
+      return;
+    }
+
+
     console.warn("14: pass the phone to uid=", assumePlayerAlias);
     let p = Object.assign({}, this.player$.getValue()); // mutate
     let sound = assumePlayerAlias ? 'ok' : 'click'
