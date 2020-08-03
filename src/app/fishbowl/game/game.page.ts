@@ -2104,7 +2104,10 @@ export class GamePage implements OnInit {
     this.stash.showCheckInDetails = true;
   }
 
-  checkInPlayerClick(pid:string, game:Game):string{
+  /**
+   * render template UX based on player CheckIn value, ["~show"|"~hide"|"~done"]
+   */
+  getPlayerCheckInValue(pid:string, game:Game):string{
     if (!this.isModerator()) return;
 
     if (!game.checkIn) return '~show';

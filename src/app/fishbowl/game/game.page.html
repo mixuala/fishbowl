@@ -114,16 +114,16 @@
                 <ng-container *ngIf="stash.showCheckInDetails">
                   <ion-item *ngFor="let p of stash.playersSorted" class="player">
                     <ion-icon slot="start" 
-                    [color]="checkInPlayerClick(p[0], game)=='~done' && 'success'"
-                    [name]="checkInPlayerClick(p[0], game)=='~done' ? 'checkbox' : 'close-circle-outline'"></ion-icon>
+                    [color]="getPlayerCheckInValue(p[0], game)=='~done' && 'success'"
+                    [name]="getPlayerCheckInValue(p[0], game)=='~done' ? 'checkbox' : 'close-circle-outline'"></ion-icon>
                     <ion-label [color]="!!game.checkIn[p[0]] ? 'dark' : 'medium'" class="name" >
                       {{p[1]}}
                       <ion-note class="ion-float-right" *ngIf="isModerator(p[0])">moderator</ion-note>
                     </ion-label>
                     <ion-toggle color="success" slot="end"
-                    [disabled]="checkInPlayerClick(p[0], game)=='~done'"
+                    [disabled]="getPlayerCheckInValue(p[0], game)=='~done'"
                     [checked]="!!game.checkIn[p[0]]" 
-                    (click)="checkInPlayerToggle(p[0], checkInPlayerClick(p[0], game))">
+                    (click)="checkInPlayerToggle(p[0], getPlayerCheckInValue(p[0], game))">
                     ></ion-toggle>
                   </ion-item>
                   <ion-item>
