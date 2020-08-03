@@ -121,6 +121,67 @@
           ]
         }
       ]
+    },
+    {
+      "target": "dev", 
+      "public": "www",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [ {
+        "source": "**",
+        "destination": "/index.html"
+      } ],
+      "headers": [
+        {
+          "source": "*",
+          "headers": [
+            {
+              "key" : "Access-Control-Allow-Origin",
+              "value" : "https://securetoken.googleapis.com/",
+              "Vary": "Origin"
+            }
+          ]
+        },
+        {
+          "source": "/build/app/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|eot|otf|ttf|ttc|woff|font.css)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "source": "**/*.@(js|css)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "max-age=0"
+            }
+          ]
+        },      
+        {
+          "source": "ngsw-worker.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        }
+      ]  
     }
 ],
   "database": {
