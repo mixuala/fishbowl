@@ -7,6 +7,12 @@ import * as dayjs from 'dayjs';
 
 const LATENCY_MS = 900;  // add time so timer display begins at 30
 
+export interface CountdownTimerDurationOptions {
+  seconds: number;
+  key: number;
+  offset?: number;
+}
+
 @Component({
   selector: 'app-countdown-timer',
   templateUrl: './countdown-timer.component.html',
@@ -15,6 +21,8 @@ const LATENCY_MS = 900;  // add time so timer display begins at 30
   ]
 })
 export class CountdownTimerComponent implements OnInit, OnDestroy {
+  static completed = {};
+
   _endingTime: dayjs.Dayjs;
   _initialUnit = 'hour';
   _endingUnit = 'second';
@@ -78,16 +86,16 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     
     if (o && o.key && o.key==this.key){
       console.info("16: countdown timer >>> CACHE HIT, SKIP, timer ending time:", this._endingTime.toDate())
-      return
-    }
-
+        return
+      }
+    
     let {pause, key, seconds } = Object.assign({},o);  // mutating somehow?
     if (pause){
       this.stop();  // and do NOT restart ngOnChange
       return;
     }
     
-
+    
     /**
      * ngOnChange gets called regardless, so trigger on 
      * SimpleChange.currentValue, not this._endingTime which is mutated here
@@ -98,9 +106,9 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
         let offset = Date.now()-key;
         if (offset < 10*1000) {
           this.offset = offset;
-        }
-      }
     }
+    }
+  }
 
     let duration = seconds*1000 - this.offset + LATENCY_MS;
     duration = Math.min(duration, seconds*1000+MAX_OFFSET_MS);
@@ -150,10 +158,11 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     }
   }
 
-  @Output() onBuzz = new EventEmitter<Date | {seconds: number}>(); 
+  @Output() onBuzz = new EventEmitter<Date | CountdownTimerDurationOptions>(); 
+
   @Input() stopAtZero:boolean = false;
 
-  key: number;          // id for active timer, use unixtime()
+  timerOptions: string; // options for active timer
   offset: number;       // latency between db post time and first() response
   subscription: Subscription;
   hasBuzzed: boolean;   // [duration=[o]] && [stopAtZero=false] should only buzz once
@@ -179,31 +188,43 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     }
     this.complete$.next(true);
     this.pauseTimer$.next(true);
-    this.key = null;
+    this.timerOptions = null;
     return time;
   }
 
   public buzzTimer(reset=false) {
-    let result = (this._endingTime as dayjs.Dayjs).toDate();
-    this.onBuzz.emit(result);
-    this.hasBuzzed = true;
-    if (reset){
-      this.complete$.next(true);
-      this._secondsLeft = 0;
+    if (CountdownTimerComponent.completed[this.timerOptions]) {
+      console.warn( ">>> 15. Timer already buzzed by another instance")
     }
+    else {
+      let resp = JSON.parse(this.timerOptions);
+      this.onBuzz.emit(resp);
+    }
+    this.hasBuzzed = true;
+    CountdownTimerComponent.completed[this.timerOptions] = 1
+    reset && this.doReset();
   }
 
-  startCountdown(o:{key?:number}={}): void {
-    if (!!o.key && o.key == this.key){
-      // same timer, pass
-      // ???: BUG: timer resets if the spotlightUser is signed in multiple times!!!
-      return
-    }
+  public doReset() {
+    this.complete$.next(true);
+    this._secondsLeft = 0;
+    setTimeout( ()=>{this.timerOptions = null}, 500);
+  }
+
+  startCountdown(options:any=null): void {
+    try {
+      let tid = JSON.parse(this.timerOptions);
+      if (!!options.key && options.key===tid.key){
+        console.info("120: countdown timer >>> CACHE HIT, SKIP, timer ending time:", this._endingTime.toDate())
+        return
+      }
+    } catch (err) {}
 
     if (!this._endingTime) {
       this._secondsLeft = 0;
       return
     }
+
     if (this.stopAtZero) {
       const secondsLeft = this._endingTime.diff(dayjs(), 'second');
       if (secondsLeft<=0) {
@@ -213,15 +234,13 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
       }
     }
 
-
-
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
     this.complete$.next(false);
     this.pauseTimer$.next(false);
     this.hasBuzzed = false;
-    this.key = o.key || Date.now();
+    this.timerOptions = JSON.stringify(options || this._endingTime.unix());
     this.subscription = this._updateInterval.pipe(
       takeUntil(this._unsubscribeSubject),
       takeWhile( _=>this.complete$.value==false),
@@ -232,7 +251,6 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
 
         // console.info("1> $$$ timer ending time:", this._endingTime.toDate())
         const secondsLeft = this._endingTime.diff(dayjs(), 'second');
-
         
         this._daysLeft = Math.floor(this._dayModulus(secondsLeft) / this._dayDivisor);
         this._hoursLeft = Math.floor(this._hourModulus(secondsLeft) / this._hourDivisor);

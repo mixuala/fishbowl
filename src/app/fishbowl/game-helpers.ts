@@ -125,7 +125,43 @@ export class GameHelpers {
   constructor(
     private db: AngularFireDatabase,
   ) {
+    GameHelpers.deviceId( Date.now().toString() );
   }
+
+  /**
+   * GameHelper helpers
+   */
+
+  /**
+   * unique Id used to filter out Ux Echos
+   * @param pid 
+   */
+  static deviceId(pid:string=null):string{
+    if (pid!==null) GameHelpers["_uid"] = pid;
+    return GameHelpers["_uid"];
+  }
+
+  static changedKeys(cur:Partial<GamePlayState>, prev:GamePlayState=null): string[] {
+    let changedKeys = Object.keys(cur).filter( k=>{
+      if (cur[k]===false) return false;
+      if (prev==null) return true;
+      if (['spotlight','timer','remaining'].includes(k)) {
+        // let changed = JSON.stringify(gamePlay[k])!=JSON.stringify(prev[k]);
+        // if (changed) console.warn( "120: spotlight changed:  ", JSON.stringify(gamePlay[k]),JSON.stringify(prev[k]) )
+        return JSON.stringify(cur[k])!=JSON.stringify(prev[k])
+      }
+      return cur[k]!==prev[k];
+    });
+    if (changedKeys.length==1 && changedKeys[0]=="timestamp") {
+      // HACK: skipPlayer does NOT go through pairwise correctly
+      //    prev.spotlight is ALREADY changed, only cur.timestamp is detected
+      changedKeys.push('spotlight');
+    }
+    return changedKeys;
+  }
+
+  // reference for direct, local updates to gamePlay$
+  private _gamePlay$: ReplaySubject<GamePlayState>;
 
   getGamesByInvite$(uid:string):Observable<Game[]>{
     return this.db.object<Game>(`/games/${uid}`).snapshotChanges().pipe(
@@ -248,6 +284,7 @@ export class GameHelpers {
       done$: new Subject(),
     }
     let HOT_gamePlay$ = new ReplaySubject<GamePlayState>(1);
+    this._gamePlay$ = HOT_gamePlay$;
     
     // console.warn("121: 0>> gameWatch.gamePlay$ has changed!!! uid=", rid);
     this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges().pipe(
@@ -260,21 +297,7 @@ export class GameHelpers {
           console.log( "120: ===>>> gamePlay isFirst==true, rid=", rid)
         if (gamePlay){
           // gamePlay==null after RESET, from valueChanges() on empty key
-          let changedKeys = Object.keys(gamePlay).filter( k=>{
-            if (gamePlay[k]===false) return false;
-            if (prev==null) return true;
-            if (['spotlight','timer','remaining'].includes(k)) {
-              // let changed = JSON.stringify(gamePlay[k])!=JSON.stringify(prev[k]);
-              // if (changed) console.warn( "120: spotlight changed:  ", JSON.stringify(gamePlay[k]),JSON.stringify(prev[k]) )
-              return JSON.stringify(gamePlay[k])!=JSON.stringify(prev[k])
-            }
-            return gamePlay[k]!==prev[k];
-          });
-          if (changedKeys.length==1 && changedKeys[0]=="timestamp") {
-            // HACK: skipPlayer does NOT go through pairwise correctly
-            //    prev.spotlight is ALREADY changed, only cur.timestamp is detected
-            changedKeys.push('spotlight');
-          }
+          let changedKeys = GameHelpers.changedKeys( gamePlay, prev);
           console.warn( `120: ===>>> getGamePlay changedKeys=` , changedKeys)
           gamePlay.changedKeys = changedKeys;
         }
@@ -475,18 +498,52 @@ export class GameHelpers {
     });
   }  
 
-  pushGamePlayState(watch:GamePlayWatch, gamePlay:Partial<GamePlayState>, ...changes):Promise<void>{
+  /**
+   * push GamePlayState to cloud for sync with all players
+   * 
+   * 
+   * 
+   * @param watch 
+   * @param gamePlay 
+   * @param options {localFirst, gamePlay?}
+   *    localFirst, push changes locally before firebase 
+   *    gamePlay, local copy
+   */
+  async pushGamePlayState(watch:GamePlayWatch, gamePlay:Partial<GamePlayState>, options={}):Promise<void>{
+
+    // TODO: add prev state to confirm update, confirm through firebase functions
+    //      OR, add throttle via firebase functions
+
     // push to cloud, add timestamp
-    const USE_SERVER_TIMESTAMP = false;
+    const USE_SERVER_TIMESTAMP = true;
     console.info("120: =========>>> pushGamePlayState ",gamePlay)
-    let fields = changes.length ? [].concat(...changes) : null;
-    let update = Object.assign(Helpful.cleanProperties(gamePlay, fields), {
-      timestamp: USE_SERVER_TIMESTAMP ? firebase.database.ServerValue.TIMESTAMP : Date.now(),
-    });
+    let update = Object.assign( gamePlay, 
+      {
+        "timestamp": USE_SERVER_TIMESTAMP ? firebase.database.ServerValue.TIMESTAMP : Date.now(),
+        "_deviceId": GameHelpers.deviceId()
+      },
+    );
+    if (!!options['localFirst']) {
+      let gp = options['gamePlay'] || await this._gamePlay$.pipe( first(), ).toPromise()
+      this._gamePlay$.next( Object.assign( {}, gp, update) )
+    }
     return this.db.list<GamePlayState>('/gamePlay').update(watch.uid, update)
     // .then( v=>{
     //   console.log(">>> GameHelper.pushGamePlayState() COMPLETE update=", update)
     // });
+  }
+
+  /**
+   * detect cloud UX events that have already been played locally
+   * 
+   * strategies for detection:
+   * - filter by keys saved to localStorage
+   * - filter by deviceId
+   * 
+   * @param gamePlay 
+   */
+  static isUxEcho(gamePlay: GamePlayState):boolean{
+    return (gamePlay && gamePlay["_deviceId"] === GameHelpers.deviceId());
   }
 
 

@@ -521,7 +521,6 @@ export class GamePage implements OnInit {
         // console.warn("14:b  AFTER spotlightDidChange BEFORE passThePhone last=", HelpComponent.last.componentProps.template)
         let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
         await waitFor
-        // console.warn("14:d  waitForDismissal resolved, promise=", waitFor)
         this.showBeginPlayerRoundInterstitial(gamePlay, game);
         return Promise.reject('skip');
       }
@@ -579,7 +578,6 @@ export class GamePage implements OnInit {
     if (changed.includes('doPlayerUpdate')) {
       this.setGamePlayer();
     }
-
   }  
 
 
@@ -823,6 +821,7 @@ export class GamePage implements OnInit {
 
   showBeginGameRoundInterstitial(game:Game, round:number):Promise<void>{
     const BEGIN_ROUND_DISMISS = 8000;
+    // play sound to announce BeginGameRound?
     return HelpComponent.presentModal(this.modalCtrl, {
       template:'begin-game-round',
       dismissKeyPrefix: game.label,
@@ -905,6 +904,11 @@ export class GamePage implements OnInit {
 
     let {game, activeRound} = d || this.gameDict;
     let player = this.player$.value;
+    if (!player) {
+      console.error("15. 3G race condition, player==null")
+      return false;
+    }
+
     let pid = player.uid; 
     // let pid = this.getActingPlayerId(player);
     let playerSettings = FishbowlHelpers.getPlayerSettings(pid, game, activeRound);
@@ -1049,7 +1053,8 @@ export class GamePage implements OnInit {
     let doRepeat = gamePlay && !!gamePlay.doCheckIn && !gamePlay.checkInComplete;
     if (doRepeat) {
       // repeat checkIn 
-      await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, { doCheckIn: Date.now() as any });
+      let update = { doCheckIn: Date.now() as any };
+      await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update );
       return 
     }
 
@@ -1204,7 +1209,7 @@ export class GamePage implements OnInit {
       }
     })
     .then( ()=>{
-      isFirstRound = roundIndex.prev==null;
+      isFirstRound = roundIndex && roundIndex.prev==null;
       // NOTE: gameDict.activeRound == null
       if (isFirstRound) {
         // before round 1
@@ -1335,7 +1340,7 @@ export class GamePage implements OnInit {
           [-1*now]: score,
         });
         // console.log( ">>> wordAction, gamePlay=", update )
-        return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
+        this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
         .then( async ()=>{
           let isLastWord = next.remaining.length==0;
           let isDone = round && (isLastWord || isOvertime);
@@ -1350,16 +1355,18 @@ export class GamePage implements OnInit {
             this.completePlayerRound(isPlayerRoundComplete);
           }
         });
+        this.doGamePlayUx(update as GamePlayState, true);
       }
-    })
+    });
   } 
 
   /**
-   * push gamePlay.timer to cloud, timer actually starts from cloud event loop
+   * startTimer locally for spotlight player
+   * push gamePlay.timer to cloud for all other clients
    * - called by onTimerClick()
    * - guard: the Spotlight player
    * - guard: stash.onTheSpot = this.hasSpotlight(), set in this.loadGame$() event loop
-   * - UX response in doGamePlayUx()
+   * 
    * @param gamePlay 
    * @param duration 
    */
@@ -1398,8 +1405,7 @@ export class GamePage implements OnInit {
       timeOnClock = gamePlay.timerPausedAt;
       update.timerPausedAt = null;
     }
-    else {
-      if (!gamePlay.word) {
+    else if (!gamePlay.word) {
         // startTimer(): serve FIRST word of round, from gamePlay.remaining 
         let next = FishbowlHelpers.nextWord(round, gamePlay);
         Object.assign( update, next);   // add next word to GamePlayState
@@ -1412,7 +1418,7 @@ export class GamePage implements OnInit {
         let wordResult:WordResult = {
           // moveSpotlight(): push beginRound entry to gameLog
           playerName, teamName, 
-          result: false, 
+          result: null, 
           word: FishbowlHelpers.BEGIN_ROUND_MARKER,
         }
         update.log = {
@@ -1420,7 +1426,6 @@ export class GamePage implements OnInit {
         }
         console.info("\t>>>> playerRoundWillBegin()");
         update.playerRoundBegin = true;
-      }
     }
 
     update.timer = {
@@ -1429,17 +1434,29 @@ export class GamePage implements OnInit {
     };
     update.isTicking = true;
     update.doPlayerUpdate = false;  // reset
-    // console.log("0> startTimer, update=", JSON.stringify(update))
+    console.warn("120:\t 1> onTimerClick, time=", update.timer.key)
+    console.log("15. > startTimer, update=", JSON.stringify(update));
   
-    this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
+    let options = {
+      localFirst: true,
+      gamePlay
+    }
+    this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update, options)
+    .then( ()=>{
+      // remove
       this.gamePlayWatch.gamePlay$.pipe( 
         take(1),
         tap(v=>{
-          console.log("1> startTimer, update=", JSON.stringify(Helpful.cleanProperties(v, Object.keys(update))))
+          // TODO: skip isUxEcho
+          let local = update.timer.key;
+          let server = v["timestamp"] as number;
+          console.warn("120:\t 2> gamePlay$, time deltaMS=", server-local, v)
+          // console.log("15. > startTimer, update=", JSON.stringify(Helpful.cleanProperties(v, Object.keys(update))))
         })
       ).subscribe()
     });
-
+    update.changedKeys = GameHelpers.changedKeys(update);
+    this.doGamePlayUx(update as GamePlayState, true);
   }
 
   private pauseTimer(gamePlay):boolean{
@@ -1450,7 +1467,7 @@ export class GamePage implements OnInit {
     if (!(this.onTheSpot || this.isModerator())) return;
 
 
-    let update = {} as GamePlayState;
+    let update = {} as Partial<GamePlayState>;
     let timeRemaining = this.countdownTimer.stop();
     if (!timeRemaining) {
       return;
@@ -1461,7 +1478,13 @@ export class GamePage implements OnInit {
     update.timer = {pause: true};
 
     // if (!isOnTheSpot) return;
-    this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update).then( ()=>{
+    let options = {
+      localFirst: true,
+      gamePlay
+    }
+    this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update, options)
+    .then( ()=>{
+      // remove
       this.gamePlayWatch.gamePlay$.pipe( 
         take(1),
         tap(v=>{
@@ -1469,40 +1492,26 @@ export class GamePage implements OnInit {
         })
       ).subscribe()
     });
-
+    update.changedKeys = GameHelpers.changedKeys(update); 
+    this.doGamePlayUx(update as GamePlayState, true);
   }
 
   /**
-   * launch the timed sequence
+   * launch the timer done sequence
    * o timerWillComplete()
    * - push gamePlayState: isTicking=false
    *    o timerDidComplete()
    *    - start OVERTIME delay for accepting wordAction
    *      o timerDidComplete with OVERTIME
    *      - completePlayerRound() if playerRoundBegin==true (still)
-   *    
-   * 
    * 
    * @param t Date or unixtime of completion
    * @param buzz animate & buzz timer on the local device, default true, false=silent 
    *    when trigged externally, e.g. gameRoundComplete when player gets last word
    */
-  onTimerDone(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
-    /**
-     * throttle duplicate click from moderator control panel
-     */
-    if (this.onTimerDone.hasOwnProperty('_done')==false){
-      this.onTimerDone["_done"] = {};
-    }
-
-    let done = this.onTimerDone["_done"];
-    let id = t instanceof Date ? t.getTime() : t.seconds;
-    if (done[id]) {
-      console.warn( "12: 2> THROTTLE: timer id=", id);
-      return;
-    }
-    done[id]=true;
+  onTimerDone(resp:any, buzz=true):Promise<void> {
     this.doTimerDone(buzz);
+    return
   };
     
 
@@ -1610,7 +1619,8 @@ export class GamePage implements OnInit {
       // allow PlayerRoundComplete interstitial to appear
       await Helpful.waitFor(1000)    
       // wait for PlayerRoundComplete interstitial to dismiss
-      let done = await HelpComponent.last && HelpComponent.last.componentProps.waitForDismissal()
+      let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
+      await waitFor
       console.info("\t>>>> playerRoundDidComplete()");
 
       if (!gameRoundComplete) {
@@ -1826,25 +1836,29 @@ export class GamePage implements OnInit {
     return this.stash.throttleTimeAndWordEvents;
   }
 
+
+
+
+
   /**
    * play audio sounds based on changes in game state
    * 
-   * TODO: exclude originator of state change
+   * filter echoes from event originator using GameHelpers.isUxEcho()
    * 
    * @param gamePlay 
    */
   private doGamePlayUx( 
     gamePlay: GamePlayState,
+    isLocal: boolean = false,
   ){
-    const _alreadyDone = (gamePlay:GamePlayState):boolean => {
-      // ignore Ux state changes if player was the source of the state change
-      return false;
+
+    if (GameHelpers.isUxEcho(gamePlay)) {
+      console.warn("120: =========>>>", "SKIP UX ECHO, changed=" ,  gamePlay.changedKeys )
+      return;
     }
 
-    if (_alreadyDone(gamePlay)) return;
 
-
-    let changed = gamePlay.changedKeys || [];
+    let changed = gamePlay.changedKeys || (isLocal ? GameHelpers.changedKeys(gamePlay)  : []);
 
     // in order of priority
     if (changed.includes('isTicking')) {
@@ -1853,6 +1867,7 @@ export class GamePage implements OnInit {
       return;
     }
     else if (changed.includes('timerPausedAt')) {
+      if (changed.includes('_onInit')) return;
       let sound = gamePlay.timerPausedAt ? "pause" : "click";
       this.audio.play(sound);
       console.info( "*** detect timer PAUSE, sound=", sound);
@@ -1862,20 +1877,29 @@ export class GamePage implements OnInit {
     if (changed.includes('log')) {
       try {
         let lastKey = Object.keys(gamePlay.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
-        let sound = gamePlay.log[-lastKey].result ? 'ok' : 'pass';
+        let wordResult = gamePlay.log[-lastKey].result; 
+        if (wordResult===null) return;
+        let sound = wordResult ? 'ok' :  'pass';
         this.audio.play(sound);
         // console.info( "*** doGamePlayUx(): detect timer WORD action by change in gamePlay.log", sound);
         return;
       } catch (err) {}
     }
+
+    let moderatorChangedKeys = ["doCheckIn"];
+    
   }
 
+  /**
+   * only spotlight player can trigger `timerDidComplete` state change
+   * @param buzz 
+   */
   async doTimerDone(buzz=true) {  
     const ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS = 3000;
     if (!this.gameDict.activeRound) 
       return;
 
-    let isAuthorized = this.onTheSpot || this.isModerator();
+    let isAuthorized = this.onTheSpot;
     let gamePlay:GamePlayState;
 
     return Promise.resolve()
@@ -1887,20 +1911,31 @@ export class GamePage implements OnInit {
     })
     .then( ()=>{
       let silent = !buzz
-      if (!isAuthorized || silent) {
-        return Promise.reject("skip")
-
-        // !isAuthorized: cloud response, no access to gamePlay
+      if (silent) {
         // silent: timerDidComplete() should ALREADY have happened
+        return Promise.reject("skip");
+      }
+      if (!this.onTheSpot) {
+        if (this.isModerator()) {
+          console.warn( "15. TODO: moderator can push gamePlayState.requestTimerComplete");
+          // spotlight player handles `requestTimerComplete` => doTimerDone()
+        }
+        else {
+          // NOTE: only spotlight user can push isTicking=false, this.completePlayerRound()
+          console.warn( "15. SKIP: only spotlight player can fire `completePlayerRound`")
+        }
+        return Promise.reject("skip");
       }
     })
+
+    // do timerWillComplete => completePlayerRound() lifecycle
     .then( ()=>{
       // stop timer isTicking, but do OVERTIME
       let update = { 
         isTicking: false, 
         // playerRoundBegin: true,      // should be already set
       };
-      console.info("\t>>>> timerWillComplete()")
+      console.info("15. \t>>>> timerWillComplete()")
       return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
     })      
     .then( ()=>{
@@ -1935,6 +1970,8 @@ export class GamePage implements OnInit {
           return
         }
       })
+      // END: do timerWillComplete => completePlayerRound() lifecycle
+
     })
     .catch( err=>{
       if (err=="skip") return Promise.resolve()
@@ -2021,6 +2058,7 @@ export class GamePage implements OnInit {
     let onTheSpot = this.hasSpotlight('player')
     if (onTheSpot) {
       target.scrollIntoView();
+      this.audio.play("click");
     }
   }
 
@@ -2034,6 +2072,7 @@ export class GamePage implements OnInit {
       take(1),
       tap( gamePlay=>{
         // onTimerClick() while timer isTicking => pause
+        console.warn("120:\t a> onTimerClick, time=", Date.now())
         if (gamePlay.isTicking && !gamePlay.timerPausedAt) 
           this.pauseTimer(gamePlay)
         else this.startTimer(gamePlay, duration);
@@ -2073,6 +2112,7 @@ export class GamePage implements OnInit {
     .then( (res)=>{
       console.log( "126: gameLogChangedByAuditorClick, changed=", res)
     })
+    this.audio.play("click");
   }
 
   /** ************************************************************************************************
@@ -2092,6 +2132,7 @@ export class GamePage implements OnInit {
     if (!whitelist.includes(field)) return;
     let v = g[field];
     this.gameHelpers.pushGameState( this.gameId, {[field]:!v} );
+    this.audio.play("click");
   }
 
   resetGameClick(ev){
@@ -2100,11 +2141,13 @@ export class GamePage implements OnInit {
       hard=true;
     }
     this.doGameReset(hard)
+    this.audio.play("click");
   }
 
   doCheckInClick() {
     this.beginCheckIn(this.gameId);
     this.stash.showCheckInDetails = true;
+    this.audio.play("click");
   }
 
   /**
@@ -2164,7 +2207,8 @@ export class GamePage implements OnInit {
         await Promise.all(waitFor)
         // update spotlight.playerIndex limits
       }
-    })
+    });
+    this.audio.play("click");
   }
 
   async loadRoundClick(){
@@ -2172,23 +2216,29 @@ export class GamePage implements OnInit {
     if (!ok) return;
     this.stash.showCheckInDetails = false;
     this.beginTeamAssignments()
+    this.audio.play("click");
   }
 
   teamRosterChangeClick(teams:TeamRosters) {
     if (!this.isModerator()) return;
 
     this.gameHelpers.pushTeamRosters(this.gameDict, teams);
+    this.audio.play("click");
   }
 
   showTeamRosterClick() {
     this.beginTeamAssignments();
+    this.audio.play("click");
   }
 
   beginGameRoundClick(){
     this.beginNextGameRound();
+    this.audio.play("click");
   }
 
   timerRangeChangeClick(range: CustomEvent) {
+    if (!this.isModerator()) return;
+
     this.initialTimerDuration = range.detail.value;
     let update = {timerDuration: range.detail.value} as GamePlayState;
     this.gamePlayWatch.gamePlay$.pipe(
@@ -2198,6 +2248,7 @@ export class GamePage implements OnInit {
           this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
       })
     ).subscribe()
+    this.audio.play("click");
   }
 
   
