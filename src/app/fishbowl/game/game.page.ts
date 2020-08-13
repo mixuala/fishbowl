@@ -6,8 +6,8 @@ import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularf
 import { Plugins, } from '@capacitor/core';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, BehaviorSubject, of, from, interval, pipe, } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, takeUntil, first, filter, withLatestFrom, throttleTime, } from 'rxjs/operators';
+import { Observable, Subject, BehaviorSubject, of, from, interval, pipe, zip, } from 'rxjs';
+import { map, tap, switchMap, take, takeWhile, first, filter, withLatestFrom, throttleTime, } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -25,6 +25,7 @@ import {
   SpotlightPlayer, WordResult, Scoreboard,
   PlayerListByUids, PlayerByUids, TeamRosters, 
 } from '../types';
+
 
 
 const { Storage } = Plugins;
@@ -218,7 +219,13 @@ export class GamePage implements OnInit {
     /**
      * this is the MAIN game listener for cloud players
      */
-    this.loadGame$(gameId).pipe(
+    zip(
+      this.loadGame$(gameId), 
+      this.player$.pipe( filter(o=>!!o), first() )
+    ).pipe(
+      map( ([d,p])=>{
+        return d
+      }),
       // takeUntil(this.done$),  // ??
       takeWhile( (d)=>!!d[gameId]),
       tap( d=>{
@@ -905,7 +912,7 @@ export class GamePage implements OnInit {
     let {game, activeRound} = d || this.gameDict;
     let player = this.player$.value;
     if (!player) {
-      console.error("15. 3G race condition, player==null")
+      // console.warn("15. 3G race condition, player==null")
       return false;
     }
 
