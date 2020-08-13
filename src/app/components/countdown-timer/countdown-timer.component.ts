@@ -74,22 +74,25 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
    *  o==null cancels timer
    *  o=={ pause:true } pauses timer, without  clearing ending time
    */
-  set duration( o: {seconds?: number, pause?:boolean, key?: number}) {
+  set duration( options:CountdownTimerDurationOptions|{pause?:boolean} ) {
 
     const MAX_OFFSET_MS = 2000  // max timer offset to account for network latency
+    let { pause, key, seconds } = Object.assign({}, options) as any;
 
-    if (!o || o.seconds===null) {
-      // reset timer
+    if (!options || seconds===null) {
       this._endingTime=null;
       return;
     }
     
-    if (o && o.key && o.key==this.key){
-      console.info("16: countdown timer >>> CACHE HIT, SKIP, timer ending time:", this._endingTime.toDate())
+    if (!!this.timerOptions){
+      let tid = JSON.parse(this.timerOptions);
+      if (!!key && key===tid.key){
+        // same as: GameHelpers.isUxEcho()==true
+        console.info("15: duration timer >>> CACHE HIT, SKIP, timer ending time:", this._endingTime.toDate())
         return
       }
+    }
     
-    let {pause, key, seconds } = Object.assign({},o);  // mutating somehow?
     if (pause){
       this.stop();  // and do NOT restart ngOnChange
       return;
@@ -100,28 +103,37 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
      * ngOnChange gets called regardless, so trigger on 
      * SimpleChange.currentValue, not this._endingTime which is mutated here
      */
-    if (key) {
-      this.offset = 0;
-      if (typeof key == "number"){
-        let offset = Date.now()-key;
-        if (offset < 10*1000) {
-          this.offset = offset;
-    }
-    }
-  }
+    let now = Date.now();
+    let duration = seconds*1000 + LATENCY_MS;
+    let offset: number;
+    let {serverTime, serverOffset0, serverOffset1, elapsed, isReload} = options as any;
+    if (!serverTime) {
+      // set countdownTimer from pushGamePlayState( localFirst ), skip cloud state change
+      elapsed = now - key; // key = now
+      offset = -elapsed;
+      // console.warn("120:LOCAL\t y> countdownTimer: set duration(), LOCAL=", {offset, elapsed, key, now})
+    } else {
+      // from cloud state change
+      // (remote) serverTime = timer.key + serverOffset0
+      // (local) serverTime = now + serverOffset1
+      // key = now -serverOffset0 +serverOffset1 (mov avg)
+      // now = -serverOffset0 + serverOffset1 + key
 
-    let duration = seconds*1000 - this.offset + LATENCY_MS;
-    duration = Math.min(duration, seconds*1000+MAX_OFFSET_MS);
-    duration = Math.max(duration, seconds*1000-MAX_OFFSET_MS);
-    this._endingTime = dayjs().add(duration, 'millisecond');
-    // console.info("16: countdown timer> $$$ CREATE TIMER seconds seconds/local/remove/offset/latency =", 
-    //   seconds,
-    //   (this._endingTime.toDate().getTime()- Date.now())/1000,
-    //   (this._endingTime.toDate().getTime() - o.key)/1000, // relative to remote startTimer client time
-    //   this.offset/1000,      // latency between time on client and time gamePlay.timer was updated, <10s
-    //   LATENCY_MS/1000        // latency of angular event loop
-    // )
-    // => onto ngOnChange()
+      offset = (serverOffset1||-elapsed) -serverOffset0
+      // console.warn("120:\t y> countdownTimer: set duration(), adding offsetMS=", {
+      //   offset, elapsed, serverOffset0, serverOffset1, serverTime, key, 
+      // });
+    }
+
+    let clock = duration -elapsed
+    // same as clock=duration -serverOffset1
+    if (isReload) {
+      // clock += serverOffset1
+      clock -= serverOffset0
+      // same as clock=duration -serverOffset1 - serverOffset0
+    }
+    this._endingTime = dayjs(key-offset).add(clock, 'millisecond');
+    // same as key-serverOffset1+serverOffset0 + duration -serverOffset1 - serverOffset0
   }
 
   @Input()

@@ -1,4 +1,6 @@
 import { Injectable } from '@angular/core';
+import { Plugins, } from '@capacitor/core';
+
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as firebase from 'firebase/app';
 
@@ -17,6 +19,7 @@ import {
   PlayerListByUids, PlayerByUids, TeamRosters, CheckInByUids, 
 } from './types';
 
+const { Storage } = Plugins;
 
 
 /* Firebase dbRef cheat sheet:
@@ -122,10 +125,16 @@ TODO:
 })
 export class GameHelpers {
 
+  private static _serverOffset: number[];
+  private static _uid: string;
+
   constructor(
     private db: AngularFireDatabase,
   ) {
     GameHelpers.deviceId( Date.now().toString() );
+    Storage.get({key:'SERVER_OFFSET_TRAILING'}).then( resp=>{
+      GameHelpers._serverOffset = JSON.parse(resp.value);
+    })
   }
 
   /**
@@ -137,8 +146,8 @@ export class GameHelpers {
    * @param pid 
    */
   static deviceId(pid:string=null):string{
-    if (pid!==null) GameHelpers["_uid"] = pid;
-    return GameHelpers["_uid"];
+    if (pid!==null) GameHelpers._uid = pid;
+    return GameHelpers._uid;
   }
 
   static changedKeys(cur:Partial<GamePlayState>, prev:GamePlayState=null): string[] {
@@ -158,6 +167,34 @@ export class GameHelpers {
       changedKeys.push('spotlight');
     }
     return changedKeys;
+  }
+
+  /**
+   * get the avg server offset, timestamp-Date.now(), 
+   * - latency expressed as a negative offset
+   * - sampled over the last 10 requests
+   * - use Storage to persist values across page reload
+   * 
+   * NOTE: serverOffset > 0: implies clock error, e.g. latency < 0
+   * 
+   * @param timestamp 
+   */
+  static serverOffset(timestamp:number=null){
+    var _average = arr => arr.reduce( ( p, c ) => p + c, 0 ) / arr.length;
+    let trailing10 = GameHelpers._serverOffset || [];
+    if (timestamp!==null) {
+    let latency = Date.now() - timestamp;
+      trailing10.unshift(latency);
+      GameHelpers._serverOffset = trailing10.slice(0,10);
+      // console.log("120: serverOffset trailing10", trailing10);
+      Storage.set({key:'SERVER_OFFSET_TRAILING', value:JSON.stringify(GameHelpers._serverOffset)});
+
+    }
+    else {
+      // console.log("120: serverOffset1 trailing10 values", trailing10)
+    }
+    let result = !!trailing10.length ? _average(trailing10) : 0;
+    return -1*result;
   }
 
   // reference for direct, local updates to gamePlay$
@@ -293,13 +330,61 @@ export class GameHelpers {
       pairwise(),
       tap( v=>console.log("120: gamePlay$ > pairwise", v[0], v[1])), 
       map( ([prev, gamePlay])=>{
-        if (prev===undefined && gamePlay) 
-          console.log( "120: ===>>> gamePlay isFirst==true, rid=", rid)
+        let isInit = false;
+        if (prev===undefined && gamePlay) {
+          isInit = true;
+          console.log( "120: ===>>> gamePlay isInit==true, rid=", rid)
+        }
+        
+        let isEcho = GameHelpers.isUxEcho(gamePlay);
         if (gamePlay){
           // gamePlay==null after RESET, from valueChanges() on empty key
           let changedKeys = GameHelpers.changedKeys( gamePlay, prev);
           console.warn( `120: ===>>> getGamePlay changedKeys=` , changedKeys)
           gamePlay.changedKeys = changedKeys;
+        }
+        let {timer, isTicking} = gamePlay;
+        if (!!timer && !!timer.key){
+
+            // start timer from cloud resp
+            /**
+             * add extended attributes to start countdownTimer from cloud state change
+             * - infer elapsed time from detected page reload
+             * - calculate offsets from state change remote and local clocks for accurate sync
+             */
+            if (gamePlay.timestamp && typeof gamePlay.timestamp=="number") {
+              let now = Date.now();
+              let serverTime = gamePlay.timestamp;                  // static, all clients sync to serverTime
+              let serverOffset0 = serverTime - timer.key;           // does NOT change with elapsed
+              let serverOffset1 = serverTime - now;
+
+              let elapsed = 0;  
+              
+              let isReloadWhileTicking = isInit && isTicking;
+              if (isReloadWhileTicking) {
+                // elapsed as a fn(timer.key)
+                elapsed = now - (timer.key + serverOffset0);  
+                // correct clock errors relative to source
+                let clockOffset = gamePlay["_sourceOffset"] -GameHelpers.serverOffset();
+                elapsed += -clockOffset;
+                // console.warn("\n120: MAX_LATENCY_MS: now-serverTime elapsed=ELAPSED", {elapsed, serverOffset1, serverOffset1_source: clockOffset, serverOffset0});
+              }
+              else {
+                GameHelpers.serverOffset(serverTime);          // avg of trailing 10 serverOffset1
+                elapsed = 0;
+                // console.info("\n120: MAX_LATENCY_MS: now-serverTime elapsed=LATENCY", {elapsed, serverOffset1, serverOffset0});
+              }
+              
+              gamePlay.timer = Object.assign({}, gamePlay.timer, {
+                serverTime, serverOffset0, serverOffset1,
+                elapsed, isReload: isReloadWhileTicking, 
+              })
+              // console.warn("120:\t y> gamePlay$ timer opt=", gamePlay.timer,"\n *** \n")
+          }
+            /**
+             * end
+             */
+
         }
         return gamePlay || {}
       }),
@@ -520,7 +605,8 @@ export class GameHelpers {
     let update = Object.assign( gamePlay, 
       {
         "timestamp": USE_SERVER_TIMESTAMP ? firebase.database.ServerValue.TIMESTAMP : Date.now(),
-        "_deviceId": GameHelpers.deviceId()
+        "_deviceId": GameHelpers.deviceId(),
+        "_sourceOffset": GameHelpers.serverOffset() || 0,
       },
     );
     if (!!options['localFirst']) {
