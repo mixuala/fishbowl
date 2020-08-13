@@ -88,7 +88,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
       let tid = JSON.parse(this.timerOptions);
       if (!!key && key===tid.key){
         // same as: GameHelpers.isUxEcho()==true
-        console.info("15: duration timer >>> CACHE HIT, SKIP, timer ending time:", this._endingTime.toDate())
+        // console.info("15: duration timer >>> CACHE HIT, SKIP, timer:", this.timerOptions)
         return
       }
     }
@@ -174,8 +174,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
 
   @Input() stopAtZero:boolean = false;
 
-  timerOptions: string; // options for active timer
-  offset: number;       // latency between db post time and first() response
+  timerOptions: string; // options for active timer, JSON.stringify()
   subscription: Subscription;
   hasBuzzed: boolean;   // [duration=[o]] && [stopAtZero=false] should only buzz once
 
@@ -205,11 +204,19 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   }
 
   public buzzTimer(reset=false) {
+    let resp = JSON.parse(this.timerOptions);
     if (CountdownTimerComponent.completed[this.timerOptions]) {
-      console.warn( ">>> 15. Timer already buzzed by another instance")
+
+      
+      // TODO: countdownTimer must return animateTarget if we want to animate/buzz(silent) multiple timers on moderator page
+      
+
+      // resp['silent']=true;
+      console.warn( "\t>>> 16. Timer already buzzed by another instance, timer=", resp);
+      // this.onBuzz.emit(resp);
     }
     else {
-      let resp = JSON.parse(this.timerOptions);
+      // console.info( "\t>>> 16. buzzTimer, timer=", resp)
       this.onBuzz.emit(resp);
     }
     this.hasBuzzed = true;
@@ -225,9 +232,9 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
 
   startCountdown(options:any=null): void {
     try {
-      let tid = JSON.parse(this.timerOptions);
-      if (!!options.key && options.key===tid.key){
-        console.info("120: countdown timer >>> CACHE HIT, SKIP, timer ending time:", this._endingTime.toDate())
+      let o = JSON.parse(this.timerOptions);
+      if (!!options.key && options.key===o.key){
+        // console.info("120: startCountdown() >>> CACHE HIT, SKIP, timer=", o);
         return
       }
     } catch (err) {}
@@ -271,8 +278,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
 
         if (secondsLeft <=0 ) {
           let result = (this._endingTime as dayjs.Dayjs).toDate();
-          let doReset = this.stopAtZero;
-          if (!this.hasBuzzed) this.buzzTimer(doReset);
+          if (!this.hasBuzzed) this.buzzTimer( this.stopAtZero );
         }
       },
       (error) => console.error(error),

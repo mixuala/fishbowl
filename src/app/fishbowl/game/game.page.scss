@@ -368,6 +368,9 @@ ion-card-content{
     // .teleprompter {}
     .timer-controls {
       margin: 0;
+      ion-button {
+        height: 36px;
+      }
       ion-button#play-timer {
         flex: 0 41%;
         z-index: 100;

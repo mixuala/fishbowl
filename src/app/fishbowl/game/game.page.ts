@@ -1510,7 +1510,8 @@ export class GamePage implements OnInit {
    *    when trigged externally, e.g. gameRoundComplete when player gets last word
    */
   onTimerDone(resp:any, buzz=true):Promise<void> {
-    this.doTimerDone(buzz);
+    // buzz = buzz && !resp["silent"]
+    this.doTimerDone(buzz, resp);
     return
   };
     
@@ -1800,13 +1801,19 @@ export class GamePage implements OnInit {
    * @param el HTMLElement to animate
    * @param animation 
    */
-  async animate( el:any, animation="long-wobble" ){
+  async animate( el:any, silent=false, animation="long-wobble" ){
     el = Helpful.findHtmlElement(el);
     el.classList.add("animated", "slow", animation)
-    let stop = await this.audio.play("buzz");
+    let stop;
+    if (!silent) {
+      stop = await this.audio.play("buzz");
+    }
+    // else {
+    //   console.warn( "\t>>> 16. animate timer SILENT", el)
+    // }
     el.addEventListener('animationend', ()=>{ 
       el.classList.remove("animated", "slow", animation);
-      stop();
+      stop && stop();
     });
     return
   }
@@ -1894,7 +1901,7 @@ export class GamePage implements OnInit {
    * only spotlight player can trigger `timerDidComplete` state change
    * @param buzz 
    */
-  async doTimerDone(buzz=true) {  
+  async doTimerDone(buzz=true, resp={}) {  
     const ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS = 3000;
     if (!this.gameDict.activeRound) 
       return;
@@ -1904,10 +1911,18 @@ export class GamePage implements OnInit {
 
     return Promise.resolve()
     .then( ()=>{
-      if (buzz) {
-        // all players buzz Timer locally when timer expires, no cloud action required
-        return this.animate(this.animateTarget)
-      }
+      // if (buzz) {
+      //   // all players buzz Timer locally when timer expires, no cloud action required
+      //   return this.animate(this.animateTarget, buzz);
+      // }
+      console.log("\n 16. TimerDone, buzz=", buzz, resp)
+      let silent = !buzz;
+
+
+      // TODO: countdownTimer must return animateTarget if we want to animate multiple timers on moderator page
+
+
+      return this.animate(this.animateTarget, silent);
     })
     .then( ()=>{
       let silent = !buzz
@@ -1917,12 +1932,12 @@ export class GamePage implements OnInit {
       }
       if (!this.onTheSpot) {
         if (this.isModerator()) {
-          console.warn( "15. TODO: moderator can push gamePlayState.requestTimerComplete");
+          console.warn( "16. TODO: moderator can push gamePlayState.requestTimerComplete");
           // spotlight player handles `requestTimerComplete` => doTimerDone()
         }
         else {
           // NOTE: only spotlight user can push isTicking=false, this.completePlayerRound()
-          console.warn( "15. SKIP: only spotlight player can fire `completePlayerRound`")
+          console.warn( "16. SKIP: only spotlight player can fire `completePlayerRound`")
         }
         return Promise.reject("skip");
       }

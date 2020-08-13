@@ -224,7 +224,7 @@
                         </ion-button>
                         <app-countdown-timer #countdownTimer fill="time" [duration]="gamePlay?.timer" [units]="{from: 'second', to: 'second'}"
                           [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
-                          >[done]
+                          ><span slot="body">[done]</span>
                         </app-countdown-timer>
                         <ion-button class="volume" color="light" (click)="volumeClick()">
                           <ion-icon [name]="stash.audioVolumeIcon" >
