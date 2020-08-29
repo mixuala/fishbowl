@@ -164,7 +164,14 @@ export class GameHelpers {
     if (changedKeys.length==1 && changedKeys[0]=="timestamp") {
       // HACK: skipPlayer does NOT go through pairwise correctly
       //    prev.spotlight is ALREADY changed, only cur.timestamp is detected
-      changedKeys.push('spotlight');
+      if (cur.hasOwnProperty('spotlight')) {
+        changedKeys.push('spotlight');
+        console.warn("HACK: skipPlayer does NOT go through pairwise correctly")
+        console.warn("##### 28: SERVER_TIME: manually push spotlight change", changedKeys);
+      }
+      else {
+        changedKeys=[];
+      }
     }
     return changedKeys;
   }
@@ -183,7 +190,7 @@ export class GameHelpers {
     var _average = arr => arr.reduce( ( p, c ) => p + c, 0 ) / arr.length;
     let trailing10 = GameHelpers._serverOffset || [];
     if (timestamp!==null) {
-    let latency = Date.now() - timestamp;
+      let latency = Date.now() - timestamp;
       trailing10.unshift(latency);
       GameHelpers._serverOffset = trailing10.slice(0,10);
       // console.log("120: serverOffset trailing10", trailing10);
