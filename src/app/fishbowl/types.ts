@@ -91,6 +91,17 @@ export interface GameAdminState {
   teamRostersComplete?:boolean;
   // admin states 
   gameComplete?: boolean;
+
+  /**
+   * 
+   * additional private attrs for internal processing
+      _deviceId: for detecting local state changes
+      _isBootstrap: used to detect countdownTimer elapsed vs offset time
+          isReloadWhileTicking = isBootstrap && isTicking;
+      _isLocal: used for detecting local gamePlay$() injecting
+   *
+   */
+  
 }
 
 export interface GamePlayState extends GameAdminState {

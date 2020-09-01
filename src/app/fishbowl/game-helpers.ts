@@ -4,8 +4,8 @@ import { Plugins, } from '@capacitor/core';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as firebase from 'firebase/app';
 
-import { Observable, of, combineLatest, ReplaySubject, Subject, } from 'rxjs';
-import { map, take, share, tap, first, debounceTime, pairwise, startWith, takeUntil, withLatestFrom } from 'rxjs/operators';
+import { Observable, of, combineLatest, ReplaySubject, Subject, BehaviorSubject, } from 'rxjs';
+import { map, take, share, tap, first, filter, debounceTime, pairwise, takeUntil, withLatestFrom } from 'rxjs/operators';
 
 import * as dayjs from 'dayjs';
 
@@ -151,7 +151,9 @@ export class GameHelpers {
   }
 
   static changedKeys(cur:Partial<GamePlayState>, prev:GamePlayState=null): string[] {
-    let changedKeys = Object.keys(cur).filter( k=>{
+    let changedKeys = Object.keys(
+      Helpful.cleanProperties(cur)
+    ).filter( k=>{
       if (cur[k]===false) return false;
       if (prev==null) return true;
       if (['spotlight','timer','remaining'].includes(k)) {
@@ -204,8 +206,61 @@ export class GameHelpers {
     return -1*result;
   }
 
-  // reference for direct, local updates to gamePlay$
-  private _gamePlay$: ReplaySubject<GamePlayState>;
+  /**
+   * 
+   * @param gamePlay 
+   *      gamePlay[_isBootstrap]: boolean
+   */
+  static patch_GamePlayState_TimerSyncAttr(gamePlay:GamePlayState):GamePlayState{
+    if (!gamePlay.timer) return gamePlay;
+    if (!gamePlay.timer.key) return gamePlay;
+
+    let {timer, isTicking} = gamePlay;
+    // start timer from cloud resp
+    /**
+     * add extended attributes to start countdownTimer from cloud state change
+     * - infer elapsed time from detected page reload
+     * - calculate offsets from state change remote and local clocks for accurate sync
+     */
+    if (gamePlay.timestamp && typeof gamePlay.timestamp=="number") {
+      let now = Date.now();
+      let serverTime = gamePlay.timestamp;                  // static, all clients sync to serverTime
+      let serverOffset0 = serverTime - timer.key;           // does NOT change with elapsed
+      let serverOffset1 = serverTime - now;
+
+      let elapsed = 0;  
+      
+      let isBootstrap = !!gamePlay["_isBootstrap"];
+      let isReloadWhileTicking = isBootstrap && isTicking;
+      if (isReloadWhileTicking) {
+        // elapsed as a fn(timer.key)
+        elapsed = now - (timer.key + serverOffset0);  
+        // correct clock errors relative to source
+        let clockOffset = gamePlay["_sourceOffset"] -GameHelpers.serverOffset();
+        elapsed += -clockOffset;
+        // console.warn("\n120: MAX_LATENCY_MS: now-serverTime elapsed=ELAPSED", {elapsed, serverOffset1, serverOffset1_source: clockOffset, serverOffset0});
+      }
+      else {
+        GameHelpers.serverOffset(serverTime);          // avg of trailing 10 serverOffset1
+        elapsed = 0;
+        // console.info("\n120: MAX_LATENCY_MS: now-serverTime elapsed=LATENCY", {elapsed, serverOffset1, serverOffset0});
+      }
+      
+      gamePlay.timer = Object.assign({}, gamePlay.timer, {
+        serverTime, serverOffset0, serverOffset1,
+        elapsed, isReload: isReloadWhileTicking, 
+      })
+      // console.warn("120:\t y> gamePlay$ timer opt=", gamePlay.timer,"\n *** \n")
+    }
+    /**
+     * end
+     */
+
+    return gamePlay;
+  }
+
+  // reference to inject gamePlay state updates locally, used with pairwise()
+  static gamePlay$: BehaviorSubject<GamePlayState>;
 
   getGamesByInvite$(uid:string):Observable<Game[]>{
     return this.db.object<Game>(`/games/${uid}`).snapshotChanges().pipe(
@@ -327,78 +382,55 @@ export class GameHelpers {
       watch: null,
       done$: new Subject(),
     }
-    let HOT_gamePlay$ = new ReplaySubject<GamePlayState>(1);
-    this._gamePlay$ = HOT_gamePlay$;
+    // resets for each new gameRound
+    GameHelpers.gamePlay$ && GameHelpers.gamePlay$.complete();
+    GameHelpers.gamePlay$ = new BehaviorSubject<GamePlayState>(null);
+    let _gamePlay$ = new ReplaySubject<GamePlayState>(1);
     
     // console.warn("121: 0>> gameWatch.gamePlay$ has changed!!! uid=", rid);
     this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges().pipe(
       takeUntil(this._memo_GamePlayWatch.done$),
-      startWith(undefined),
-      pairwise(),
-      tap( v=>console.log("120: gamePlay$ > pairwise", v[0], v[1])), 
-      map( ([prev, gamePlay])=>{
-        let isInit = false;
-        if (prev===undefined && gamePlay) {
-          isInit = true;
-          console.log( "120: ===>>> gamePlay isInit==true, rid=", rid)
-        }
-        
-        let isEcho = GameHelpers.isUxEcho(gamePlay);
-        if (gamePlay){
-          // gamePlay==null after RESET, from valueChanges() on empty key
-          let changedKeys = GameHelpers.changedKeys( gamePlay, prev);
-          console.warn( `120: ===>>> getGamePlay changedKeys=` , changedKeys)
-          gamePlay.changedKeys = changedKeys;
-        }
-        let {timer, isTicking} = gamePlay;
-        if (!!timer && !!timer.key){
-
-            // start timer from cloud resp
-            /**
-             * add extended attributes to start countdownTimer from cloud state change
-             * - infer elapsed time from detected page reload
-             * - calculate offsets from state change remote and local clocks for accurate sync
-             */
-            if (gamePlay.timestamp && typeof gamePlay.timestamp=="number") {
-              let now = Date.now();
-              let serverTime = gamePlay.timestamp;                  // static, all clients sync to serverTime
-              let serverOffset0 = serverTime - timer.key;           // does NOT change with elapsed
-              let serverOffset1 = serverTime - now;
-
-              let elapsed = 0;  
-              
-              let isReloadWhileTicking = isInit && isTicking;
-              if (isReloadWhileTicking) {
-                // elapsed as a fn(timer.key)
-                elapsed = now - (timer.key + serverOffset0);  
-                // correct clock errors relative to source
-                let clockOffset = gamePlay["_sourceOffset"] -GameHelpers.serverOffset();
-                elapsed += -clockOffset;
-                // console.warn("\n120: MAX_LATENCY_MS: now-serverTime elapsed=ELAPSED", {elapsed, serverOffset1, serverOffset1_source: clockOffset, serverOffset0});
-              }
-              else {
-                GameHelpers.serverOffset(serverTime);          // avg of trailing 10 serverOffset1
-                elapsed = 0;
-                // console.info("\n120: MAX_LATENCY_MS: now-serverTime elapsed=LATENCY", {elapsed, serverOffset1, serverOffset0});
-              }
-              
-              gamePlay.timer = Object.assign({}, gamePlay.timer, {
-                serverTime, serverOffset0, serverOffset1,
-                elapsed, isReload: isReloadWhileTicking, 
-              })
-              // console.warn("120:\t y> gamePlay$ timer opt=", gamePlay.timer,"\n *** \n")
-          }
-            /**
-             * end
-             */
-
-        }
-        return gamePlay || {}
-      }),
+      // skip local state change, handled in pushGamePlayState()
+      filter( g=>GameHelpers.wasLocalStateChange(g)==false ),
     )
-    .subscribe(HOT_gamePlay$);
+    // same as: _gamePlay$.next( gamePlay )
+    .subscribe(GameHelpers.gamePlay$);
 
-    let gamePlay$ = HOT_gamePlay$.asObservable();
+    /**
+     * entry point for injecting local gamePlay updates:
+     *  - GameHelpers.gamePlay$.next(gamePlay), gamePlay[isLocal] == true
+     *  - skip echo from firebase state change. uses filter() to IGNORE (see above)
+     */
+    GameHelpers.gamePlay$.pipe(
+      // tap( v=>{
+      //   console.log("### 28: >>2 RAW gamePlay$", v)
+      // }), 
+      // startWith(null), // BehaviorSubject startWith(null)
+      pairwise(),
+      filter( ([a,b])=>!!b),
+      tap( v=>console.log("28: gamePlay$ > pairwise", v[0], v[1])), 
+      map( ([prev, gamePlay])=>{
+        if (prev==null && !!gamePlay) {
+          gamePlay["_isBootstrap"] = true;
+        }
+
+
+
+        let {_isBootstrap, _isLocal} = gamePlay as any;
+        console.log( "\n### 28: >>1 ===>>> gamePlay, rid=", rid, {_isBootstrap, _isLocal});
+
+
+
+
+        // gamePlay==null after RESET, from valueChanges() on empty key
+        gamePlay.changedKeys = GameHelpers.changedKeys( gamePlay, prev);
+        gamePlay = GameHelpers.patch_GamePlayState_TimerSyncAttr(gamePlay);
+        console.info("\t28:::3 getGamePlay(): GameHelpers.gamePlay$ emits gamePlayState from cloud update")
+        console.warn(`28: ===>>> getGamePlay changedKeys=` , gamePlay.changedKeys, gamePlay)
+        return gamePlay;
+      }),
+    ).subscribe(_gamePlay$);
+
 
     let gameLog$:Observable<GamePlayLog>
     if (gameId) {
@@ -411,7 +443,12 @@ export class GameHelpers {
     else {
       gameLog$ = of({} as GamePlayLog )
     }
-    this._memo_GamePlayWatch.watch = {uid:rid, gamePlay$, gameLog$};
+
+    this._memo_GamePlayWatch.watch = {
+      uid:  rid, 
+      gamePlay$: _gamePlay$.asObservable(),
+      gameLog$
+    };
     return this._memo_GamePlayWatch.watch;
   }
 
@@ -596,34 +633,38 @@ export class GameHelpers {
    * 
    * 
    * @param watch 
-   * @param gamePlay 
-   * @param options {localFirst, gamePlay?}
-   *    localFirst, push changes locally before firebase 
-   *    gamePlay, local copy
+   * @param update 
    */
-  async pushGamePlayState(watch:GamePlayWatch, gamePlay:Partial<GamePlayState>, options={}):Promise<void>{
+  async pushGamePlayState(watch:GamePlayWatch, update:Partial<GamePlayState>):Promise<void>{
 
     // TODO: add prev state to confirm update, confirm through firebase functions
     //      OR, add throttle via firebase functions
 
     // push to cloud, add timestamp
-    const USE_SERVER_TIMESTAMP = true;
-    console.info("120: =========>>> pushGamePlayState ",gamePlay)
-    let update = Object.assign( gamePlay, 
+    // NOTE: server timestamps required for countdownTimer sync between clients
+    const USE_SERVER_TIMESTAMP = true;  
+    console.info("120: =========>>> pushGamePlayState ",update)
+    update = Helpful.cleanProperties(update);  // strip all "_*" attributes
+    Object.assign( update, 
       {
         "timestamp": USE_SERVER_TIMESTAMP ? firebase.database.ServerValue.TIMESTAMP : Date.now(),
         "_deviceId": GameHelpers.deviceId(),
         "_sourceOffset": GameHelpers.serverOffset() || 0,
       },
     );
-    if (!!options['localFirst']) {
-      let gp = options['gamePlay'] || await this._gamePlay$.pipe( first(), ).toPromise()
-      this._gamePlay$.next( Object.assign( {}, gp, update) )
-    }
+    // NOTE: update GamePlayState manually for local client, 
+    //       ignore state change in Observer
+
+    let gamePlay0 = GameHelpers.gamePlay$.getValue();
+
+    // gamePlay.changedKeys = GameHelpers.changedKeys( gamePlay );
+    // gamePlay = GameHelpers.patch_GamePlayState_TimerSyncAttr(gamePlay, false);
+    GameHelpers.gamePlay$.next( Object.assign( {"_isLocal": true}, gamePlay0, update) );
+
+    // TEST: how is countdownTimer sync impacted locally when timestamp is not available?
+    //        should have no effect because local client manipulates timer directly
+
     return this.db.list<GamePlayState>('/gamePlay').update(watch.uid, update)
-    // .then( v=>{
-    //   console.log(">>> GameHelper.pushGamePlayState() COMPLETE update=", update)
-    // });
   }
 
   /**
@@ -635,8 +676,18 @@ export class GameHelpers {
    * 
    * @param gamePlay 
    */
-  static isUxEcho(gamePlay: GamePlayState):boolean{
-    return (gamePlay && gamePlay["_deviceId"] === GameHelpers.deviceId());
+  static wasLocalStateChange(gamePlay: GamePlayState):boolean{
+    if (!gamePlay) return false;
+    let isLocal = false;
+    isLocal = isLocal || gamePlay["_deviceId"] === GameHelpers.deviceId();
+
+    // deprecate? called from cloud update, gamePlayState.valueChanges()
+    isLocal = isLocal || !!gamePlay["_isLocal"];
+    return isLocal;
+  }
+
+  static isLocalStateChange(update: Partial<GamePlayState>){
+    return update.timestamp && update.timestamp.hasOwnProperty(".sv");
   }
 
 
