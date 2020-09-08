@@ -248,7 +248,8 @@ export class GameHelpers {
       
       gamePlay.timer = Object.assign({}, gamePlay.timer, {
         serverTime, serverOffset0, serverOffset1,
-        elapsed, isReload: isReloadWhileTicking, 
+        elapsed, 
+        // isReload: isReloadWhileTicking, 
       })
       // console.warn("120:\t y> gamePlay$ timer opt=", gamePlay.timer,"\n *** \n")
     }
