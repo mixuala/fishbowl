@@ -4,8 +4,8 @@ import { Plugins, } from '@capacitor/core';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as firebase from 'firebase/app';
 
-import { Observable, of, combineLatest, ReplaySubject, Subject, BehaviorSubject, } from 'rxjs';
-import { map, take, share, tap, first, filter, debounceTime, pairwise, takeUntil, withLatestFrom } from 'rxjs/operators';
+import { Observable, of, combineLatest, ReplaySubject, Subject, BehaviorSubject, pipe, UnaryFunction, } from 'rxjs';
+import { map, take, share, tap, first, filter, debounceTime, pairwise, takeUntil, withLatestFrom, throttleTime, startWith } from 'rxjs/operators';
 
 import * as dayjs from 'dayjs';
 
@@ -209,9 +209,8 @@ export class GameHelpers {
   /**
    * 
    * @param gamePlay 
-   *      gamePlay[_isBootstrap]: boolean
    */
-  static patch_GamePlayState_TimerSyncAttr(gamePlay:GamePlayState):GamePlayState{
+  static patch_GamePlayState_TimerSyncAttr(gamePlay:GamePlayState, isBootstrap=false):GamePlayState{
     if (!gamePlay.timer) return gamePlay;
     if (!gamePlay.timer.key) return gamePlay;
 
@@ -230,7 +229,6 @@ export class GameHelpers {
 
       let elapsed = 0;  
       
-      let isBootstrap = !!gamePlay["_isBootstrap"];
       let isReloadWhileTicking = isBootstrap && isTicking;
       if (isReloadWhileTicking) {
         // elapsed as a fn(timer.key)
@@ -298,14 +296,17 @@ export class GameHelpers {
     )
     // let game$ = game_af.valueChanges();
     let HOT_game$ = new ReplaySubject<Game>(1);
+    let HOT_gameDict$ = new ReplaySubject<GameDict>(1);
+
     game_af.valueChanges().pipe(
       map( g=>{
-        return FishbowlHelpers.DEV_patchMissingAttrs(g, 'game')
+        // return FishbowlHelpers.DEV_patchMissingAttrs(g, 'game');
+        g = FishbowlHelpers.DEV_patchMissingAttrs(g, 'game');
+        return g;
       })
     )
     .subscribe(HOT_game$);  // "hot" observable
 
-    let HOT_gameDict$ = new ReplaySubject<GameDict>(1);
     combineLatest(
       hasManyRounds_af.valueChanges().pipe(
         debounceTime(100),      // loadGameRounds() will update 3 rounds "together"
@@ -318,9 +319,12 @@ export class GameHelpers {
           [gameId]: g,
           'game': g,
         };
-        if (!g.rounds) return uidLookup;
+        if (!g.rounds) {
+          return uidLookup;   // pre-game, BEFORE [load rounds]
+        }
 
         Object.entries(g.rounds).forEach( ([k,v])=>{
+          // add game rounds to gameDict
           let round = rounds.find( r=>r.round==v && g.rounds[r.uid])
           uidLookup[k] = round;
           if (k==g.activeRound){
@@ -330,132 +334,120 @@ export class GameHelpers {
         return uidLookup;
       }),
     ).subscribe(HOT_gameDict$);  // "hot" observable
+
+
     return {
       gameId,
       game$: HOT_game$,   // same as gameDict.game
+
+
+      // ???: deprecate?   gameWatch.game$ seems to be used ONLY for gameOver, 
+      //    use (game$ | async) in template?
+
+
       hasManyRounds$,     // sorted
       gameDict$: HOT_gameDict$,          // by key
     }
   }
 
+
+
   /**
-   * 
-   * NOTE: automatically completes existing Subscriptions when gameId|game.activeRound changes
-   * @param gameId 
-   * @param game 
-   * @returns {
-   *  uid: gameID or roundId being watched
-   *  gamePlay$:  HOT gamePlay passed through pairwise() with extra attrs
-   *              - changedKeys: only keys where value is truthy and != old value
-   *              - timestamp
-   *              - resolves to {} when requesting empty db key
-   *  gameLog$: 
-   *              - resolves to {} when requesting empty db key
-   *              - TODO: resolve to null
-   * }
+   * detect bootstrap, changedKeys, add clock sync attr for countdownTimers
    */
-  _memo_GamePlayWatch: {
-    watch: GamePlayWatch,
-    done$: Subject<void>
-  }
-  getGamePlay(gameId: string, game:Game):GamePlayWatch{
-    let rid = game.activeRound || gameId;
+  pipe_DetectChanges():UnaryFunction<Observable<GamePlayState>, Observable<GamePlayState>> {
+    return pipe(
 
-    /**
-     * memoize results
-     */
-    let isFresh = this._memo_GamePlayWatch && this._memo_GamePlayWatch.watch.uid == rid;
-    if (isFresh) {
-      console.warn("120: >> reuse CACHED gamePlayWatch uid=", rid);
-      return this._memo_GamePlayWatch.watch;
-    }
-    if (this._memo_GamePlayWatch && this._memo_GamePlayWatch.done$) {
-      // complete gamePlay$, gameLog$
-      console.warn("120: >> TEARDOWN old gamePlayWatch uid=", this._memo_GamePlayWatch.watch.uid);
-      this._memo_GamePlayWatch.done$.next();
-    }
-    /**
-     * end memoize
-     */    
-    
-    
-    this._memo_GamePlayWatch = {
-      watch: null,
-      done$: new Subject(),
-    }
-    // resets for each new gameRound
-    GameHelpers.gamePlay$ && GameHelpers.gamePlay$.complete();
-    GameHelpers.gamePlay$ = new BehaviorSubject<GamePlayState>(null);
-    let _gamePlay$ = new ReplaySubject<GamePlayState>(1);
-    
-    // console.warn("121: 0>> gameWatch.gamePlay$ has changed!!! uid=", rid);
-    this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges().pipe(
-      takeUntil(this._memo_GamePlayWatch.done$),
-      // skip local state change, handled in pushGamePlayState()
-      filter( g=>GameHelpers.wasLocalStateChange(g)==false ),
-    )
-    // same as: _gamePlay$.next( gamePlay )
-    .subscribe(GameHelpers.gamePlay$);
 
-    /**
-     * entry point for injecting local gamePlay updates:
-     *  - GameHelpers.gamePlay$.next(gamePlay), gamePlay[isLocal] == true
-     *  - skip echo from firebase state change. uses filter() to IGNORE (see above)
-     */
-    GameHelpers.gamePlay$.pipe(
-      // tap( v=>{
-      //   console.log("### 28: >>2 RAW gamePlay$", v)
-      // }), 
-      // startWith(null), // BehaviorSubject startWith(null)
-      pairwise(),
-      filter( ([a,b])=>!!b),
-      tap( v=>console.log("28: gamePlay$ > pairwise", v[0], v[1])), 
+
+      startWith(null),
+      pairwise<GamePlayState>(),
+      filter( ([_,b])=>!!b),    // TODO: unnecessary??, init with null
       map( ([prev, gamePlay])=>{
-        if (prev==null && !!gamePlay) {
-          gamePlay["_isBootstrap"] = true;
-        }
-
-
-
-        let {_isBootstrap, _isLocal} = gamePlay as any;
-        console.log( "\n### 28: >>1 ===>>> gamePlay, rid=", rid, {_isBootstrap, _isLocal});
-
-
-
-
         // gamePlay==null after RESET, from valueChanges() on empty key
-        gamePlay.changedKeys = GameHelpers.changedKeys( gamePlay, prev);
-        gamePlay = GameHelpers.patch_GamePlayState_TimerSyncAttr(gamePlay);
+        gamePlay.changedKeys = GameHelpers.changedKeys( gamePlay, prev);        
         console.info("\t28:::3 getGamePlay(): GameHelpers.gamePlay$ emits gamePlayState from cloud update")
         console.warn(`28: ===>>> getGamePlay changedKeys=` , gamePlay.changedKeys, gamePlay)
         return gamePlay;
       }),
-    ).subscribe(_gamePlay$);
+      
+    );
 
-
-    let gameLog$:Observable<GamePlayLog>
-    if (gameId) {
-      gameLog$ = this.db.object<GamePlayLog>(`/gameLogs/${gameId}`).valueChanges()
-      .pipe(
-        takeUntil(this._memo_GamePlayWatch.done$),
-        share() 
-      )
-    }
-    else {
-      gameLog$ = of({} as GamePlayLog )
-    }
-
-    this._memo_GamePlayWatch.watch = {
-      uid:  rid, 
-      gamePlay$: _gamePlay$.asObservable(),
-      gameLog$
-    };
-    return this._memo_GamePlayWatch.watch;
   }
 
+  pipe_AddClockOffsets():UnaryFunction<Observable<GamePlayState>, Observable<GamePlayState>> {
+    return pipe(
+      map( (g)=>{
+        let isBootstrap = !!g["_isBootstrap"];  // set in outer context of GamePage
+        return GameHelpers.patch_GamePlayState_TimerSyncAttr(g, isBootstrap);
+      }),
+    )
+  }
+
+  /**
+   * patch gamePlay before game event loops, and before CountdownTimer for clock sync
+   *  - pipe_DetectChanges(), 
+   *  - pipe_AddClockOffsets(),
+   * 
+   * - LOCAL and REMOTE gamePlay state changes are both piped through here
+   */
+  watchGamePlay(isBootstrap:boolean=false):UnaryFunction<Observable<GamePlayState>, Observable<GamePlayState>> {
+    return pipe(
+      // tap( g=>console.warn( "28:x pipe_DetectChanges() from watchGamePlay, timestamp=",g && g.timestamp)),
+      this.pipe_DetectChanges(),
+      this.pipe_AddClockOffsets(),
+    )
+  }
+
+  /**
+   * get gamePlayWatch = {gamePlay$, gameLog$} for current game.gameId
+   *  - gamePlayWatch is same for entire game, including across game.activeRounds
+   *  - expose GameHelpers.gamePlay$ BehaviorSubject for LOCAL gamePlay$ pipeline 
+   * 
+   * gamePlay$: entry point for injecting local gamePlay updates:
+   *  - gamePlay_LOCAL$.next(gamePlay), gamePlay[isLocal] == true
+   *  - skip echo from firebase state change. GameHelpers.wasLocalStateChange(g)==false
+   * 
+   * @param gameId 
+   */
+  getGamePlay(gameId: string, done$:Subject<boolean>):GamePlayWatch {
+    // watchId: make closure
+    let _gamePlay_LOCAL$ = new BehaviorSubject<GamePlayState>(null);
+    let _gamePlay_READY$ = new ReplaySubject<GamePlayState>(1);
+    
+    /**
+     * gamePlay$: entry point for injecting local gamePlay updates:
+     *  - gamePlay_LOCAL$.next(gamePlay), gamePlay[isLocal] == true
+     *  - skip echo from firebase state change. GameHelpers.wasLocalStateChange(g)==false
+     */
+    GameHelpers.gamePlay$ = _gamePlay_LOCAL$;  // expose local entrypoint as static
 
 
+    _gamePlay_LOCAL$.pipe(
+      takeUntil(done$),
+      // this.watchGamePlay(),
+    ).subscribe(_gamePlay_READY$);
+      
+      
+      
+    /**
+     * gameLog$
+     */  
+    let _gameLog$ = new BehaviorSubject<GamePlayLog>(null);
+    if (gameId) {
+      this.db.object<GamePlayLog>(`/gameLogs/${gameId}`).valueChanges()
+      .pipe(
+        takeUntil(done$),
+        filter(o=>!!o),
+      ).subscribe(_gameLog$)
+    }
 
+    return {
+      // uid:  gameId, // deprecate, no longer used by pushGamePlayState(), get from gamePlay[_rid]
+      gamePlay$: _gamePlay_READY$, //_gamePlay_LOCAL$, // same as GameHelpers.gamePlay$,
+      gameLog$: _gameLog$,
+    } as GamePlayWatch;
+  }
 
   copyTeams(rid: string, teams:TeamRosters){
     // do BEFORE beginGameRound()
@@ -555,9 +547,7 @@ export class GameHelpers {
       }
     })
     .then( (gamePlay)=>{
-      // wait for updated gameDict.gamePlayWatch?
-      let watch = {uid:nextRoundId} as GamePlayWatch;
-      return this.pushGamePlayState( watch, gamePlay)
+      return this.pushGamePlayState( gamePlay, nextRoundId)
       .then( v=>{
         console.log("GameHelper.createGamePlayState() GamePlayState=", gamePlay)
       });
@@ -617,13 +607,14 @@ export class GameHelpers {
    * @param watch 
    */
   // gamePlay is null after RESET
-  initGameAdminState(watch:GamePlayWatch, gamePlay:Partial<GameAdminState>={}){
+  initGameAdminState(gameId:string, gamePlay:Partial<GameAdminState>={}){
     let reset:GameAdminState = {
-      gameId: watch.uid,
+      gameId,
+      doPlayerUpdate: true,
       doPlayerWelcome: false,
     }
     let update = Object.assign({}, reset, gamePlay)
-    this.pushGamePlayState(watch, update).then( ()=>{
+    this.pushGamePlayState( update, gameId ).then( ()=>{
       console.info( "GameAdminState created, testing doCheckIn()", )
     });
   }  
@@ -632,11 +623,10 @@ export class GameHelpers {
    * push GamePlayState to cloud for sync with all players
    * 
    * 
-   * 
-   * @param watch 
    * @param update 
+   * @param rid optional, infer rid from gamePlay0["_rid"] if null
    */
-  async pushGamePlayState(watch:GamePlayWatch, update:Partial<GamePlayState>):Promise<void>{
+  async pushGamePlayState(update:Partial<GamePlayState>, rid:string=null):Promise<void>{
 
     // TODO: add prev state to confirm update, confirm through firebase functions
     //      OR, add throttle via firebase functions
@@ -644,7 +634,6 @@ export class GameHelpers {
     // push to cloud, add timestamp
     // NOTE: server timestamps required for countdownTimer sync between clients
     const USE_SERVER_TIMESTAMP = true;  
-    console.info("120: =========>>> pushGamePlayState ",update)
     update = Helpful.cleanProperties(update);  // strip all "_*" attributes
     Object.assign( update, 
       {
@@ -653,19 +642,30 @@ export class GameHelpers {
         "_sourceOffset": GameHelpers.serverOffset() || 0,
       },
     );
-    // NOTE: update GamePlayState manually for local client, 
-    //       ignore state change in Observer
+    // NOTE:  handle updates LOCALLY using GameHelpers.gamePlay$ entry point
+    //        - ignore echo form cloud emit in _gamePlay_REMOTE$ subscriber, see GamePage.watchGameDict()
 
+    console.info("\n\n\t*** [BEGIN gamePlay STATE CHANGE] *** \n\t28::a gamePlay$ LOCAL gamePlayState", rid, update);
     let gamePlay0 = GameHelpers.gamePlay$.getValue();
+    if (!rid) {
+      rid = gamePlay0["_rid"];
+      console.warn(`\t\t\t>>> 28:x   pushGamePlayState() => carry on as usual with SAME rid`, rid)
+    }
+    let localUpdate = Object.assign({}, gamePlay0, update, {"_rid": rid} );
+    
+    GameHelpers.gamePlay$.next( localUpdate );
 
-    // gamePlay.changedKeys = GameHelpers.changedKeys( gamePlay );
-    // gamePlay = GameHelpers.patch_GamePlayState_TimerSyncAttr(gamePlay, false);
-    GameHelpers.gamePlay$.next( Object.assign( {"_isLocal": true}, gamePlay0, update) );
+    // ???: why does this delay suppress a gameDict emit? cancels [doTeamRosters] 
+    //      give time for  HelpComponent.presentModal() to complete
+    await Helpful.waitFor(10);
 
-    // TEST: how is countdownTimer sync impacted locally when timestamp is not available?
-    //        should have no effect because local client manipulates timer directly
 
-    return this.db.list<GamePlayState>('/gamePlay').update(watch.uid, update)
+    try {
+      console.info("\t28::b GameHelpers.pushGamePlayState() push to firebase \n\t*** [END gamePlay STATE CHANGE] ***\n\n");
+      return this.db.list<GamePlayState>('/gamePlay').update(rid, update)
+    } catch (err){
+      console.error("*** \n\t28 invalid rid?", rid, err)
+    }
   }
 
   /**
@@ -681,9 +681,6 @@ export class GameHelpers {
     if (!gamePlay) return false;
     let isLocal = false;
     isLocal = isLocal || gamePlay["_deviceId"] === GameHelpers.deviceId();
-
-    // deprecate? called from cloud update, gamePlayState.valueChanges()
-    isLocal = isLocal || !!gamePlay["_isLocal"];
     return isLocal;
   }
 
@@ -700,7 +697,8 @@ export class GameHelpers {
     watch.gamePlay$.pipe( 
       first(),
     ).subscribe( (gamePlay)=>{
-      this.pushGamePlayState( watch, Object.assign({},gamePlay));
+      let mutated = Object.assign({},gamePlay);
+      this.pushGamePlayState( mutated );
     })
   } 
 
@@ -753,7 +751,7 @@ export class GameHelpers {
             log: gamePlay.log,
             remaining,
           }
-          this.pushGamePlayState(watch, update).then( ()=>{
+          this.pushGamePlayState(update).then( ()=>{
             console.warn(">>> 126: pushGamePlayLogUpdate(), moderator update=", update);
             resolve(update);
           });
@@ -789,7 +787,7 @@ export class GameHelpers {
         return round.teams[teamName].length
       })
     }
-    let {uid, gamePlay$, gameLog$ } = watch;
+    let { gamePlay$, gameLog$ } = watch;
     return gameLog$.pipe(
       withLatestFrom(gamePlay$),
       first(),
@@ -871,7 +869,8 @@ export class GameHelpers {
           playerRoundComplete: false,
         } as GamePlayState;
         console.warn("13:b moveSpotlight=", JSON.stringify(spotlight))
-        return this.pushGamePlayState(watch, update).then( o=>{return});
+
+        return this.pushGamePlayState(update)
       }),
     ).toPromise().then( ()=>{return});
   }
@@ -885,9 +884,8 @@ export class GameHelpers {
    * @param round 
    */
   pushGameLog(watch:GamePlayWatch, round:GamePlayRound ) :Promise<void>{
-    let {uid, gamePlay$, gameLog$} = watch;
+    let {gamePlay$, gameLog$} = watch;
     let gameId = round.gameId;
-    let rid = uid;
     return new Promise( (resolve, reject)=>{
       combineLatest( gamePlay$, gameLog$ ).pipe(
         take(1),
@@ -914,6 +912,7 @@ export class GameHelpers {
             let updateRound = {
               entries: merged,
             } as GamePlayRound;
+            let rid = gamePlay["_rid"];
             return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound).then(
               ()=>console.log("0>>> update round.entries=", updateRound)
             )
@@ -1078,14 +1077,14 @@ export class GameHelpers {
   /**
    * moderator/admin methods
    */
-  pushTeamRosters( gameDict:GameDict, teams:TeamRosters): Promise<void>{
+  pushTeamRosters( gameDict:GameDict, gamePlayWatch:GamePlayWatch, teams:TeamRosters): Promise<void>{
     let activeRoundId = gameDict.game.activeRound;
     if (!activeRoundId) {
       let {prev, next} = FishbowlHelpers.getRoundIndex(gameDict)
       activeRoundId = next;
     }
     // update gamePlay.spotlight.playerIndex
-    return gameDict.gamePlayWatch.gamePlay$.pipe(
+    return gamePlayWatch.gamePlay$.pipe(
       first(),
     ).toPromise()
     .then( gamePlay=>{
@@ -1099,7 +1098,7 @@ export class GameHelpers {
       });
       let waitFor=[
         this.db.object<GamePlayRound>(`/rounds/${activeRoundId}`).update( {teams} ),
-        this.pushGamePlayState( gameDict.gamePlayWatch, {spotlight} ),
+        this.pushGamePlayState( {spotlight} ),
       ];
       return Promise.all(waitFor)
     })

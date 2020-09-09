@@ -96,9 +96,9 @@ export interface GameAdminState {
    * 
    * additional private attrs for internal processing
       _deviceId: for detecting local state changes
+      _rid: roundId or gameId
       _isBootstrap: used to detect countdownTimer elapsed vs offset time
           isReloadWhileTicking = isBootstrap && isTicking;
-      _isLocal: used for detecting local gamePlay$() injecting
    *
    */
   
@@ -173,9 +173,7 @@ export interface GameWatch {
   gameDict$: Observable<GameDict>,
 }
 
-// TODO: refactor, uid=>roundId
 export interface GamePlayWatch {
-  uid: string;  // activeRound.uid
   gamePlay$: Observable<GamePlayState>;
   gameLog$: Observable<GamePlayLog>;
 }

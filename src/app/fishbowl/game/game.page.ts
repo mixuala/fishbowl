@@ -6,8 +6,8 @@ import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularf
 import { Plugins, } from '@capacitor/core';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, BehaviorSubject, of, from, interval, pipe, zip, } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, first, filter, withLatestFrom, throttleTime, } from 'rxjs/operators';
+import { Observable, Subject, BehaviorSubject, of, from, interval, pipe, zip, ReplaySubject, Subscription, combineLatest, } from 'rxjs';
+import { map, tap, switchMap, take, takeWhile, first, filter, withLatestFrom, throttleTime, takeUntil, concatMap, pairwise, startWith, } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -25,6 +25,7 @@ import {
   SpotlightPlayer, WordResult, Scoreboard,
   PlayerListByUids, PlayerByUids, TeamRosters, 
 } from '../types';
+
 
 
 
@@ -63,7 +64,6 @@ export class GamePage implements OnInit {
   public stash:any = {
     // GameWatch changes
     audioVolumeIcon: null,
-    activeGame: false,    // activeGame can be true between game.activeRound
     // end GameWatch
     playersSorted: [],          // Object.entries(game.players) sorted by player name
     showCheckInDetails: false,
@@ -118,6 +118,9 @@ export class GamePage implements OnInit {
    * Page Lifecycle and event loop
    */
 
+  /**
+   * NOTE: bootstrap game from ionViewWillEnter to react to gameId changes
+   */
   async ngOnInit() {
     console.info("0>>> ***** ngOnInit(): load ******")
     Storage.get({key:'volume'}).then( (res)=>{
@@ -132,7 +135,6 @@ export class GamePage implements OnInit {
         loading && loading.dismiss();
       }),
     ).subscribe();
-
   }
 
   ngOnDestroy(){
@@ -145,49 +147,308 @@ export class GamePage implements OnInit {
     this.preloadAudio();
   }
 
-  // from ionViewWillEnter() > watchGame()
-  public loadGame$(gameId):Observable<GameDict>{
-    this.gameWatch = this.gameHelpers.getGameWatch( gameId );
-    let {gameDict$, game$} = this.gameWatch;
 
-    return this.gameWatch.gameDict$.pipe(
-      // takeUntil(this.done$),
-      // debounceTime(500),
-      tap( d=>{
-        this.gameDict = d;
-        this.game = d.game;
+
+
+
+  /** 
+   * 
+   * rxjs Game pipeline
+   * 
+   * Notes:
+   *  - gamePlay._isBootstrap required to sync countdownTimers, set options.elapsed for countdownTimer
+   * 
+   *  
+    ionViewWillEnter(): gameId =>
+      loadGame(gameId)
+        bootstrapGame(gameId)
+          {gameDict$} = GameHelpers.getGameWatch( gameId )
+          this.player$.pipe( filter(o=>!!o), );
+
+          // bootstrap GameDict
+          // get gamePlay$, gameLog$
+          gameDict$.pipe( 
+            tap(
+              // (init only): start gameEventLoop
+              {gamePlay$} = GameHelpers.getGamePlay(gameId);
+              gamePlay$.pipe( 
+                // set gamePlay._isBootstrap
+                pipeGameEventLoop()
+                  patchGameOver()
+                  pipeCloudEventLoop_Bkg
+                  pipeCloudEventLoop_Foreground
+                gamePlay._isBootstrap=false; 
+              ),
+            ),
+            tap (
+              // listen for game.rounds, game.activeRound changes, gamePlay.beginGameRound==true
+              watchGameDict(d, GameHelpers.gamePlay$);
+                setGamePlayer(d) // set player/team assignment
+                => handle `activeRoundDidChange`
+                  // bootstrap CLOUD gamePlay$ for new game.activeRound
+                  // filter out LOCAL state changes, GameHelpers.wasLocalStateChange(g)==false
+                  // set gamePlay._rid
+                  => pipe CLOUD gamePlay state changes INTO GameHelpers.gamePlay$
+            )
+
+          zip(   
+            bootstrapped_GameDict$, 
+            playerReady$ 
+          ).pipe(
+              takeWhile( this.stash.unloadGame$ ),
+              pipeWatchGame(
+                // set title
+                // doGameOver()
+                // get sorted/active players
+              )
+            )
+          )
+   *
+   * 
+   * 
+   */
+
+
+  private _bootstrapGameDict(gameId:string, d:GameDict){
+    // console.warn("\t>>> 28:x bootstrapGame() this.gameDict=", d);
+    this.stash.isBootstrap = true; // cleared in pipeEventLoop_Complete()
+    // only first emit
+    this.gameDict = d;
+    this.game = d.game;
+
+    this.gamePlayWatch = this.gameHelpers.getGamePlay(gameId, this.stash.unloadGame$);
+    this.gamePlay$ = this.gamePlayWatch.gamePlay$;
+
+    /**
+     * NOTE: GameHelpers.gamePlay$ is the entrypoint for handling both LOCAL and CLOUD GamePlayState changes
+     */
+    GameHelpers.gamePlay$  
+    .pipe(
+      filter( o=>!!o),
+      tap(gamePlay=>{
+        if (this.stash.isBootstrap && !!gamePlay.isTicking) {
+          // set isBootstrap for GameHelpers.patch_GamePlayState_TimerSyncAttr() to detect elapsed vs offset
+          gamePlay["_isBootstrap"]=true;
+          // console.warn("\n\n 28:::0 isBootstrap==true   ****************** \n\n");  
+        }
+        console.warn("28:x \t>>> 28::0 gamePlay$ [LOCAL eventLoop], rid=", gamePlay["_rid"], gamePlay);
+
       }),
-      map( (gameDict)=>{
-        gameDict.gamePlayWatch = this.gameHelpers.getGamePlay(gameId, gameDict.game);
-        return gameDict;
-      }),
+      takeUntil(this.stash.unloadGame$),
+      // this.gameHelpers.watchGamePlay(), // move to pipeGameEventLoop()
+      this.pipeGameEventLoop(),
+      this.pipeEventLoop_Complete(),
+    ).subscribe( null ,null
+      ,()=>{
+        console.info("28:x >>> ***** gamePlay$(): subscriber COMPLETE ******")
+      }
     );
   }
 
+
+  /**
+   * 
+   * @param gameId 
+   * 
+   * 
+   * bootstrap lifecycle:
+   * 
+        loadGame()
+          bootstrapGame()
+            {gameDict$} = GameHelpers.getGameWatch( gameId )
+            this.player$.pipe( filter(o=>!!o), );
+
+            gameDict$.pipe(
+              (1st emit):  // start gameEventLoop
+                {gamePlay$} = GameHelpers.getGamePlay(gameId);
+                gamePlay$.pipe( pipeGameEventLoop() )
+              (all emits): // watch for game.activeRound changes
+                watchGameDict(d, GameHelpers.gamePlay$);
+                  => get player team assignment
+                  => handle `activeRoundDidChange`
+            )
+
+            zip(   bootstrapped_GameDict$, playerReady$ ).pipe(
+              pipeWatchGame(): pipe(
+                // set this.isPlayerRegistered
+                takeWhile( (d)=>!!d[gameId]),
+                // set title
+                // doGameOver()
+                // get sorted/active players
+              )
+            )
+
+   *
+   *
+   */
+  public bootstrapGame(gameId){
+    this.gameWatch = this.gameHelpers.getGameWatch( gameId );
+    let {gameDict$, game$} = this.gameWatch;
+    let playerReady$ = this.player$.pipe( 
+      filter(o=>!!o), 
+    );
+
+    let _bootstrapped_GameDict$ = gameDict$.pipe(
+      concatMap((d, index)=> {
+        if (index===0) { 
+          // initial emit ONLY: bootstrap downstream subscribers
+          return of(d).pipe(
+            tap( d=>this._bootstrapGameDict(gameId, d) ),
+          );
+        }
+        return of(d);
+      }),
+      takeUntil(this.stash.unloadGame$),
+      tap( d=>{
+        this.watchGameDict(d, GameHelpers.gamePlay$);
+      }),
+    );
+
+    // watchGame$
+    zip( 
+      _bootstrapped_GameDict$, 
+      playerReady$ 
+    ).pipe(
+      takeUntil(this.stash.unloadGame$),
+      this.pipeWatchGame(gameId),
+    ).subscribe(null,null,
+      ()=>{
+        console.info(">>> ***** loadGame$(): subscriber COMPLETE ******")
+      }
+    );
+  }
+
+  /**
+   * handle gameDict$ emit
+   *  - detect and handle game.activeRound changes, see: GameHelpers.getGameWatch()
+   * @param d 
+   * @param gamePlay$, entrypoint for gamePlay$ LOCAL pipeline
+   */
+  watchGameDict(d:GameDict, gamePlay$:Subject<GamePlayState>) {
+    this.gameDict = d;
+    this.game = d.game;
+    this.setGamePlayer(d);
+
+    // detect activeRound change
+    let {watchingGamePlay} = this.stash;
+    let rid = this.game.activeRound || this.gameId;
+    let activeRoundDidChange = !watchingGamePlay || (watchingGamePlay.rid != rid);
+
+    if (!!activeRoundDidChange) {
+      watchingGamePlay && watchingGamePlay.done && watchingGamePlay.done.unsubscribe();
+      
+      // console.log( "\n\n>>>28:x game.activeRound changed, watching rid=", rid, d.game, "\n\t\t**************\n") 
+      let _gamePlay_REMOTE$ = this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges();
+      let done = _gamePlay_REMOTE$.pipe(
+        takeUntil(this.stash.unloadGame$), 
+        filter( g=>!!g && GameHelpers.wasLocalStateChange(g)==false ),
+        tap( (g)=>{
+          g["_rid"] = rid;  // stash value
+          // console.log( "\n>>>28:x ===>>> gamePlay [REMOTE UPDATE], rid=", rid, g) 
+        }),
+      )
+      .subscribe( gamePlay$ );
+
+      this.stash.watchingGamePlay = {rid, done};
+    }
+  }
+
+  pipeWatchGame(gameId:string) {
+    // expecting ([d:GameDict, p:Player])
+    return pipe(
+      map( ([d,p])=>{
+        console.warn("\t>>> 28::3 pipeWatchGame: gameDict updated", d);
+        console.warn("\t\t>>> 28::3 does this CANCEL interstitials?" )
+        return d
+      }),
+      takeWhile( (d)=>!!d[gameId]),
+      tap( d=>{
+        let title = d && d.game && d.game.label;
+        if (title) this.titleService.setTitle( `${title} –– Fishbowl`);
+        let isGameOver = this.doGameOver(d);
+        if (isGameOver) 
+          return
+
+        this.stash.playersSorted = Helpful.sortObjectEntriesByValues(d.game.players) as Array<[string,string]>
+      }),      
+    )
+  }
+
+  pipeGameEventLoop(doBackgroundTasks=true) {
+    // console.warn( "28:x pipeGameEventLoop");
+    // expecting (g:GamePlayState)
+    if (doBackgroundTasks) {    
+      return pipe(
+        this.gameHelpers.watchGamePlay(),
+        withLatestFrom( this.gameWatch.gameDict$ ),
+        tap( (res:[GamePlayState, GameDict])=>{
+          this.patchGameOver(res);
+        }),
+        this.pipeCloudEventLoop_Bkg(), 
+        this.pipeCloudEventLoop_Foreground( this.player$.value ), 
+        // this.pipeEventLoop_Complete(),
+      )
+    }
+    else {
+      return pipe(
+        this.gameHelpers.watchGamePlay(),
+        withLatestFrom( this.gameWatch.gameDict$ ),
+        this.pipeCloudEventLoop_Foreground( this.player$.value ),
+        // this.pipeEventLoop_Complete(),
+      )      
+    }
+  }
+
   // called AFTER ngOnInit, before page transition begins
-  ionViewWillEnter() {
+  async ionViewWillEnter() {
     // const dontWait = HelpComponent.presentModal(this.modalCtrl, {template:'intro', once:false});
     this.stash.restoreTitle = this.titleService.getTitle();
     this.stash.isActivePage = true;
     this.gameId = this.activatedRoute.snapshot.paramMap.get('uid');
     this.gameRef = this.db.object<Game>(`/games/${this.gameId}`);
-    this.stash.wasCached = this.watchGame(this.gameId);
+
+    /**
+     * game entrypoint: 
+     *  - get gameId from URL
+     *  - gameId may be the same (return to game) or different (new game)
+     *  - bootstrap or return to game from here
+     */
+    let watchingGameId = this.stash.watchingGameId; 
+    if (this.gameId === watchingGameId) {
+      // "replay" any missed actions from current game, 
+      // see ionViewDidEnter()
+    }
+    else {
+      this.unloadGame(this.stash.watchingGameId)
+      .then( ()=>{
+        // load new game=gameId
+        this.loadGame(this.gameId);
+      });
+    }
   }
   
   ionViewDidEnter() {
-    interval(500).pipe(first()).subscribe(()=>this.stash.showSocialButtons = true)
-    if (this.stash.wasCached) {
-      // just replay missing gamePlay events, ONCE
-      this.gameDict.gamePlayWatch.gamePlay$.pipe(
-        withLatestFrom( this.gameWatch.gameDict$ ),
-        takeWhile( ()=>this.stash.isActivePage ),
-        first(), 
-        this.pipeCloudEventLoop_Foreground( this.player$.value), 
-      )
-      .subscribe( ([gamePlay,_]:[GamePlayState, any])=>{ 
-        console.warn("120: REPLAY missed gamePlay events", gamePlay.changedKeys, gamePlay)
-      });
+    Helpful.waitFor(500).then( ()=>this.stash.showSocialButtons = true);
+    let hasBootstrapped = !!this.stash.watchingGameId && !!this.gamePlay$;
+    if (!hasBootstrapped) return;
+
+    // console.warn(">>>> 28:x ionViewDidEnter()")
+    // just replay missing gamePlay events, ONCE
+    this.gamePlay$.pipe(
+      // filter( o=>!!o),
+      // tap( g=>{
+      //   console.warn( "28:x pipe_DetectChanges() from ionViewDidEnter:replay", g)
+      // }),
+      this.gameHelpers.pipe_DetectChanges(),
+      take(1),
+      this.pipeGameEventLoop(false),
+    )
+    .subscribe( ([gamePlay,_])=>{ 
+      // console.warn(">>>> 28:x ionViewDidEnter() REPLAY missed gamePlay events", gamePlay.changedKeys, gamePlay)
     }
+    ,null, ()=>{
+      console.warn(">>>> 28:x ionViewDidEnter() UNSUBSCRIBED")
+    });
   }
 
 
@@ -199,101 +460,17 @@ export class GamePage implements OnInit {
     // close modals
   }
 
-
-
-  /**
-   * 
-   * @param gameId 
-   * @return true if cached
-   */
-  watchGame(gameId:string):boolean{
-    let isCached = this.gameDict && this.gameDict[this.stash.watchingGamePlayId];
-    if (isCached) {
-      return true;
+  async unloadGame(gameId:string){
+    if (this.stash.unloadGame$) {
+      this.stash.unloadGame$.next(true);
+      await Helpful.waitFor(500); // give some time to complete
     }
-    else {
-      this.stash.watchingGamePlayId = null;
-    }
-
-
-    /**
-     * this is the MAIN game listener for cloud players
-     */
-    zip(
-      this.loadGame$(gameId), 
-      this.player$.pipe( filter(o=>!!o), first() )
-    ).pipe(
-      map( ([d,p])=>{
-        return d
-      }),
-      // takeUntil(this.done$),  // ??
-      takeWhile( (d)=>!!d[gameId]),
-      tap( d=>{
-        let title = d && d.game && d.game.label;
-        if (title) this.titleService.setTitle( `${title} –– Fishbowl`)
-      }),
-      map( (d)=>{
-        let isGameOver = this.doGameOver(d);
-        if (isGameOver) {
-          return;
-        }
-        return d;
-      }),
-      tap( d=>{
-        if (!d) return; // gameOver
-
-        let game = d.game;                  // closure
-        this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
-        this.stash.playersSorted = Helpful.sortObjectEntriesByValues(game.players) as Array<[string,string]>
-        this.watchGamePlay(gameId, d);
-      }),
-    ).subscribe(null,null,
-      ()=>{
-        console.info(">>> ***** loadGame$(): subscriber COMPLETE ******")
-      }
-    );
-
   }
 
-  /**
-   * 
-   * 
-   * @param gameId 
-   * @param d 
-   * @returns true if Subscription was already cached
-   */
-  watchGamePlay(gameId: string, d:GameDict){
-    console.warn("120:0 \t\twatchGamePlay for uid=", d.gamePlayWatch.uid);
-    let isCached = this.stash.watchingGamePlayId == d.gamePlayWatch.uid;
-    if (isCached) {
-      return true;
-    }
-    else {
-      this.stash.watchingGamePlayId = null;
-    }
-
-    this.gamePlayWatch = d.gamePlayWatch;
-    this.gamePlay$ = this.gamePlayWatch.gamePlay$;
-
-    this.stash.watchingGamePlayId = d.gamePlayWatch.uid;
-    if (this.stash.doneWatchingGamePlay) 
-      this.stash.doneWatchingGamePlay.unsubscribe();  
-
-    this.stash.doneWatchGamePlay = this.gamePlayWatch.gamePlay$.pipe(
-      withLatestFrom( this.gameWatch.gameDict$ ),
-      // automatcally completes when game.activeRound changes
-      throttleTime(100),
-      tap( (res:[GamePlayState, GameDict])=>{
-        this.patchGameOver(res);
-      }),
-      this.pipeCloudEventLoop_Bkg(), 
-      this.pipeCloudEventLoop_Foreground( this.player$.value), 
-    ).subscribe(null,null,
-      ()=>{
-        this.stash.watchingGamePlayId = null;
-        console.info(">>> ***** watchGamePlay(): subscriber COMPLETE ******")
-      }
-    );
+  async loadGame(gameId:string) {
+    this.stash.unloadGame$ = new Subject<boolean>();
+    this.stash.watchingGameId = gameId;
+    this.bootstrapGame(gameId);
   }
 
   private pipeCloudEventLoop_Bkg() {
@@ -308,7 +485,6 @@ export class GamePage implements OnInit {
           this.spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
           this.onTheSpot = this.hasSpotlight('player');
         }        
-        let isThrottling = this.throttleTimeAndWordEvents(gamePlay);        
         this.doGamePlayUx(gamePlay);
       }),
     );
@@ -337,6 +513,21 @@ export class GamePage implements OnInit {
     );
   }
 
+  private pipeEventLoop_Complete(){
+    return pipe(
+      tap( (res:[GamePlayState, GameDict])=>{
+        let [gamePlay, gameDict] = res;
+        if (!!gamePlay){
+          if (!!this.stash.isBootstrap) {
+            // need to catch isBootstrap when gamePlay.isTicking==true, and reset after Timer has started
+            // console.log("28:::0 pipeEventLoop_Complete() <<<<<=, changedKeys=",gamePlay.changedKeys, "\n\n")
+            this.stash.isBootstrap = false;
+          }
+        }
+      })
+    )
+  }
+
   private doInterstitialsWithScoreboard(
     gamePlay: GamePlayState,
     game: Game,
@@ -344,7 +535,7 @@ export class GamePage implements OnInit {
     spotlightPlayer: SpotlightPlayer,
 
   ) {
-    let changed = gamePlay.changedKeys || [];
+    let changed = gamePlay.changedKeys;
 
     const TIME={
       BUZZER_ANIMATION_COMPLETE: 2000,
@@ -727,7 +918,8 @@ export class GamePage implements OnInit {
 
     this.stash.playerCount = Object.keys(FishbowlHelpers.getCheckedInPlayers(game)).length;
     // confirm state, gamePlay.doBeginPlayerRound has not changed
-    gamePlay = await this.gameDict.gamePlayWatch.gamePlay$.pipe( first() ).toPromise();
+
+    gamePlay = await this.gamePlay$.pipe( first() ).toPromise();
     if (!doChangePlayer){
       if (gamePlay.doBeginPlayerRound==false) {
         return
@@ -745,7 +937,7 @@ export class GamePage implements OnInit {
       throttleTime: 10*1000,
       player$: this.player$,
       // react to spotlight changes
-      spotlight$: this.gameDict.gamePlayWatch.gamePlay$.pipe( 
+      spotlight$: this.gamePlay$.pipe( 
         map( gamePlay=>{
           // this instanceof GamePage
           let round = this.gameDict.activeRound;
@@ -772,7 +964,7 @@ export class GamePage implements OnInit {
     }
     await HelpComponent.presentModal(this.modalCtrl, modalOptions);
     // dismissed
-    this.gameHelpers.pushGamePlayState(this.gamePlayWatch, { doBeginPlayerRound:false, });
+    this.gameHelpers.pushGamePlayState({ doBeginPlayerRound:false, });
     return;
   }
 
@@ -783,7 +975,7 @@ export class GamePage implements OnInit {
 
 
     // confirm state, gamePlay.doBeginPlayerRound has not changed
-    gamePlay = await this.gameDict.gamePlayWatch.gamePlay$.pipe( first() ).toPromise();
+    gamePlay = await this.gamePlay$.pipe( first() ).toPromise();
     if (!!gamePlay.playerRoundBegin) return // round has already begun
     let round = this.gameDict.activeRound;
     let spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
@@ -821,7 +1013,7 @@ export class GamePage implements OnInit {
     }
     await HelpComponent.presentModal(this.modalCtrl, modalOptions);
     // dismissed
-    await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, { doBeginPlayerRound:false, });
+    await this.gameHelpers.pushGamePlayState({ doBeginPlayerRound:false, });
     // TODO: add announce change player?
     return;
   }
@@ -916,6 +1108,7 @@ export class GamePage implements OnInit {
       return false;
     }
 
+    let {game, activeRound} = d || this.gameDict;
     let pid = player.uid; 
     // let pid = this.getActingPlayerId(player);
     let playerSettings = FishbowlHelpers.getPlayerSettings(pid, game, activeRound);
@@ -1045,8 +1238,9 @@ export class GamePage implements OnInit {
     })
     .then( async ()=>{
       // bypass throttleTime()
+      this.stash.watchingGamePlayId = null;
       await Helpful.waitFor(1000);
-      this.gameHelpers.initGameAdminState(this.gameDict.gamePlayWatch, {doPlayerWelcome: true});
+      this.gameHelpers.initGameAdminState(this.gameId, {doPlayerWelcome: true});
     });
   }
 
@@ -1056,12 +1250,12 @@ export class GamePage implements OnInit {
   async beginCheckIn(gameId:string){
     if (!this.isModerator()) return;
 
-    let gamePlay = await this.gamePlayWatch.gamePlay$.pipe(first()).toPromise();
+    let gamePlay = await this.gamePlay$.pipe(first()).toPromise();
     let doRepeat = gamePlay && !!gamePlay.doCheckIn && !gamePlay.checkInComplete;
     if (doRepeat) {
       // repeat checkIn 
       let update = { doCheckIn: Date.now() as any };
-      await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update );
+      await this.gameHelpers.pushGamePlayState(update, gameId  );
       return 
     }
 
@@ -1070,8 +1264,8 @@ export class GamePage implements OnInit {
       doCheckIn: true,
       checkInComplete: false,
     }
-    await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
-    await this.gameHelpers.pushGameState( this.gameId, {isGameOpen:true} );
+    await this.gameHelpers.pushGamePlayState(update, gameId );
+    await this.gameHelpers.pushGameState( gameId, {isGameOpen:true} );
 
     this.stash.showCheckInDetails = true;  // moderator control panel
   }
@@ -1141,16 +1335,16 @@ export class GamePage implements OnInit {
       rounds_DbRef.update(updateBatch)
     )
 
-    // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
-    let update = {
-      gameId: this.gameId,
-      doPlayerUpdate: true,           // handle in doGamePlayExtras()
+    let gameId = this.gameId;
+    let initialGameAdmin = {
+      gameId,
+      doPlayerUpdate: true,           // doGamePlayExtras() => setGamePlayer()
       doCheckIn: false,
       checkInComplete: true,
     } as Partial<GameAdminState>
     // GamePlayAdminState
     // do gamePlay update FIRST to avoid duplicate doCheckIn screen.
-    let doFirst = await this.gameHelpers.pushGamePlayState( {uid: this.gameId} as GamePlayWatch, update)
+    let doFirst = await this.gameHelpers.pushGamePlayState( initialGameAdmin, gameId )
 
     return Promise.all(waitFor).then( ()=>true);
   }
@@ -1159,11 +1353,12 @@ export class GamePage implements OnInit {
   async beginTeamAssignments(){
     if (!this.isModerator()) return;
 
-    let gamePlay = await this.gamePlayWatch.gamePlay$.pipe(first()).toPromise();
+    let gamePlay = await this.gamePlay$.pipe(first()).toPromise();
     let doRepeat = gamePlay && !!gamePlay.doTeamRosters && !gamePlay.teamRostersComplete;
     if (doRepeat) {
       // repeat teamRosters
-      await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, { doTeamRosters: Date.now() as any });
+      let update = { doTeamRosters: Date.now() as any };
+      await this.gameHelpers.pushGamePlayState( update );
       return 
     }
   
@@ -1171,7 +1366,7 @@ export class GamePage implements OnInit {
       doTeamRosters: true,
       teamRostersComplete: false,
     }
-    await this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
+    await this.gameHelpers.pushGamePlayState( update);
     this.stash.showCheckInDetails = false;
     this.stash.showTeamRosters = true;
   }
@@ -1202,7 +1397,8 @@ export class GamePage implements OnInit {
   async beginNextGameRound():Promise<GamePlayRound>{
     if (!this.game) return
     if (!this.isModerator()) return;
-    
+
+    let rid:string;  // closure
     let roundIndex:{next:string, prev:string}; // closure
     let isFirstRound: boolean;
     return Promise.resolve()
@@ -1243,17 +1439,18 @@ export class GamePage implements OnInit {
     })
     .then( async (res)=>{
       await Helpful.waitFor(1000);  // wait for loadNextRound() cloud actions
+      rid = res.rid;
+
       let update = {
         doBeginGameRound: this.gameDict.activeRound.round,
         doBeginPlayerRound: true,
       }
       // trigger showRoundInterstitial()
-      await this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update)
+      await this.gameHelpers.pushGamePlayState( update, rid )
       return res
     })
     .then( async (res)=>{
-      let {rid, activeRound} = res;
-      // just updates state info for Round
+      // just updates state info for /round
       await this.gameHelpers.beginRound(rid);
       return res;
     })
@@ -1347,7 +1544,7 @@ export class GamePage implements OnInit {
           [-1*now]: score,
         });
         // console.log( ">>> wordAction, gamePlay=", update )
-        this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
+        this.gameHelpers.pushGamePlayState(update)
         .then( async ()=>{
           let isLastWord = next.remaining.length==0;
           let isDone = round && (isLastWord || isOvertime);
@@ -1362,7 +1559,6 @@ export class GamePage implements OnInit {
             this.completePlayerRound(isPlayerRoundComplete);
           }
         });
-        this.doGamePlayUx(update as GamePlayState, true);
       }
     });
   } 
@@ -1444,26 +1640,7 @@ export class GamePage implements OnInit {
     console.warn("120:\t 1> onTimerClick, time=", update.timer.key)
     console.log("15. > startTimer, update=", JSON.stringify(update));
   
-    let options = {
-      localFirst: true,
-      gamePlay
-    }
-    this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update, options)
-    .then( ()=>{
-      // remove
-      this.gamePlayWatch.gamePlay$.pipe( 
-        take(1),
-        tap(v=>{
-          // TODO: skip isUxEcho
-          let local = update.timer.key;
-          let server = v["timestamp"] as number;
-          console.warn("120:\t 2> gamePlay$, time deltaMS=", server-local, v)
-          // console.log("15. > startTimer, update=", JSON.stringify(Helpful.cleanProperties(v, Object.keys(update))))
-        })
-      ).subscribe()
-    });
-    update.changedKeys = GameHelpers.changedKeys(update);
-    this.doGamePlayUx(update as GamePlayState, true);
+    this.gameHelpers.pushGamePlayState(update);
   }
 
   private pauseTimer(gamePlay):boolean{
@@ -1484,23 +1661,7 @@ export class GamePage implements OnInit {
     update.isTicking = false;
     update.timer = {pause: true};
 
-    // if (!isOnTheSpot) return;
-    let options = {
-      localFirst: true,
-      gamePlay
-    }
-    this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update, options)
-    .then( ()=>{
-      // remove
-      this.gamePlayWatch.gamePlay$.pipe( 
-        take(1),
-        tap(v=>{
-          console.log("1> PAUSE Timer, update=", JSON.stringify(Helpful.cleanProperties(v, Object.keys(update))))
-        })
-      ).subscribe()
-    });
-    update.changedKeys = GameHelpers.changedKeys(update); 
-    this.doGamePlayUx(update as GamePlayState, true);
+    this.gameHelpers.pushGamePlayState(update);
   }
 
   /**
@@ -1620,6 +1781,7 @@ export class GamePage implements OnInit {
         playerRoundComplete, gameRoundComplete, gameComplete,
         timer: null,
       }
+      return this.gameHelpers.pushGamePlayState(update);
       return this.db.list<GamePlayState>('/gamePlay').update(rid, update)
       // NOTE: Handle UX response in doShowInterstitials()
     })
@@ -1689,6 +1851,7 @@ export class GamePage implements OnInit {
         playerRoundComplete: false, 
         roundComplete: false,
       }
+      return this.gameHelpers.pushGamePlayState(updateGamePlay);
       return this.db.list<GamePlayState>('/gamePlay').update(rid, updateGamePlay)
     })
     .then( ()=>{
@@ -1741,7 +1904,7 @@ export class GamePage implements OnInit {
 
   // this is incomplete, should do more than just update gamePlay.spotlight
   async completeGame(){
-    this.db.list<GamePlayState>('/gamePlay').update(this.gameId, {spotlight:null})
+    return this.gameHelpers.pushGamePlayState({spotlight:null})
     .then( ()=>{
       console.log("GAME COMPLETE");
     })
@@ -1757,7 +1920,7 @@ export class GamePage implements OnInit {
     this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
     let teamNames = d.game.teamNames.slice();
     let dontWait = this.gameHelpers.scoreRound$(
-      d.gamePlayWatch, 
+      this.gamePlayWatch, 
       teamNames,
     ).toPromise().then( (scoreboard)=>{            
       this.gameSummary = {
@@ -1857,22 +2020,16 @@ export class GamePage implements OnInit {
   /**
    * play audio sounds based on changes in game state
    * 
-   * filter echoes from event originator using GameHelpers.isUxEcho()
+   * NOTE: from GameHelpers.gamePlay$ pipeline entrypoint
+   *  - common for both LOCAL and REMOTE GamePlayState changes
    * 
    * @param gamePlay 
    */
   private doGamePlayUx( 
     gamePlay: GamePlayState,
-    isLocal: boolean = false,
+    // isLocal: boolean = false, // deprecate
   ){
-
-    if (GameHelpers.isUxEcho(gamePlay)) {
-      console.warn("120: =========>>>", "SKIP UX ECHO, changed=" ,  gamePlay.changedKeys )
-      return;
-    }
-
-
-    let changed = gamePlay.changedKeys || (isLocal ? GameHelpers.changedKeys(gamePlay)  : []);
+    let changed = gamePlay.changedKeys;
 
     // in order of priority
     if (changed.includes('isTicking')) {
@@ -1958,7 +2115,7 @@ export class GamePage implements OnInit {
         // playerRoundBegin: true,      // should be already set
       };
       console.info("15. \t>>>> timerWillComplete()")
-      return this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update)
+      return this.gameHelpers.pushGamePlayState(update)
     })      
     .then( ()=>{
       console.info("\t>>>> timerDidComplete()")
@@ -1966,7 +2123,7 @@ export class GamePage implements OnInit {
       // but, last wordAction() will trigger completePlayerRound()
       // no OVERTIME if the next.remaining==0, but buzz=false in this case
       let dontWait = interval(ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS).pipe(
-        withLatestFrom(this.gamePlayWatch.gamePlay$),
+        withLatestFrom(this.gamePlay$),
         take(1),
         map( ([_,gamePlay] )=>{
           console.info("\t>>>> timerDidComplete with OVERTIME")
@@ -2066,7 +2223,7 @@ export class GamePage implements OnInit {
    */
 
   beginPlayerRoundClick(){
-    this.gamePlayWatch.gamePlay$.pipe(
+    this.gamePlay$.pipe(
       take(1),
       tap( gamePlay=>{
         // onTimerClick() while timer isTicking => pause
@@ -2090,7 +2247,7 @@ export class GamePage implements OnInit {
     // role guard
     if (!(this.onTheSpot || this.isModerator())) return;
 
-    this.gamePlayWatch.gamePlay$.pipe(
+    this.gamePlay$.pipe(
       take(1),
       tap( gamePlay=>{
         // onTimerClick() while timer isTicking => pause
@@ -2108,7 +2265,7 @@ export class GamePage implements OnInit {
     // role guard
     if (!(this.onTheSpot || this.isModerator())) return;
 
-    this.gamePlayWatch.gamePlay$.pipe(
+    this.gamePlay$.pipe(
       take(1),
       tap( gamePlay=>{
         if (gamePlay.playerRoundBegin==true) {
@@ -2244,7 +2401,7 @@ export class GamePage implements OnInit {
   teamRosterChangeClick(teams:TeamRosters) {
     if (!this.isModerator()) return;
 
-    this.gameHelpers.pushTeamRosters(this.gameDict, teams);
+    this.gameHelpers.pushTeamRosters(this.gameDict, this.gamePlayWatch,  teams);
     this.audio.play("click");
   }
 
@@ -2263,11 +2420,11 @@ export class GamePage implements OnInit {
 
     this.initialTimerDuration = range.detail.value;
     let update = {timerDuration: range.detail.value} as GamePlayState;
-    this.gamePlayWatch.gamePlay$.pipe(
+    this.gamePlay$.pipe(
       take(1),
       tap( gamePlay=>{
         if (!gamePlay || gamePlay.isTicking==false)
-          this.gameHelpers.pushGamePlayState(this.gamePlayWatch, update);
+          this.gameHelpers.pushGamePlayState(update);
       })
     ).subscribe()
     this.audio.play("click");
