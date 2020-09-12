@@ -494,9 +494,20 @@ export class GameHelpers {
 
     let roundIndex = FishbowlHelpers.getRoundIndex(gameDict);
     if (!roundIndex) {
-      // gameOver, all rounds complete
-      return Promise.resolve(null);
+      // all rounds complete => gameOver
+      return Promise.reject("gameComplete");
     }
+    let isFirstRound = roundIndex && roundIndex.prev==null;
+      // NOTE: gameDict.activeRound == null
+    if (isFirstRound) {
+      // before round1, complete preGameAdminState
+      let update = {
+        doTeamRosters: false,
+        teamRostersComplete: true,
+      }
+      await this.pushGamePlayState( update, gameId, );
+    }
+
     let nextRoundId = roundIndex.next;
     let activeRound = gameDict[nextRoundId] as GamePlayRound;
     
@@ -520,33 +531,18 @@ export class GameHelpers {
 
     let self = this;
     let promise = Promise.resolve()
-    .then( ()=>{
-      let teamCount = Object.keys(activeRound.teams).length
-      if (roundIndex.prev) {
-        return this.db.object<GamePlayState>(`/gamePlay/${roundIndex.prev}`).valueChanges().pipe(
+    .then( async ()=>{
+      let teamCount = Object.keys(activeRound.teams).length;
+      let copyFrom = roundIndex.prev && await this.db.object<GamePlayState>(`/gamePlay/${roundIndex.prev}`).valueChanges().pipe(
           take(1),
-        ).toPromise().then( (copyFrom)=>{
-          // copy state from LAST GamePlayState to NEXT GamePlayState
-          let gamePlay = Object.assign( {},
-            this.initGamePlayState(nextRoundId, teamCount, copyFrom), 
-            {
-              gameId,
-              doPlayerUpdate: true,           // update teamName, if changed
-          });
-          return gamePlay
-        })
-      }
-      else {
-        let gamePlay = Object.assign( {},
-          this.initGamePlayState(nextRoundId, teamCount), 
-          {
-            gameId,
-            doPlayerUpdate: true,           // update teamName, if changed
-        });
-        return gamePlay
-      }
-    })
-    .then( (gamePlay)=>{
+        ).toPromise();
+      let gamePlay = Object.assign( {},
+        // create initGamePlayState in watchGameDict:activeRoundDidChange==true
+        this.initGamePlayState(nextRoundId, teamCount, copyFrom), 
+        {
+          gameId,
+          doPlayerUpdate: true,           // update teamName, if changed
+      });
       return this.pushGamePlayState( gamePlay, nextRoundId)
       .then( v=>{
         console.log("GameHelper.createGamePlayState() GamePlayState=", gamePlay)
@@ -790,7 +786,7 @@ export class GameHelpers {
     let { gamePlay$, gameLog$ } = watch;
     return gameLog$.pipe(
       withLatestFrom(gamePlay$),
-      first(),
+      take(1),
       map( (res:[GamePlayLog, GamePlayState])=>{
         let [gameLog, gamePlay ] = res;
         let spotlight:any;
@@ -1108,7 +1104,7 @@ export class GameHelpers {
   listenTeamRosters$( gameDict:GameDict):Observable<TeamRosters>{
     let activeRoundId = gameDict.game.activeRound;
     if (!activeRoundId) {
-      let {prev, next} = FishbowlHelpers.getRoundIndex(gameDict)
+      let {next} = FishbowlHelpers.getRoundIndex(gameDict)
       activeRoundId = next;
     }
     return this.db.object<TeamRosters>(`/rounds/${activeRoundId}/teams`).valueChanges();

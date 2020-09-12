@@ -85,7 +85,7 @@ export class GamePage implements OnInit {
   private player$ = new BehaviorSubject<Player>(null);
   public spotlight:SpotlightPlayer;
   public onTheSpot:boolean;
-  public gameSummary: any;      // for game.complete==true
+  public gameSummary: any;      
 
 
   @ViewChild( 'animateTarget', {static:false} ) animateTarget:HTMLElement;
@@ -364,12 +364,9 @@ export class GamePage implements OnInit {
       takeWhile( (d)=>!!d[gameId]),
       tap( d=>{
         let title = d && d.game && d.game.label;
-        if (title) this.titleService.setTitle( `${title} –– Fishbowl`);
-        let isGameOver = this.doGameOver(d);
-        if (isGameOver) 
-          return
-
+        if (title) this.titleService.setTitle( `${title} –– Fishbowl`);        
         this.stash.playersSorted = Helpful.sortObjectEntriesByValues(d.game.players) as Array<[string,string]>
+        this.doWhenGameComplete(d);
       }),      
     )
   }
@@ -1403,43 +1400,36 @@ export class GamePage implements OnInit {
     let isFirstRound: boolean;
     return Promise.resolve()
     .then( ()=>{
+      // NOTE: roundIndex is fetched in loadNextRound
+      //    we only need roundIndex here to detect isGameOver()
+      //    see: loadNextRound(0)
       roundIndex = FishbowlHelpers.getRoundIndex(this.gameDict);
       if (!roundIndex) {
         if (this.isGameOver(this.game)) {
           return Promise.reject("gameComplete")
         }
-        console.warn( "unknown state")
+        console.error( "BeginNextGameRound: unknown state")
       }
     })
     .then( ()=>{
-      isFirstRound = roundIndex && roundIndex.prev==null;
-      // NOTE: gameDict.activeRound == null
-      if (isFirstRound) {
-        // before round 1
-        let update = {
-          doTeamRosters: false,
-          teamRostersComplete: true,
-        }
-        return this.gameHelpers.pushGamePlayState( this.gamePlayWatch, update)
-      }
-    })
-    .then( (res)=>{
       // find activeRound or initialize/begin next round
       return this.gameHelpers.loadNextRound(
         this.gameId, 
         this.gameDict
       );
     })
-    .then( async (res)=>{
-      let isGameComplete = !res;
-      if (isGameComplete) {
-        return Promise.reject("gameComplete"); // => completeGame()
+    .catch( err=>{
+      if (err=="gameComplete" && this.isGameOver(this.game)) {
+        return Promise.reject("gameComplete");
       }
-      return res;
+      else {
+        console.error( "BeginNextGameRound: unknown state, no more rounds, but game.complete==false")
+        return Promise.reject("begin next game round ERROR");
+      };
     })
     .then( async (res)=>{
-      await Helpful.waitFor(1000);  // wait for loadNextRound() cloud actions
       rid = res.rid;
+      await Helpful.waitFor(500);  // wait for loadNextRound() cloud actions
 
       let update = {
         doBeginGameRound: this.gameDict.activeRound.round,
