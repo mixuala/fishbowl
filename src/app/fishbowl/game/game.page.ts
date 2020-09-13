@@ -541,10 +541,12 @@ export class GamePage implements OnInit {
     }
 
     // guards
-    if (!game.rounds && !game.teamNames) 
-        return;
     if (gamePlay && gamePlay.log && !round) {
       throw new Error( "ERROR: gamePlay.log should be undefined between, rounds, e.g. when activeRound=null")
+    if (!game.rounds && !game.teamNames) {
+      this.scoreboard = null;
+      return;
+    }
     }
 
     // required
@@ -559,7 +561,10 @@ export class GamePage implements OnInit {
      */
     Promise.resolve(this.scoreboard)
     .then( async (scoreboard)=>{
-      if (changed.includes('log') || !scoreboard) {
+      let doScoreRound = !scoreboard;
+      doScoreRound = doScoreRound || changed.includes('log');
+      doScoreRound = doScoreRound || changed.includes('playerRoundComplete');
+      if (doScoreRound) {
         scoreboard = await this.gameHelpers.scoreRound$(
           this.gamePlayWatch, 
           teamNames, 
@@ -739,6 +744,7 @@ export class GamePage implements OnInit {
     })
     .then( async ()=>{
       if (changed.includes('doCheckIn')) {
+        this.scoreboard = null; // game reset
         let status = game.checkIn && game.checkIn[this.playerId];
         // HACK: use Date.now() to force change detection
         let repeatCheckIn = typeof gamePlay.doCheckIn == "number";
@@ -1900,25 +1906,30 @@ export class GamePage implements OnInit {
   }
 
   /**
-   * render gameOver page
+   * check event loop for game.complete
+   * - set GamePage.gameSummary and render gameOver page AFTER game.complete==true
+   * - non-destructive, can be called repeatedly
+   * 
    * @param d 
    */
-  doGameOver( d:GameDict ): boolean {
-    if (!this.isGameOver(d.game)) return false
+  async doWhenGameComplete( d:GameDict ): Promise<void> {
+    let skip = this.isGameOver(d.game)==false || !!this.gameSummary;
+    if (skip) return 
 
-    this.isPlayerRegistered = this.setGamePlayer(d) || this.isModerator();
+    this.isPlayerRegistered = this.hasGameEntry(this.player$.getValue(),d) || this.isModerator();
     let teamNames = d.game.teamNames.slice();
-    let dontWait = this.gameHelpers.scoreRound$(
+    await this.gameHelpers.scoreRound$(
       this.gamePlayWatch, 
       teamNames,
-    ).toPromise().then( (scoreboard)=>{            
+    ).toPromise().then( (scoreboard)=>{           
+      // set gameSummary for AppGameOverComponent
+      // see also: doInterstitialsWithScoreboard() 
       this.gameSummary = {
         teamNames,
         scoreboard,
       }
-      console.warn("game over", this.gameSummary)
+      console.info("game over: set gameSummary for AppGameOver", this.gameSummary)
     });
-    return true;
   }
 
   /**
