@@ -359,6 +359,7 @@ export class GamePage implements OnInit {
       map( ([d,p])=>{
         console.warn("\t>>> 28::3 pipeWatchGame: gameDict updated", d);
         console.warn("\t\t>>> 28::3 does this CANCEL interstitials?" )
+        this.isPlayerRegistered = this.hasGameEntry(p,d) || this.isModerator();
         return d
       }),
       takeWhile( (d)=>!!d[gameId]),
@@ -696,7 +697,15 @@ export class GamePage implements OnInit {
     .then( async ()=>{   
       if (changed.includes('doBeginGameRound') && gamePlay.doBeginGameRound>0) {
         // beginGameRound Interstitial
-        await this.showBeginGameRoundInterstitial(game, gamePlay.doBeginGameRound)
+        if (!gamePlay.isTicking){
+          await this.showBeginGameRoundInterstitial(game, gamePlay.doBeginGameRound);
+          // check if interstitials have ALREADY been dismissed
+          let check = await this.gamePlay$.pipe(take(1)).toPromise();
+          if (check.playerRoundBegin==true) {
+            console.info("\t\t28:::2b ******** dismiss doBeginGameRound=>doBeginPlayerRound");
+            return Promise.reject('skip')
+          }
+        }
         if (changed.includes('doBeginPlayerRound')) {
           // show ready for Spotlight Player or PassThePhone
           // allow showBeginGameRound interstitial to appear
@@ -1095,28 +1104,42 @@ export class GamePage implements OnInit {
   
 
   /**
-   * update this.player$ Observable with game and team details
+   * check if player has a game entry
    * @param d 
    * @returns isRegistered
    */
-  setGamePlayer(d:GameDict=null):boolean {
-    // trigger on gamePlay.doPlayerUpdate==true, set in loadGameRounds() and loadNextRound()
-    // OR, every gameWatch.gameDict$ emit
-
-    let {game, activeRound} = d || this.gameDict;
-    let player = this.player$.value;
-    if (!player) {
-      // console.warn("15. 3G race condition, player==null")
+  hasGameEntry(p:Player, d:GameDict):boolean {
+    try {
+      return !!d.game.entries[p.uid];
+    } catch(err){
       return false;
     }
+  }
 
+  /**
+   * update this.player$ Observable with game and team details
+   *  - depends on player.uid
+   *  - trigger on gamePlay.doPlayerUpdate==true,
+   * 
+   * - TODO: call on bootstrap, and whenever teamRosters change
+   * 
+   * @param d 
+   */
+  setGamePlayer(d:GameDict=null) {
+    // set in loadGameRounds() and loadNextRound()
+    // OR, every gameWatch.gameDict$ emit, DEPRECATE
+
+    let player = this.player$.getValue();
+    if (!player) return;
+    
     let {game, activeRound} = d || this.gameDict;
     let pid = player.uid; 
     // let pid = this.getActingPlayerId(player);
     let playerSettings = FishbowlHelpers.getPlayerSettings(pid, game, activeRound);
-    let update = Object.assign({}, player, playerSettings);
-    this.player$.next( update );
-    return game.entries && !!game.entries[pid];
+    if (playerSettings.teamName !== player.teamName){
+      let update = Object.assign({}, player, playerSettings);
+      this.player$.next( update );
+    }
   }
 
   /**
@@ -1700,18 +1723,18 @@ export class GamePage implements OnInit {
   hasSpotlight(v:Player|string) {
     try {
       let player = (typeof v != "string") ? v : this.player$.value;
-      if (!player) {
-        return false
-      }
+      if (!player) return false;
+      if (!this.game.activeRound) return false;
+
       if (player && !!player.playingAsUid) {
         v=player;   // override with playAs player
       }
       switch (v) {
         case 'team':
-          return !!this.game.activeRound && this.player$.value.teamName==this.spotlight.teamName;
+          return player.teamName==this.spotlight.teamName;
         case 'player':
         default:          
-          return !!this.game.activeRound && this.spotlight.uid==this.getActingPlayerId(player);
+          return this.spotlight.uid==this.getActingPlayerId(player);
       }
     } catch(err) {
       return false;
@@ -1897,7 +1920,9 @@ export class GamePage implements OnInit {
     });
   }
 
-  // this is incomplete, should do more than just update gamePlay.spotlight
+  /**
+   * cleanup on completeGame
+   */
   async completeGame(){
     return this.gameHelpers.pushGamePlayState({spotlight:null})
     .then( ()=>{
