@@ -873,40 +873,45 @@ export class GamePage implements OnInit {
   showTeamRostersInterstitial(){
     const TEAM_ROSTER_DISMISS = 30*1000;
     let gameDict = this.gameDict;
-    let done = this.gameHelpers.listenTeamRosters$(gameDict).subscribe(()=>{
-      this.audio.play('click');
-    })
-    this.player$.pipe(
-      filter( p=>!!p.displayName),
-      take(1),
-      tap( player=>{
-        let dontWait = HelpComponent.presentModal(this.modalCtrl, {
-          template:'team-rosters',
-          once:false,
-          playerName: player.displayName,
-          backdropDismiss: false,
-          replaceSame: false,
-          duration: TEAM_ROSTER_DISMISS,
-          swipeToClose: true,
-          gameDict$: this.gameWatch.gameDict$,
-          onDidDismiss: ()=>{
-            done.unsubscribe();
-          },
-          dismiss: (v)=>{
-            // if (this.isModerator()) v=true;
-            // if (v===true) return this.modalCtrl.dismiss();
-            return this.modalCtrl.dismiss();
-           }
-        }).then( ()=>{
-          this.audio.play('click')  // on modal.present()
-        });
-      })
-    ).subscribe();
+    // console.info("\t\t28:::3a doTeamRosters()");
+    let done = this.gameHelpers.listenTeamRosters$(gameDict).subscribe(
+      (teamRosters)=>{
+        // teamRoster onChange event
+        this.audio.play('click');
+        // this.setGamePlayer(); AFTER 
+    });
+    // console.info("\t\t28:::3b doTeamRosters()");
+    let player = this.player$.getValue();
+    // console.info("\t\t28:::3c doTeamRosters()", player);
+    let options = {
+      template:'team-rosters',
+      once:false,
+      playerName: player.displayName,
+      backdropDismiss: false,
+      replaceSame: false,
+      duration: TEAM_ROSTER_DISMISS,
+      swipeToClose: true,
+      gameDict$: this.gameWatch.gameDict$,
+      onDidDismiss: ()=>{
+        done.unsubscribe();
+      },
+      dismiss: (v)=>{
+        // if (this.isModerator()) v=true;
+        // if (v===true) return this.modalCtrl.dismiss();
+        return this.modalCtrl.dismiss();
+       }
+    }
+    let dontWait = HelpComponent.presentModal(this.modalCtrl, options);
+    // console.info("\t\t28:::2c doTeamRosters()", options);
+    this.audio.play('click')  // on modal.present()
   }
 
 
-  async showBeginPlayerRoundInterstitial(gamePlay:GamePlayState, game:Game, doChangePlayer:boolean = false){
-    if (this.isModerator()) return;
+  async showBeginPlayerRoundInterstitial(gamePlay:GamePlayState, game:Game ){
+    if (this.isModerator()) {
+      console.info("\t28:::3 (moderator) SKIP doBeginPlayerRound interstitial");
+      return;
+    }
     
     // role & state guards
     let player = this.player$.getValue();
@@ -916,11 +921,9 @@ export class GamePage implements OnInit {
     this.stash.playerCount = Object.keys(FishbowlHelpers.getCheckedInPlayers(game)).length;
     // confirm state, gamePlay.doBeginPlayerRound has not changed
 
-    gamePlay = await this.gamePlay$.pipe( first() ).toPromise();
-    if (!doChangePlayer){
-      if (gamePlay.doBeginPlayerRound==false) {
-        return
-      }
+    gamePlay = await this.gamePlay$.pipe( take(1) ).toPromise();
+    if (gamePlay.doBeginPlayerRound==false) {
+      return
     }
 
     let round = this.gameDict.activeRound;
@@ -955,9 +958,6 @@ export class GamePage implements OnInit {
       
       // unused
       self:this,
-        // deprecate: playAs different player
-      doChangePlayer,
-      playAs : this.doPlayAsAlias.bind(this),
     }
     await HelpComponent.presentModal(this.modalCtrl, modalOptions);
     // dismissed
@@ -986,10 +986,9 @@ export class GamePage implements OnInit {
       throttleTime: 2*1000,
       player,
       player$: this.player$,
-      // NOTE: do NOT react to spotlight changes, player should only be able 
+      // NOTE: ChangePlayer interstitial should NOT react to spotlight changes, player should only be able 
       //    to playAs() a known spotlight player.
       //    OR, dismiss interstitial when spotlight player has changed
-      // playAs spotlight player
       spotlight,
       doPlayAsClick: (args:SpotlightPlayer)=>{
         let p = this.doPlayAsAlias(args);

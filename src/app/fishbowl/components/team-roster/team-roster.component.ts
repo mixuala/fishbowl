@@ -46,8 +46,6 @@ export class TeamRosterComponent implements OnInit {
 
   @Output() onChange = new EventEmitter<TeamRosters>();
 
-  @Output() onPlayAs = new EventEmitter<SpotlightPlayer>();
-
   authorize(){
     if (this.asModerator && this.gameDict$ && this.player$) {
       zip( this.gameDict$, this.player$).pipe( first(), ).toPromise()
@@ -162,11 +160,6 @@ export class TeamRosterComponent implements OnInit {
     });
   }
 
-  // // deprecate
-  // doPassThePhone() {
-  //   return this.passThePhone
-  // }
-
   isOnlyPlayer(teamName) {
     return this.asModerator && this.teams[teamName].length==1;
   }
@@ -174,14 +167,7 @@ export class TeamRosterComponent implements OnInit {
   doPlayerClick(item) {
     if (!this.isModerator) return;
     this.switchTeams(item)
-
   }
-
-  // // deprecate, replace with GamePage.doChangePlayerClick()
-  // doPlayAsClick(spotlight:SpotlightPlayer, ev:CustomEvent) {
-  //   ev.stopImmediatePropagation();
-  //   if (!!this.passThePhone) this.onPlayAs.emit(spotlight);
-  // }
 
   switchTeams(item:any){
     if (!this.isModerator) return;

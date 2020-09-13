@@ -5,7 +5,7 @@
     <ion-col size="12" size-sm="7" size-xl="5">
     <ng-container [ngSwitch]="template">
 
-      <ion-card class="content" padding *ngSwitchCase="'intro'">
+      <ion-card class="content interstitial" padding *ngSwitchCase="'intro'">
         <ion-item color="tertiary">
           <!-- <ion-icon slot="start" size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
           <ion-avatar slot="start" size="large" >
@@ -188,7 +188,7 @@
 
       
       <!-- showWelcomeInterstitial() -->
-      <ion-card class="content pre-game player-welcome" padding *ngSwitchCase="'player-welcome'">
+      <ion-card class="content interstitial pre-game player-welcome" padding *ngSwitchCase="'player-welcome'">
         <ion-item color="tertiary"  class="title">
           <ion-avatar slot="start" size="large" >
             <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
@@ -288,7 +288,7 @@
 
 
       <!-- showCheckInInterstitial() -->
-      <ion-card class="content pre-game check-in" padding *ngSwitchCase="'check-in'">
+      <ion-card class="content interstitial pre-game check-in" padding *ngSwitchCase="'check-in'">
         <ion-item color="tertiary" class="title">
           <!-- <ion-icon slot="start" size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
           <ion-avatar slot="start" size="large" >
@@ -338,7 +338,7 @@
 
 
       <!-- showTeamRostersInterstitial() -->
-      <ion-card class="content pre-game team-rosters" padding *ngSwitchCase="'team-rosters'">
+      <ion-card class="content interstitial pre-game team-rosters" padding *ngSwitchCase="'team-rosters'">
         <ion-item color="tertiary" class="title">
           <ion-avatar slot="start" size="large" >
             <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
@@ -369,7 +369,7 @@
           <ng-container *ngIf="(player$ | async) as player">
             <!-- seen by ONLY spotlight player -->
             <ng-container *ngIf="spotlight?.uid==getActingPlayerId(player); else passThePhone">
-              <ion-card class="content begin-player-round" padding>
+              <ion-card class="content interstitial begin-player-round" padding>
                 <ion-item color="tertiary" class="title">
                   <ion-card-title>
                     Next Player Round
@@ -421,9 +421,7 @@
                   <app-team-roster
                     [gameDict$]="gameDict$"
                     [spotlight]="spotlight"
-                    [changePlayer]="doChangePlayer"
                     spotlightTeam="true"
-                    (onPlayAs)="playAs($event)"
                   ></app-team-roster>
       
                 </ion-card-content>        
@@ -436,7 +434,7 @@
 
 
 
-      <ion-card class="content pre-game change-player" padding *ngSwitchCase="'change-player'">
+      <ion-card class="content interstitial change-player" padding *ngSwitchCase="'change-player'">
         <ion-item color="tertiary" class="title">
           <ion-card-title>
             Change Player
@@ -485,7 +483,7 @@
 
 
       <!-- showBeginGameRoundInterstitial() for rounds 1,2,3 -->
-      <ion-card class="content pre-game begin-game-round" padding *ngSwitchCase="'begin-game-round'">
+      <ion-card class="content interstitial begin-game-round" padding *ngSwitchCase="'begin-game-round'">
         <ion-item color="tertiary" class="title">
           <ion-avatar slot="start" size="large" >
             <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
