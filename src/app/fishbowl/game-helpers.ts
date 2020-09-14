@@ -260,6 +260,7 @@ export class GameHelpers {
 
   // reference to inject gamePlay state updates locally, used with pairwise()
   static gamePlay$: BehaviorSubject<GamePlayState>;
+  static gameLog$: BehaviorSubject<GamePlayLog>;    // reset on HARD reset
 
   getGamesByInvite$(uid:string):Observable<Game[]>{
     return this.db.object<Game>(`/games/${uid}`).snapshotChanges().pipe(
@@ -432,20 +433,22 @@ export class GameHelpers {
       
     /**
      * gameLog$
+     * NOTE: 
+     *  - reset gameLog on HARD reset
      */  
-    let _gameLog$ = new BehaviorSubject<GamePlayLog>(null);
+    GameHelpers.gameLog$ = new BehaviorSubject<GamePlayLog>(null);
     if (gameId) {
       this.db.object<GamePlayLog>(`/gameLogs/${gameId}`).valueChanges()
       .pipe(
         takeUntil(done$),
         filter(o=>!!o),
-      ).subscribe(_gameLog$)
+      ).subscribe(GameHelpers.gameLog$)
     }
 
     return {
       // uid:  gameId, // deprecate, no longer used by pushGamePlayState(), get from gamePlay[_rid]
       gamePlay$: _gamePlay_READY$, //_gamePlay_LOCAL$, // same as GameHelpers.gamePlay$,
-      gameLog$: _gameLog$,
+      gameLog$: GameHelpers.gameLog$,
     } as GamePlayWatch;
   }
 

@@ -542,12 +542,21 @@ export class GamePage implements OnInit {
     }
 
     // guards
-    if (gamePlay && gamePlay.log && !round) {
-      throw new Error( "ERROR: gamePlay.log should be undefined between, rounds, e.g. when activeRound=null")
     if (!game.rounds && !game.teamNames) {
       this.scoreboard = null;
       return;
     }
+    let wasReset = !!gamePlay['doPlayerWelcome'];
+    if (wasReset) {
+      this.scoreboard = null;
+      GameHelpers.gameLog$.next(null);  // clear old scores
+      return;
+    }
+    if (!round && gamePlay && (gamePlay.log && Object.keys(gamePlay.log).length>0)) {
+      // gamePlay.log is empty, from HARD reset?
+      console.warn( "ERROR: gamePlay.log should be undefined or empty between rounds, e.g. when activeRound=null");
+      this.scoreboard = null;
+      return;
     }
 
     // required
