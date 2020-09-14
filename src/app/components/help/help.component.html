@@ -369,7 +369,7 @@
           <ng-container *ngIf="(player$ | async) as player">
             <!-- seen by ONLY spotlight player -->
             <ng-container *ngIf="spotlight?.uid==getActingPlayerId(player); else passThePhone">
-              <ion-card class="content interstitial begin-player-round" padding>
+              <ion-card class="content interstitial pre-round begin-player-round" padding>
                 <ion-item color="tertiary" class="title">
                   <ion-card-title>
                     Next Player Round
@@ -392,7 +392,7 @@
                       Click or tap the [start] button to begin your round.
                     </p>
                     <ion-button class="ready-button button-over-dark" color="medium" expand="block" size="large"
-                    (click)="spotlightPlayerReadyClick && spotlightPlayerReadyClick()">
+                    (click)="spotlightPlayerReadyClick()">
                       [start]
                     </ion-button>
                   </div>
@@ -404,7 +404,7 @@
 
             <!-- seen by all other players -->
             <ng-template #passThePhone>
-              <ion-card class="content team-rosters begin-player-round pass-the-phone">
+              <ion-card class="content team-rosters pre-round begin-player-round pass-the-phone">
                 <ion-item color="tertiary" class="title">
                   <ion-card-title>
                     Next Player Round
@@ -434,7 +434,7 @@
 
 
 
-      <ion-card class="content interstitial change-player" padding *ngSwitchCase="'change-player'">
+      <ion-card class="content interstitial pre-round change-player" padding *ngSwitchCase="'change-player'">
         <ion-item color="tertiary" class="title">
           <ion-card-title>
             Change Player
@@ -483,7 +483,7 @@
 
 
       <!-- showBeginGameRoundInterstitial() for rounds 1,2,3 -->
-      <ion-card class="content interstitial begin-game-round" padding *ngSwitchCase="'begin-game-round'">
+      <ion-card class="content interstitial pre-round begin-game-round" padding *ngSwitchCase="'begin-game-round'">
         <ion-item color="tertiary" class="title">
           <ion-avatar slot="start" size="large" >
             <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">

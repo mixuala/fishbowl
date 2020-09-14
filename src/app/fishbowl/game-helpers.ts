@@ -164,12 +164,12 @@ export class GameHelpers {
       return cur[k]!==prev[k];
     });
     if (changedKeys.length==1 && changedKeys[0]=="timestamp") {
-      // HACK: skipPlayer does NOT go through pairwise correctly
+      // OK??? HACK: skipPlayer does NOT go through pairwise correctly
       //    prev.spotlight is ALREADY changed, only cur.timestamp is detected
-      if (cur.hasOwnProperty('spotlight')) {
-        changedKeys.push('spotlight');
-        console.warn("HACK: skipPlayer does NOT go through pairwise correctly")
-        console.warn("##### 28: SERVER_TIME: manually push spotlight change", changedKeys);
+      if (cur.hasOwnProperty('spotlight') && false) {
+        // changedKeys.push('spotlight');
+        // console.warn("HACK: skipPlayer does NOT go through pairwise correctly")
+        // console.warn("##### 28: SERVER_TIME: manually push spotlight change", changedKeys);
       }
       else {
         changedKeys=[];

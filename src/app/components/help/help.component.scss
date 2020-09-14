@@ -144,8 +144,10 @@ ion-card.interstitial {
   }
 }
 
-ion-card.pre-game {
-  background-color: black !important;
+ion-card.interstitial {
+  &.pre-game, &.pre-round {
+    background-color: black !important;
+  }
   .title {
     h1 {
       margin: 8px 0px;
@@ -168,14 +170,14 @@ ion-card.pre-game {
   }
 
 
-  &.player-welcome {
+  &.pre-game.player-welcome {
     ion-button.taller {
       --padding-top: var(--ion-padding, 16px);
       --padding-bottom: var(--ion-padding, 16px);
       height: 100%;
     }
   }
-  .check-in {
+  &.pre-game.check-in {
   }
 
 
@@ -217,7 +219,6 @@ ion-card.pre-game {
       }
     }
   }
-
 }
 
 

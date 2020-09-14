@@ -22,7 +22,7 @@ export class HelpComponent implements OnInit {
    * @param options
    */
   public static dismissed:any = null; // check before modal.present()
-  public static last:HTMLIonModalElement;
+  public static last:HTMLIonModalElement = null;
   public template: string;
 
   /**
@@ -43,6 +43,7 @@ export class HelpComponent implements OnInit {
     }
     const defaults:any = {
       once: false,
+      replace: true,                  // TODO: confirm this should be the default
       replaceSame: false,
       // backdropDismiss: true,
       // enableBackdropDismiss: true,
@@ -55,16 +56,20 @@ export class HelpComponent implements OnInit {
     return Promise.resolve()
     .then( ()=>{
       if (!!HelpComponent.last) {
+        /**
+         * dismiss last template, if necessary
+         */
         let template = HelpComponent.curTemplate();
         if (!!options.replace) {
-          return HelpComponent.dismissTemplate();
+          return HelpComponent.dismissTemplate(); // replace regardless
         }
         if (template==options.template){
-          if (!options.replaceSame) {
+          if (!options.replaceSame) {             // replace only if same
             return Promise.reject('skip');
           }
           return HelpComponent.dismissTemplate(template);
         }
+        return Promise.reject('skip');            // skip, modal in use
       }
     })
     .then( async ()=>{
@@ -96,6 +101,9 @@ export class HelpComponent implements OnInit {
       });
     })
     .then( async (modal) => {
+      HelpComponent.last = modal;
+
+
       modal.classList.add('help-modal');  
       modal.style.zIndex = '99999';       // force z-index
       let waitForDissmissal = new Promise<any>( resolve=>{
@@ -121,8 +129,8 @@ export class HelpComponent implements OnInit {
             resolve(result)
             // let {template} = modal.componentProps;
           });
-        })
-        HelpComponent.last = modal;
+        });
+        
       });
       return waitForDissmissal;
     })

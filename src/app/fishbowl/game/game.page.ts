@@ -602,11 +602,11 @@ export class GamePage implements OnInit {
           onDidDismiss: (v)=>{
             console.info('player-round complete dismissed')
           },
-          // dismiss:()=>{},
           duration: TIME.PLAYER_ROUND_DISMISS,
         }
         await Helpful.waitFor(TIME.BUZZER_ANIMATION_COMPLETE);
         await HelpComponent.presentModal(this.modalCtrl, interstitial)
+        let dismissed = await HelpComponent.last && HelpComponent.last.onDidDismiss();
         // wait for dismissal before continuing
       }
       return scoreboard;
@@ -669,6 +669,7 @@ export class GamePage implements OnInit {
     game: Game,
   ) {
     let changed = gamePlay.changedKeys || [];
+    let isTicking = !!gamePlay.isTicking;
     
     let dontWait = Promise.resolve()
     // .then( ()=>{   
@@ -682,84 +683,72 @@ export class GamePage implements OnInit {
         return Promise.reject('skip');
       }  
     })
-    .then( async ()=>{
-      if (gamePlay.doBeginPlayerRound===false) {
-        HelpComponent.dismissTemplate('begin-player-round')
-      }
-    })    
     .then( ()=>{   
-      if (changed.includes('playerRoundBegin')) {
-        // cancel all Interstitials
-        console.warn("14: XXX playerRoundBegin cancel ALL interstitials ")
-        HelpComponent.last &&  HelpComponent.last.dismiss(true)
+      if (this.isPlayerRegistered==false) {
+        return Promise.reject('skip');    // players only
+      }  
+    }) 
+    .then( ()=>{   
+      if (changed.includes('playerRoundBegin') || isTicking) {
+        console.warn("\t28:::2a DISMISS ALL INTERSTITIALS", HelpComponent.last);
+        // cancel all Interstitials + PENDING interstitials
+        HelpComponent.last.dismiss(true);
+        // HelpComponent.dismissTemplate('begin-game-round');
+        // HelpComponent.dismissTemplate('begin-player-round');
+        // HelpComponent.dismissTemplate('team-rosters');
+        return Promise.reject('skip');
       }
     })
     .then( async ()=>{   
       if (changed.includes('doBeginGameRound') && gamePlay.doBeginGameRound>0) {
         // beginGameRound Interstitial
-        if (!gamePlay.isTicking){
-          await this.showBeginGameRoundInterstitial(game, gamePlay.doBeginGameRound);
-          // check if interstitials have ALREADY been dismissed
-          let check = await this.gamePlay$.pipe(take(1)).toPromise();
-          if (check.playerRoundBegin==true) {
-            console.info("\t\t28:::2b ******** dismiss doBeginGameRound=>doBeginPlayerRound");
-            return Promise.reject('skip')
-          }
-        }
+        await this.showBeginGameRoundInterstitial(game, gamePlay.doBeginGameRound);
         if (changed.includes('doBeginPlayerRound')) {
-          // show ready for Spotlight Player or PassThePhone
-          // allow showBeginGameRound interstitial to appear
-          // console.warn("14:a1 pass the phone, changed=",  changed )
-          await Helpful.waitFor(1000);
-          let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
-          await waitFor
-          this.showBeginPlayerRoundInterstitial(gamePlay, game);
-        }    
-        return Promise.reject('skip')
-      }
-    })
-    .then( async ()=>{
-      if (!!gamePlay.doBeginGameRound && changed.includes('spotlight')) {
-        if (HelpComponent.curTemplate()=='begin-player-round'){
-          return;
+          let waitForDismissed = HelpComponent.last && HelpComponent.last.onDidDismiss();
+          await waitForDismissed;
+          // check if interstitials have ALREADY been dismissed before continuing to beginPlayerRound
+          let gamePlay1 = await this.gamePlay$.pipe(take(1)).toPromise();
+          if (gamePlay1['playerRoundBegin']==true || !!gamePlay1.isTicking) {
+            console.info("\t\t28:::2b ******** dismiss doBeginGameRound=>doBeginPlayerRound");
+            return Promise.reject('skip'); // PENDING dismissed
+          }
+          return Helpful.waitFor(1000); 
+          // wait a moment befire continue to beginGameRound
         }
-        // fire interstitial only on first load, and AFTER showBeginGameRoundInterstitial()
-        // otherwise fire AFTER scoreboards from doInterstitialsWithScoreboard()
-        // console.warn("14:a2 pass the phone, changed=",  changed )å
-        await Helpful.waitFor(1000); // (required)
-        // console.warn("14:b  AFTER spotlightDidChange BEFORE passThePhone last=", HelpComponent.last.componentProps.template)
-        let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
-        await waitFor
-        this.showBeginPlayerRoundInterstitial(gamePlay, game);
         return Promise.reject('skip');
       }
     })
     .then( async ()=>{
-      if (changed.includes('teamRostersComplete')) {
-        this.modalCtrl.dismiss(true).catch(()=>{});
-      }    
-    })
-    .then( async ()=>{
-      if (changed.includes('doTeamRosters')) {
-        // HACK: use Date.now() to force change detection
-        this.showTeamRostersInterstitial();
-        return Promise.reject('skip')
-      }    
-    })
-    .then( ()=>{
-      if (changed.includes('checkInComplete')) {
-        this.modalCtrl.dismiss(true).catch(()=>{});
+      if (changed.includes('doBeginPlayerRound')) {
+        console.log("14::0 doBeginPlayerRound", gamePlay);
+        await this.showBeginPlayerRoundInterstitial(gamePlay, game);
+        return Promise.reject('skip');
       }
     })
     .then( async ()=>{
-      if (changed.includes('doCheckIn')) {
+      if (changed.includes('teamRostersComplete') || isTicking) {
+        let dismissed = await HelpComponent.dismissTemplate('team-rosters');
+      }
+      else if (changed.includes('doTeamRosters')) {
+          if (!!gamePlay.isTicking) return Promise.reject('skip');
+          // console.info("\t\t28:::2a doTeamRosters()", changed);
+          // HACK: use Date.now() to force change detection
+          await this.showTeamRostersInterstitial();
+          return Promise.reject('skip');
+      }
+    })
+    .then( async ()=>{
+      if (changed.includes('checkInComplete')) {
+        let dismissed = await HelpComponent.dismissTemplate('check-in');
+      }
+      else if (changed.includes('doCheckIn')) {
         this.scoreboard = null; // game reset
         let status = game.checkIn && game.checkIn[this.playerId];
         // HACK: use Date.now() to force change detection
         let repeatCheckIn = typeof gamePlay.doCheckIn == "number";
-        this.showCheckInInterstitial(status, repeatCheckIn);
-        return Promise.reject('skip')
-      }    
+        await this.showCheckInInterstitial(status, repeatCheckIn);
+        return Promise.reject('skip');
+      }  
     })
     .then( ()=>{
       let doPlayerWelcome = changed.includes('doPlayerWelcome');
@@ -1800,12 +1789,11 @@ export class GamePage implements OnInit {
         timer: null,
       }
       return this.gameHelpers.pushGamePlayState(update);
-      return this.db.list<GamePlayState>('/gamePlay').update(rid, update)
       // NOTE: Handle UX response in doShowInterstitials()
     })
     .then( async ()=>{
       // allow PlayerRoundComplete interstitial to appear
-      await Helpful.waitFor(1000)    
+      await Helpful.waitFor(3000)    // must be > 1000
       // wait for PlayerRoundComplete interstitial to dismiss
       let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
       await waitFor
