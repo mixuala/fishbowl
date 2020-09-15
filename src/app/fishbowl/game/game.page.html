@@ -222,7 +222,7 @@
                           <span class="when-not-ticking">{{gamePlay?.timerPausedAt || gamePlay.timerDuration || initialTimerDuration}}s</span>
                           <ion-icon name="pause" color="dark" *ngIf="gamePlay?.isTicking && !gamePlay?.timerPausedAt"></ion-icon>
                         </ion-button>
-                        <app-countdown-timer #countdownTimer fill="time" [duration]="gamePlay?.timer" [units]="{from: 'second', to: 'second'}"
+                        <app-countdown-timer #countdownTimer fill="time" [duration]="timer" [units]="{from: 'second', to: 'second'}"
                           [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
                           ><span slot="body">[done]</span>
                         </app-countdown-timer>
@@ -482,7 +482,7 @@
                       <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
                     </ion-icon>
                   </ion-button>
-                  <app-countdown-timer #countdownTimer fill="time" [duration]="gamePlay?.timer" [units]="{from: 'second', to: 'second'}"
+                  <app-countdown-timer #countdownTimer fill="time" [duration]="timer" [units]="{from: 'second', to: 'second'}"
                     [stopAtZero]="true" (onBuzz)="onTimerDone($event)"
                   ><span slot="body">[done]</span></app-countdown-timer>
                 </div>

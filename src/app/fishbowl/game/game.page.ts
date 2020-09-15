@@ -86,6 +86,7 @@ export class GamePage implements OnInit {
   public spotlight:SpotlightPlayer;
   public onTheSpot:boolean;
   public onTheSpotTeam: boolean
+  public timer:any = {};      // got AppCountdownTimer[duration]
   public gameSummary: any;      
 
 
@@ -482,6 +483,7 @@ export class GamePage implements OnInit {
         console.info("\t28:::0 pipeCloudEventLoop_Bkg(), changed=", changed, Helpful.pick(gamePlay, ...changed));
 
         this.doSpotlightChanged(gamePlay, d);
+        this.doTimerDurationChanged(gamePlay);
         this.doGamePlayUx(gamePlay);
       }),
     );
@@ -535,6 +537,20 @@ export class GamePage implements OnInit {
       this.onTheSpot = this.hasSpotlight('player');
       this.onTheSpotTeam = this.hasSpotlight('team');
     }
+  }
+
+  private doTimerDurationChanged(gamePlay:GamePlayState){
+    let changed = gamePlay.changedKeys || [];
+    let hasTimerChanged = changed.includes('playerRoundBegin');
+    hasTimerChanged = hasTimerChanged || changed.includes('timerPausedAt');
+    hasTimerChanged = hasTimerChanged || (this.timer && gamePlay.timer && this.timer.key !== gamePlay.timer.key)
+    if (hasTimerChanged){
+      // mutate this.timer to force ChangeDetection in CountdownTimer.duration component
+      this.timer = Object.assign({}, gamePlay.timer);
+      console.log("14::2 countdownTimer [duration]=", this.timer)
+    }
+    else 
+      this.timer = Object.assign(this.timer, gamePlay.timer);
   }
 
   private doInterstitialsWithScoreboard(
