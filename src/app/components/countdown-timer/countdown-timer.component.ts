@@ -93,8 +93,8 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     const MAX_OFFSET_MS = 2000  // max timer offset to account for network latency
     let { pause, key, seconds } = Object.assign({}, options) as any;
 
-    if (!options || seconds===null) {
-      this._endingTime=null;
+    if (!options || JSON.stringify(options)==="{}" || seconds===null) {
+      if (seconds===null) this._endingTime=null;
       return;
     }
     
