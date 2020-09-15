@@ -85,6 +85,7 @@ export class GamePage implements OnInit {
   private player$ = new BehaviorSubject<Player>(null);
   public spotlight:SpotlightPlayer;
   public onTheSpot:boolean;
+  public onTheSpotTeam: boolean
   public gameSummary: any;      
 
 
@@ -476,13 +477,11 @@ export class GamePage implements OnInit {
       tap( (res:[GamePlayState, GameDict])=>{
         if (!res) return;
         let [gamePlay, d] = res;
-        let round = d.activeRound;          // closure
-
+        
         let changed = gamePlay.changedKeys || [];
-        if (changed.includes('spotlight')) {
-          this.spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, round));
-          this.onTheSpot = this.hasSpotlight('player');
-        }        
+        console.info("\t28:::0 pipeCloudEventLoop_Bkg(), changed=", changed, Helpful.pick(gamePlay, ...changed));
+
+        this.doSpotlightChanged(gamePlay, d);
         this.doGamePlayUx(gamePlay);
       }),
     );
@@ -524,6 +523,18 @@ export class GamePage implements OnInit {
         }
       })
     )
+  }
+
+  private doSpotlightChanged(gamePlay:GamePlayState, d:GameDict){
+    if (gamePlay.changedKeys.includes('spotlight')) {
+      console.info("\t\t28:::*** update spotlight");
+      this.spotlight = Object.assign( {}, FishbowlHelpers.getSpotlightPlayer(gamePlay, d.activeRound));
+      if (!this.player.teamName) {
+        this.setGamePlayer(d);
+      }
+      this.onTheSpot = this.hasSpotlight('player');
+      this.onTheSpotTeam = this.hasSpotlight('team');
+    }
   }
 
   private doInterstitialsWithScoreboard(
@@ -2063,7 +2074,6 @@ export class GamePage implements OnInit {
       if (changed.includes('_onInit')) return;
       let sound = gamePlay.timerPausedAt ? "pause" : "click";
       this.audio.play(sound);
-      console.info( "*** detect timer PAUSE, sound=", sound);
       return;
     }
 
@@ -2071,7 +2081,7 @@ export class GamePage implements OnInit {
       try {
         let lastKey = Object.keys(gamePlay.log).map( v=>-1*parseInt(v) ).reduce((max, n) => n > max ? n : max, 0 );
         let wordResult = gamePlay.log[-lastKey].result; 
-        if (wordResult===null) return;
+        if (wordResult==null) return; // e.g. "##begin-round##"
         let sound = wordResult ? 'ok' :  'pass';
         this.audio.play(sound);
         // console.info( "*** doGamePlayUx(): detect timer WORD action by change in gamePlay.log", sound);

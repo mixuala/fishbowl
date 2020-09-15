@@ -12,7 +12,7 @@
 <ion-content>
 
   <ion-grid no-padding class="team-round" 
-  [class.spotlight]="hasSpotlight('team')"
+  [class.spotlight]="onTheSpotTeam"
   [class.even]="spotlight?.teamIndex%2==0"
   >
     <ion-row class="ion-justify-content-center" *ngIf="game">
