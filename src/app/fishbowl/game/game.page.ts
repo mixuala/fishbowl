@@ -1580,8 +1580,9 @@ export class GamePage implements OnInit {
         let score:WordResult = {
           teamName, playerName, word,
           result: correct,
-          time: Math.round((now-lastTime)/1000)  // in secs
+          time: Math.round((now-lastTime)/1000),  // in secs
         }
+        score['_sort'] = now; // sort order for ScorCardComponent
         
         update.log = Object.assign( log, {
           [-1*now]: score,

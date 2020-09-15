@@ -6,6 +6,7 @@ import { first, tap, pairwise, startWith, filter } from 'rxjs/operators';
 import { Game, GamePlayState, WordResult, GamePlayLogEntries, } from '../../types';
 import { Player } from '../../../user/role';
 import { FishbowlHelpers } from '../../fishbowl.helpers';
+import { KeyValue } from '@angular/common';
 
 /**
  * usage:
@@ -38,10 +39,22 @@ export class ScoreCardComponent implements OnInit {
   @Output() onChange = new EventEmitter<GamePlayLogEntries>();
 
 
+  timeOrder = (a: KeyValue<number,string>, b: KeyValue<number,string>): number => {
+    return a.value['_sort'] > b.value['_sort'] ? 1 : (b.value['_sort'] > a.value['_sort'] ? -1 : 0);
+  }
 
   getLog(gamePlay:GamePlayState) {
     let cleanLog = FishbowlHelpers.filter_BeginRoundMarker(gamePlay.log);
-    if (!this.isModerator) return cleanLog
+    Object.entries(cleanLog).forEach(([k,v],i)=>{
+      if (v.hasOwnProperty("_sort")==false) 
+        v["_sort"]= -1* parseInt(k);
+    })
+    if (!this.isModerator) {
+      /**
+       * TODO: allow player to step in for moderator
+       */
+      return cleanLog
+    }
     return Object.assign( {}, cleanLog, this.changes);
   }
 
@@ -66,6 +79,7 @@ export class ScoreCardComponent implements OnInit {
     let update = { 
       word, 
       result: ev.target['checked'],
+      '_sort': v.value['_sort'] || -1*v.key,  // keep in asc order by key
     } as Partial<WordResult>;
     let logEntry = {[v.key]: update} as GamePlayLogEntries;
     // emit changes immediately

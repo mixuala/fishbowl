@@ -895,7 +895,12 @@ export class GameHelpers {
           // copy results to GamePlayLog  path=/gamePlayLog/[gameId]
           let roundKey = `round${round.round}`
           let curVal = gameLog[roundKey] as GamePlayLogEntries;
-          let mergeLogEntries = Object.assign( {} , curVal, gamePlay.log) as GamePlayLogEntries;
+          let cleanLog = Object.entries(gamePlay.log).reduce( (o,[k,v])=>{
+            o[k]=Helpful.cleanProperties(v);
+            return o;
+          }
+          , {});
+          let mergeLogEntries = Object.assign( {} , curVal, cleanLog) as GamePlayLogEntries;
           // let updateLog = {[roundKey]: mergeLogEntries};
           // updateLog = Helpful.sortObjectByKey( updateLog, -1 ); // DESC
           return Promise.resolve()
