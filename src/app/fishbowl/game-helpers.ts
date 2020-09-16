@@ -155,6 +155,7 @@ export class GameHelpers {
       Helpful.cleanProperties(cur)
     ).filter( k=>{
       if (cur[k]===false) return false;
+      if (cur[k]===null) return false;
       if (prev==null) return true;
       if (['spotlight','timer','remaining'].includes(k)) {
         // if (k=="spotlight"){

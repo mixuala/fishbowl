@@ -83,18 +83,23 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
    *    serverOffset1: serverTime - now (time on local client)
    *    elapsed: now - (timer.key + serverOffset0) if timer is ALREADY ticking, otherwise 0
    *  }
-   *  o==null cancels timer
-   *  o=={ pause:true } pauses timer, without  clearing ending time
+   *  o==null cancels timer without buzz
+   *  o=={ pause:true } pauses timer, without clearing ending time
    * 
    *  NOTE: this.duration is NEVER set, use this._endingTime
    */
   set duration( options:CountdownTimerDurationOptions|{pause?:boolean} ) {
     // console.warn("\n\n\t\t 28::::A set duration(), options=", options);
     const MAX_OFFSET_MS = 2000  // max timer offset to account for network latency
-    let { pause, key, seconds } = Object.assign({}, options) as any;
+    let { pause, key, seconds } = options || {} as any;
+        
+    if (!!pause){
+      this.stop();  // and do NOT restart ngOnChanges
+      return;
+    }
 
-    if (!options || JSON.stringify(options)==="{}" || seconds===null) {
-      if (seconds===null) this._endingTime=null;
+    if (!seconds || options==null || JSON.stringify(options)==="{}") {
+      this._endingTime=null;
       return;
     }
     
@@ -105,11 +110,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
         return
       }
     }
-    
-    if (pause){
-      this.stop();  // and do NOT restart ngOnChanges
-      return;
-    }
+
     
     
     /**

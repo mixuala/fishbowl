@@ -1825,9 +1825,10 @@ export class GamePage implements OnInit {
       }
       // push complete game status to doInterstitials()
       let update = {
-        playerRoundBegin: false,
-        doBeginPlayerRound: false,
-        playerRoundComplete, gameRoundComplete, gameComplete,
+        playerRoundBegin: false,    // startTimer()=>true
+        doBeginPlayerRound: false,  
+        playerRoundComplete,        // nextPlayerRound()=>true
+        gameRoundComplete, gameComplete,
         timer: null,
       }
       return this.gameHelpers.pushGamePlayState(update);
@@ -2120,7 +2121,7 @@ export class GamePage implements OnInit {
    * @param buzz 
    */
   async doTimerDone(buzz=true, resp={}) {  
-    const ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS = 3000;
+    const ADDED_DELAY_BEFORE_DISABLE_WORD_ACTIONS = 5000;
     if (!this.gameDict.activeRound) 
       return;
 
