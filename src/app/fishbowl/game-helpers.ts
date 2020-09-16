@@ -868,7 +868,7 @@ export class GameHelpers {
           isTicking: false,
           timerPausedAt: null,
           doBeginPlayerRound: true,
-          playerRoundComplete: false,
+          playerRoundComplete: false,   // playerRoundComplete stays true until moveSpotlight
         } as GamePlayState;
         console.warn("13:b moveSpotlight=", JSON.stringify(spotlight))
 
@@ -952,6 +952,7 @@ export class GameHelpers {
     }
 
     return watch.gameLog$.pipe( 
+      filter( o=>!!o),
       first(), 
       map( (gameLog)=>{
         if (!gameLog) {
