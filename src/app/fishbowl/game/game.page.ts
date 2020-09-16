@@ -649,8 +649,7 @@ export class GamePage implements OnInit {
     })
     .then( async (scoreboard)=>{
       if (changed.includes('gameRoundComplete')) {
-        // guard: roundComplete=true
-        // NOTE: playerRoundComplete==true when gameRoundComplete=true
+        // NOTE: playerRoundComplete==true when gameRoundComplete=true, stays true until moveSpotlight
         let teamNames = game.teamNames;
         let winnersByRound = Object.keys(scoreboard).reduce( (o, round)=>{ 
           let team0 = scoreboard[round][teamNames[0]] || {};
@@ -1487,6 +1486,7 @@ export class GamePage implements OnInit {
       let update = {
         doBeginGameRound: this.gameDict.activeRound.round,
         doBeginPlayerRound: true,
+        playerRoundBegin: false,
       }
       // trigger showRoundInterstitial()
       await this.gameHelpers.pushGamePlayState( update, rid )
@@ -1502,7 +1502,9 @@ export class GamePage implements OnInit {
         // clean up: gamePlay for last round
         let dontWait = this.db.list<GamePlayState>('/gamePlay').remove(roundIndex.prev)
       }
-      return this.nextPlayerRound( {timerDuration: this.initialTimerDuration}); // TEST
+      else {
+        return this.nextPlayerRound( {timerDuration: this.initialTimerDuration}); // TEST
+      }
     })
     .catch( err=>{
       if (err=="gameComplete") {
@@ -1557,6 +1559,7 @@ export class GamePage implements OnInit {
         let next = FishbowlHelpers.nextWord( round, gamePlay, {[word]: available} );
         if (isOvertime){
           next.word = null;
+          update.playerRoundComplete = true;
           // next.remaining does NOT change
         }
         Object.assign( update, next);         // add next word to GamePlayState
@@ -1591,11 +1594,13 @@ export class GamePage implements OnInit {
         this.gameHelpers.pushGamePlayState(update)
         .then( async ()=>{
           let isLastWord = next.remaining.length==0;
-          let isDone = round && (isLastWord || isOvertime);
-          if (isDone) {
+          let isRoundDone = round && (isLastWord || isOvertime);
+          if (isRoundDone) {
             // state: player got last word BEFORE Timer expired
-            if (!isOvertime) {
-              console.log("0: ******* onTimerDone() <= completePlayerRound(), from wordAction(),  buzz=FALSE, next=", next)
+
+            if (isLastWord) {
+              // stop timer silent=true
+              // console.log("0: ******* onTimerDone() <= completePlayerRound(), from wordAction(),  buzz=FALSE, next=", next)
               let waitFor = await this.onTimerDone( new Date(), false);
             }
             console.log("1: ******* completePlayerRound(), from wordAction(), next.remaining==0")
@@ -1709,7 +1714,7 @@ export class GamePage implements OnInit {
   }
 
   /**
-   * launch the timer done sequence
+   * launch the timer done sequence, called by AppCountdownTimer(onBuzz)
    * o timerWillComplete()
    * - push gamePlayState: isTicking=false
    *    o timerDidComplete()
@@ -1801,12 +1806,21 @@ export class GamePage implements OnInit {
 
     // only active player pushes updates to the cloud
     let activeRound = this.gameDict.activeRound;
-    let rid = this.game.activeRound;
-
-    let playerRoundComplete = true;
-    let gameComplete = gameRoundComplete && activeRound.round==3;
 
     return Promise.resolve()
+    .then( ()=>{
+      // stop Timer
+      if (gameRoundComplete) {
+        console.info("16::0>>>> timerWillComplete()")
+        let update = {
+          timer: null,
+          isTicking: false,
+          timerPausedAt: null,
+          playerRoundBegin: false,
+        }
+        return this.gameHelpers.pushGamePlayState(update);
+      }
+    })    
     .then( ()=>{
       // event: playerRoundWillComplete
       console.info("\t>>>> playerRoundWillComplete()")
@@ -1825,18 +1839,24 @@ export class GamePage implements OnInit {
       }
       // push complete game status to doInterstitials()
       let update = {
-        playerRoundBegin: false,    // startTimer()=>true
+        // playerRoundBegin: false,    // startTimer()=>true
         doBeginPlayerRound: false,  
-        playerRoundComplete,        // nextPlayerRound()=>true
-        gameRoundComplete, gameComplete,
+        playerRoundBegin: false,
+        playerRoundComplete: true,        // nextPlayerRound()=>true
+        gameRoundComplete, 
+        gameComplete: gameRoundComplete && activeRound.round==3,
+        log: {},
         timer: null,
+        isTicking: false,
+        timerPausedAt: null,
+        word: null,
       }
       return this.gameHelpers.pushGamePlayState(update);
       // NOTE: Handle UX response in doShowInterstitials()
     })
+    
     .then( async ()=>{
-      // allow PlayerRoundComplete interstitial to appear
-      await Helpful.waitFor(3000)    // must be > 1000
+      await Helpful.waitFor(2000)
       // wait for PlayerRoundComplete interstitial to dismiss
       let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
       await waitFor
@@ -1848,11 +1868,13 @@ export class GamePage implements OnInit {
       }
       else {
         console.info("\t>>>> game Round WILL Complete()");
-        return this._completeGameRound(this.gameDict.activeRound)
+        let waitFor = await this._completeGameRound(this.gameDict.activeRound);
+
+        return
         // completePlayerRound()
         // => _completeGameRound()
         //  => pipeCloudEventLoop_Foreground() => doInterstitialsWithScoreboard()
-        //    => beginNextGameRoundTimer()
+        //    => beginNextGameRoundTimer() [moderator: from cloud event loop]
         // => beginNextGameRound() 
             // guard [role=moderator]
             //  init gamePlay state; 
@@ -1886,31 +1908,8 @@ export class GamePage implements OnInit {
     let rid = this.game.activeRound;
 
     // only active player pushes updates to the cloud
-    return Promise.resolve()
-    .then( ()=>{
-      // reset gamePlay.log
-      let updateGamePlay = {
-        timer: null,
-        log: {},
-        isTicking: false,
-        timerPausedAt: null,
-        word: null,
-        // doBeginPlayerRound: true, set in moveSpotlight()
-        playerRoundBegin: false,
-        playerRoundComplete: false, 
-        roundComplete: false,
-      }
-      return this.gameHelpers.pushGamePlayState(updateGamePlay);
-      return this.db.list<GamePlayState>('/gamePlay').update(rid, updateGamePlay)
-    })
-    .then( ()=>{
-      console.info("12:\t>>>> spotlightWillChange()");
-    })
-    .then(()=>{
-      let defaultDuration = options.timerDuration || this.initialTimerDuration;
-      return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound, {defaultDuration}).then( ()=>{
-        console.info("12: \t>>>> spotlightDidChange()");
-      })
+    let defaultDuration = options.timerDuration || this.initialTimerDuration;
+    return this.gameHelpers.moveSpotlight(this.gamePlayWatch, activeRound, {defaultDuration}).then( ()=>{
     })
   }
 
@@ -1927,6 +1926,9 @@ export class GamePage implements OnInit {
     } as GamePlayRound;
     waitFor.push(
       this.db.object<GamePlayRound>(`/rounds/${rid}`).update( updateRound )
+      .then( ()=>{
+        // update to gamePlayRound will trigger emit from this.gameDict$ pipeline
+      })
     );
 
     let updateGame = {
@@ -2127,15 +2129,12 @@ export class GamePage implements OnInit {
 
     let isAuthorized = this.onTheSpot;
     let gamePlay:GamePlayState;
+    let silent = !buzz;
 
     return Promise.resolve()
     .then( ()=>{
-      // if (buzz) {
-      //   // all players buzz Timer locally when timer expires, no cloud action required
-      //   return this.animate(this.animateTarget, buzz);
-      // }
+
       console.log("\n 16. TimerDone, buzz=", buzz, resp)
-      let silent = !buzz;
 
 
       // TODO: countdownTimer must return animateTarget if we want to animate multiple timers on moderator page
@@ -2144,7 +2143,6 @@ export class GamePage implements OnInit {
       return this.animate(this.animateTarget, silent);
     })
     .then( ()=>{
-      let silent = !buzz
       if (silent) {
         // silent: timerDidComplete() should ALREADY have happened
         return Promise.reject("skip");
@@ -2167,7 +2165,6 @@ export class GamePage implements OnInit {
       // stop timer isTicking, but do OVERTIME
       let update = { 
         isTicking: false, 
-        // playerRoundBegin: true,      // should be already set
       };
       console.info("15. \t>>>> timerWillComplete()")
       return this.gameHelpers.pushGamePlayState(update)

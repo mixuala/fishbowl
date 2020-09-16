@@ -168,7 +168,7 @@
                 </ion-item>
                 
                 <ng-container *ngIf="stash.showModeratorGameControls">
-                  <ng-container *ngIf="(gamePlayWatch?.gamePlay$ | async) as gamePlay">
+                  <ng-container *ngIf="(gamePlay$ | async) as gamePlay">
 
                     <ion-button expand="block" class="spotlight" size="small"
                     [color]="spotlight?.teamIndex ? 'success' : 'tertiary'"
@@ -192,7 +192,7 @@
                       (click)="beginPlayerRoundClick()"
                       >
                         <ion-label class="ion-text-wrap ion-text-center">
-                          {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[start]')}}
+                          {{gamePlay.word || ( (!!gamePlay.playerRoundComplete) ? '[done]' : '[start]')}}
                         </ion-label>
                       </ion-item>
 
@@ -441,7 +441,7 @@
                   (click)="beginPlayerRoundClick()"
                   >
                     <ion-label class="ion-text-wrap ion-text-center">
-                      {{gamePlay.word || (gamePlay.isTicking ? '[done]' : '[start]')}}
+                      {{gamePlay.word || ( (!!gamePlay.playerRoundComplete) ? '[done]' : '[start]')}}
                     </ion-label>
                   </ion-item>
                   <ion-grid class="ion-no-padding"><ion-row>
