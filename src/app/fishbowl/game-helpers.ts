@@ -157,8 +157,10 @@ export class GameHelpers {
       if (cur[k]===false) return false;
       if (prev==null) return true;
       if (['spotlight','timer','remaining'].includes(k)) {
-        // let changed = JSON.stringify(gamePlay[k])!=JSON.stringify(prev[k]);
-        // if (changed) console.warn( "120: spotlight changed:  ", JSON.stringify(gamePlay[k]),JSON.stringify(prev[k]) )
+        // if (k=="spotlight"){
+        //   let changed = JSON.stringify(cur[k])!=JSON.stringify(prev[k]);
+        //   console.warn( "16::1 changedKeys() spotlight changed=", changed, JSON.stringify(cur[k]),JSON.stringify(prev[k]) )
+        // }
         return JSON.stringify(cur[k])!=JSON.stringify(prev[k])
       }
       return cur[k]!==prev[k];
@@ -773,11 +775,10 @@ export class GameHelpers {
     watch:GamePlayWatch, 
     round:GamePlayRound, 
     options:{ nextTeam?:boolean, defaultDuration?:number
-      , spotlightState?:any   // deprecate
       , useGamePlaySpotlight?:boolean
     } = {} 
   ): 
-    Promise<void>
+    Promise<any>
   {
     let teamNamesInPlayOrder = round.orderOfPlay;
     let limits = {
@@ -832,6 +833,7 @@ export class GameHelpers {
           }
         }
 
+        spotlight = Object.assign({},spotlight); // change copy of spotlight
         if (options.nextTeam!==false){
           // increment team first
           spotlight.teamIndex +=1;
@@ -857,7 +859,7 @@ export class GameHelpers {
         let timerDuration = gamePlay.timerDuration || options.defaultDuration;
 
         let update = {
-          spotlight,
+          spotlight,  // mutated
           timer: null,
           log: {},
           timerDuration,
@@ -871,7 +873,7 @@ export class GameHelpers {
 
         return this.pushGamePlayState(update)
       }),
-    ).toPromise().then( ()=>{return});
+    ).toPromise()
   }
       
   

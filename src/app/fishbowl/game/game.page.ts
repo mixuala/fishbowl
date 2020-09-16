@@ -1776,9 +1776,14 @@ export class GamePage implements OnInit {
    */
 
   // called from game-controls
-  nextPlayer(nextTeam=true):Promise<void>{
+  async nextPlayer(nextTeam=true):Promise<void>{
     let game = this.gameDict[this.gameId] as Game;
     if (!this.isActive(game)) return;
+
+    let gamePlay = await this.gamePlay$.pipe( take(1)).toPromise();
+    if (!!gamePlay.isTicking) {
+      return;
+    }
 
     let round = this.gameDict.activeRound;
     let defaultDuration = this.initialTimerDuration
