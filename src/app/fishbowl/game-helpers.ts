@@ -363,6 +363,9 @@ export class GameHelpers {
     return pipe(
 
 
+      throttleTime(100),
+      // ???: interstitials may be suppressed without throttleTime
+
 
       startWith(null),
       pairwise<GamePlayState>(),
