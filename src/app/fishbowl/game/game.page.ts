@@ -871,7 +871,9 @@ export class GamePage implements OnInit {
 
     let isCheckedIn = !!status;
     if (doRepeatCheckIn) {
-      if (isCheckedIn) return
+      if (this.game['isDev']) console.info("isDev: SKIP showCheckInInterstitial() doRepeatCheckin ")
+      else 
+        if (isCheckedIn) return
     }
 
     const ALREADY_CHECKED_IN_DISMISS = 10000;
@@ -1502,6 +1504,12 @@ export class GamePage implements OnInit {
         // clean up: gamePlay for last round
         let dontWait = this.db.list<GamePlayState>('/gamePlay').remove(roundIndex.prev)
       }
+      let doRolloverCurPlayerTime = false;
+      // how do we capture the rolloverTime from the spotlightClient to the moderator?
+      if (doRolloverCurPlayerTime) {
+        let timerDuration = 10;
+
+      }
       else {
         return this.nextPlayerRound( {timerDuration: this.initialTimerDuration}); // TEST
       }
@@ -1896,9 +1904,10 @@ export class GamePage implements OnInit {
    */
   private nextPlayerRound( options:any={} ):Promise<void>{
     if (!(this.onTheSpot || this.isModerator())) {
-      throw new Error( " spotlight changed before ready")
+      // could happen if moderator changes spotlight
+      console.warn( "spotlight changed to another player before nextPlayerRound() complete, spotlight=",this.spotlight)
+      return;
     }
-
 
     // reset gamePlay for next playerRound
     let activeRound = this.gameDict.activeRound;
