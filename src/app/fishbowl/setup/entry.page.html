@@ -1,6 +1,7 @@
 <ion-header>
   <ion-toolbar color="success">
     <ion-buttons slot="start">
+      <ion-back-button></ion-back-button>
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
     <ion-title>
@@ -19,6 +20,10 @@
             <ion-card-header color="tertiary">
               <ion-card-title>
                 {{game.label}}
+                <div class="ion-float-right inline-text-wrap">
+                  <ion-badge  *ngIf="game.quickPlay" color="warning" >QuickPlay</ion-badge>
+                  <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
+                </div>
               </ion-card-title>
               <ion-card-subtitle>
                 Fishbowl
@@ -26,102 +31,248 @@
             </ion-card-header>
               
             <ion-card-content>
+              <ng-container *ngIf="game && !game.quickPlay; else quickPlay">
 
-              <div class="game-time ion-text-center" *ngIf="stash.activeGame==false">
-                <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"></app-countdown-timer>
-                <ion-text  color="dark">
-                  Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
-                </ion-text>
+                <div class="game-time ion-text-center" *ngIf="isPregame(); else isGameTime">
+                  <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true">
+                    <!-- BUG: this ng-content does NOT show -->
+                    <ion-col class="ion-justify-content-center ion-text-center"  slot="footer">
+                      <ion-text color="dark">
+                        Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }} 
+                      </ion-text>
+                    </ion-col>
+                  </app-countdown-timer>
+
+                  <div class="rounded outline ion-color-dark" *ngIf="game && player && !game.players[player.uid]">
+                    <ion-label class="ion-text-wrap">
+                      <p>To grab a spot in this game,</p>
+                      <p>
+                        put 3 words into the <ion-text color="tertiary">Fishbowl</ion-text> now. 
+                      </p>
+                    </ion-label>
+                  </div>
+                  <ion-item-divider></ion-item-divider>
+                </div>
+
+                <ng-template #isGameTime>
+                  <div class="ion-margin-vertical">
+                    <ion-button class="taller" color="tertiary" expand="block" fill="outline" size="large" *ngIf="!game?.players[player.uid]"
+                    disabled="true" style="opacity:1 !important; text-transform:none;"
+                    >
+                      <ion-label color="medium">
+                        <h2>
+                          Just enter your <ion-text color="tertiary">Stage Name</ion-text>
+                          <br />to find an earlier entry.
+                        </h2>
+                      </ion-label>
+                    </ion-button>
+                  </div>
+                </ng-template>
+
+              <form [formGroup]="entryForm" (ngSubmit)="doEntry()">
+
+                <ion-list class="inputs-list" lines="full">
+                  <ion-item class="input-item">
+                    <ion-label position="stacked">Create Your Stage Name</ion-label>
+                    <ion-input type="text" placeholder="a fun nickname" formControlName="name" clearInput inputmode="text"
+                    ></ion-input>
+                  </ion-item>
+                  <div class="error-container">
+                    <ng-container *ngFor="let validation of validation_messages.name">
+                      <div class="error-message" *ngIf="entryForm.get('name').hasError(validation.type) && (entryForm.get('name').dirty || entryForm.get('name').touched)">
+                        <ion-icon name="information-circle-outline"></ion-icon>
+                        <span>{{ validation.message }}</span>
+                      </div>
+                    </ng-container>
+                    <ng-container *ngIf="entryForm.get('name').hasError('unique') && (entryForm.get('name').dirty || entryForm.get('name').touched)">
+                      <ion-grid><ion-row>
+                        <ion-col>
+                          <ion-text color="tertiary">That name is already taken. Is that your entry?</ion-text>
+                        </ion-col>
+                        </ion-row><ion-row>
+                        <ion-col size="4">
+                          <ion-button color="tertiary" expand="block" (click)="onTakePlayerIdentity(false)"> No </ion-button>
+                        </ion-col>
+                        <ion-col size="8">
+                          <ion-button color="success" expand="block" (click)="onTakePlayerIdentity($event)"> Yes </ion-button>
+                        </ion-col>
+                      </ion-row>
+                      </ion-grid>
+                    </ng-container>
+                  </div>
+
+                  <ion-item-divider>
+                  </ion-item-divider>
+
+                  <ion-item color="success" class="rounded">
+                    <ion-label class="ion-text-wrap">
+                      <h2><strong>Put 3 secret words into the Fishbowl</strong></h2>
+                      <p><ion-text color="light">
+                        Players will guess these words during game play.
+                        </ion-text>
+                      </p>
+                    </ion-label>
+                  </ion-item>
+                
+                  <div class="ion-text-center">
+                    <ion-button slot="end" color="tertiary" (click)="doAutoFillClick(game)">
+                      <ion-icon slot="start" name="bulb-outline"></ion-icon>
+                      Give Me Ideas
+                    </ion-button>
+                  </div>
+                  <ion-item class="input-item">
+                    <ion-label position="stacked">3 Words</ion-label>
+                      <ion-input [color]="stash.autoFillIndex?.includes(0) && 'tertiary'" (ionInput)="onWordChanged($event.target, 0)" (ionChange)="onWordCleared($event.target, 0)"
+                      type="text" placeholder="a Person, Place, or Thing" formControlName="word_1" clearInput inputmode="text"></ion-input>
+                  </ion-item>
+                  <div class="error-container">
+                    <ng-container *ngFor="let validation of validation_messages.word">
+                      <div class="error-message" *ngIf="entryForm.get('word_1').hasError(validation.type) && (entryForm.get('word_1').dirty || entryForm.get('word_1').touched)">
+                        <ion-icon name="information-circle-outline"></ion-icon>
+                        <span>{{ validation.message }}</span>
+                      </div>
+                    </ng-container>
+                  </div>
+
+                  <ion-item class="input-item">
+                    <ion-input [color]="stash.autoFillIndex?.includes(1) && 'tertiary'"  (ionInput)="onWordChanged($event.target, 1)"  (ionChange)="onWordCleared($event.target, 1)"
+                    type="text" placeholder="like 'fishbowl'" formControlName="word_2" clearInput inputmode="text"></ion-input>
+                  </ion-item>
+                  <div class="error-container">
+                    <ng-container *ngFor="let validation of validation_messages.word">
+                      <div class="error-message" *ngIf="entryForm.get('word_2').hasError(validation.type) && (entryForm.get('word_2').dirty || entryForm.get('word_2').touched)">
+                        <ion-icon name="information-circle-outline"></ion-icon>
+                        <span>{{ validation.message }}</span>
+                      </div>
+                    </ng-container>
+                  </div>
+
+                  <ion-item class="input-item">
+                    <ion-input  [color]="stash.autoFillIndex?.includes(2) && 'tertiary'"  (ionInput)="onWordChanged($event.target, 2)"  (ionChange)="onWordCleared($event.target, 2)"
+                    type="text" placeholder="or 'Dory'" formControlName="word_3" clearInput inputmode="text"></ion-input>
+                  </ion-item>
+                  <div class="error-container">
+                    <ng-container *ngFor="let validation of validation_messages.word">
+                      <div class="error-message" *ngIf="entryForm.get('word_3').hasError(validation.type) && (entryForm.get('word_3').dirty || entryForm.get('word_3').touched)">
+                        <ion-icon name="information-circle-outline"></ion-icon>
+                        <span>{{ validation.message }}</span>
+                      </div>
+                    </ng-container>
+                  </div>
+
+                  <ion-list class="more-words wide toggle-hide">
+                    <ion-item lines="none">
+                      <ion-label><ion-text color="tertiary">Add More Words</ion-text></ion-label>
+                      <ion-toggle color="tertiary" [checked]="stash.addMoreWords"
+                      (click)="toggleStashClick('addMoreWords', $event)"></ion-toggle>
+                    </ion-item>
+
+                    <div [class.ion-hide]="!stash.addMoreWords">
+                      <ion-item class="input-item">
+                        <ion-input  [color]="stash.autoFillIndex?.includes(3) && 'tertiary'"  debounce="100" (ionInput)="onWordChanged($event.target, 3)"  (ionChange)="onWordCleared($event.target, 3)"
+                        type="text" placeholder="more words" formControlName="word_4" clearInput inputmode="text"></ion-input>
+                      </ion-item>
+                      <div class="error-container">
+                        <ng-container *ngFor="let validation of validation_messages.word">
+                          <div class="error-message" *ngIf="entryForm.get('word_4').hasError(validation.type) && (entryForm.get('word_4').dirty || entryForm.get('word_4').touched)">
+                            <ion-icon name="information-circle-outline"></ion-icon>
+                            <span>{{ validation.message }}</span>
+                          </div>
+                        </ng-container>
+                      </div>
+      
+                      <ion-item class="input-item">
+                        <ion-input  [color]="stash.autoFillIndex?.includes(4) && 'tertiary'"  (ionInput)="onWordChanged($event.target, 4)"  (ionChange)="onWordCleared($event.target, 4)"
+                        type="text" placeholder="even more" formControlName="word_5" clearInput inputmode="text"></ion-input>
+                      </ion-item>
+                      <div class="error-container">
+                        <ng-container *ngFor="let validation of validation_messages.word">
+                          <div class="error-message" *ngIf="entryForm.get('word_5').hasError(validation.type) && (entryForm.get('word_5').dirty || entryForm.get('word_5').touched)">
+                            <ion-icon name="information-circle-outline"></ion-icon>
+                            <span>{{ validation.message }}</span>
+                          </div>
+                        </ng-container>
+                      </div>
+                    </div>
+                  </ion-list>   
+                  <!-- end addMoreWords -->
+                </ion-list>
+            
+                <ion-button class="login-btn" type="submit" expand="block">Submit</ion-button>
+              </form>
+              
+            </ng-container>
+
+
+
+
+
+
+
+
+
+
+            <ng-template #quickPlay>
+
+              <div class="game-time ion-text-center">
+                <div class="rounded outline ion-color-dark">
+                  <ion-label class="ion-text-wrap">
+                    <p>QuickPlay!</p>
+                    <p>
+                      Just join the game &mdash;
+                    </p>
+                    <p> we'll stuff the <ion-text color="tertiary">Fishbowl</ion-text></p>
+                    <br />
+                    <h2>You are playing the 
+                      <ion-text color="tertiary"><strong>{{game.quickPlay.toUpperCase()}}</strong></ion-text> game pack
+                    </h2>
+                  </ion-label>
+                </div>
                 <ion-item-divider></ion-item-divider>
               </div>
 
-            <form [formGroup]="entryForm" (ngSubmit)="doEntry()">
+              <form [formGroup]="entryForm" (ngSubmit)="doEntry()">
+                <ion-list class="inputs-list" lines="full">
+                  <ion-item class="input-item">
+                    <ion-label position="stacked">Create Your Stage Name</ion-label>
+                    <ion-input type="text" placeholder="a fun nickname" formControlName="name" clearInput inputmode="text"></ion-input>
+                  </ion-item>
+                  <div class="error-container">
+                    <ng-container *ngFor="let validation of validation_messages.name">
+                      <div class="error-message" *ngIf="entryForm.get('name').hasError(validation.type) && (entryForm.get('name').dirty || entryForm.get('name').touched)">
+                        <ion-icon name="information-circle-outline"></ion-icon>
+                        <span>{{ validation.message }}</span>
+                      </div>
+                    </ng-container>
 
-              <ion-list class="inputs-list" lines="full">
-                <ion-item class="input-item">
-                  <ion-label position="stacked">player name</ion-label>
-                  <ion-input type="text" placeholder="a fun nickname" formControlName="name" clearInput autocapitalize="word" inputmode="text"></ion-input>
-                </ion-item>
-                <div class="error-container">
-                  <ng-container *ngFor="let validation of validation_messages.name">
-                    <div class="error-message" *ngIf="entryForm.get('name').hasError(validation.type) && (entryForm.get('name').dirty || entryForm.get('name').touched)">
-                      <ion-icon name="information-circle-outline"></ion-icon>
-                      <span>{{ validation.message }}</span>
-                    </div>
-                  </ng-container>
-                  <ng-container *ngIf="entryForm.get('name').hasError('unique') && (entryForm.get('name').dirty || entryForm.get('name').touched) && doPlayerEntryLookup()">
-                    <ion-grid><ion-row>
-                      <ion-col>
-                        <ion-text color="tertiary">That name is already taken. Is that your entry?</ion-text>
-                      </ion-col>
-                      </ion-row><ion-row>
-                      <ion-col size="4">
-                        <ion-button color="tertiary" expand="block" (click)="onTakePlayerIdentity(false)"> No </ion-button>
-                      </ion-col>
-                      <ion-col size="8">
-                        <ion-button color="success" expand="block" (click)="onTakePlayerIdentity($event)"> Yes </ion-button>
-                      </ion-col>
-                    </ion-row>
-                    </ion-grid>
-                  </ng-container>
-                </div>
+                    <ng-container *ngIf="entryForm.get('name').hasError('unique') && (entryForm.get('name').dirty || entryForm.get('name').touched)">
+                      <ion-grid><ion-row>
+                        <ion-col>
+                          <ion-text color="tertiary">That name is already taken. Is that your entry?</ion-text>
+                        </ion-col>
+                        </ion-row><ion-row>
+                        <ion-col size="4">
+                          <ion-button color="tertiary" expand="block" (click)="onTakePlayerIdentity(false)"> No </ion-button>
+                        </ion-col>
+                        <ion-col size="8">
+                          <ion-button color="success" expand="block" (click)="onTakePlayerIdentity($event)"> Yes </ion-button>
+                        </ion-col>
+                      </ion-row>
+                      </ion-grid>
+                    </ng-container>                    
+                  </div>
 
-                <ion-item-divider>
-                </ion-item-divider>
+                  
 
-                <ion-item color="success" class="rounded">
-                  <ion-label class="ion-text-wrap">
-                    <h2><strong>Put 3 secret words into the Fishbowl</strong></h2>
-                    <p><ion-text color="light">
-                      Players will guess these words during game play.
-                    </ion-text>
-                    </p>
-                  </ion-label>
-                </ion-item>
+                  <!-- <ion-item-divider></ion-item-divider> -->
 
-                <ion-item class="input-item">
-                  <ion-label position="stacked">3 Words</ion-label>
-                  <ion-input type="text" placeholder="a Person, Place, or Thing" formControlName="word_1" clearInput autocapitalize="word" inputmode="text"></ion-input>
-                </ion-item>
-                <div class="error-container">
-                  <ng-container *ngFor="let validation of validation_messages.word">
-                    <div class="error-message" *ngIf="entryForm.get('word_1').hasError(validation.type) && (entryForm.get('word_1').dirty || entryForm.get('word_1').touched)">
-                      <ion-icon name="information-circle-outline"></ion-icon>
-                      <span>{{ validation.message }}</span>
-                    </div>
-                  </ng-container>
-                </div>
-
-                <ion-item class="input-item">
-                  <ion-input type="text" placeholder="like 'fishbowl'" formControlName="word_2" clearInput autocapitalize="word" inputmode="text"></ion-input>
-                </ion-item>
-                <div class="error-container">
-                  <ng-container *ngFor="let validation of validation_messages.word">
-                    <div class="error-message" *ngIf="entryForm.get('word_2').hasError(validation.type) && (entryForm.get('word_2').dirty || entryForm.get('word_2').touched)">
-                      <ion-icon name="information-circle-outline"></ion-icon>
-                      <span>{{ validation.message }}</span>
-                    </div>
-                  </ng-container>
-                </div>
-
-                <ion-item class="input-item">
-                  <ion-input type="text" placeholder="or 'Dory'" formControlName="word_3" clearInput autocapitalize="word" inputmode="text"></ion-input>
-                </ion-item>
-                <div class="error-container">
-                  <ng-container *ngFor="let validation of validation_messages.word">
-                    <div class="error-message" *ngIf="entryForm.get('word_3').hasError(validation.type) && (entryForm.get('word_3').dirty || entryForm.get('word_3').touched)">
-                      <ion-icon name="information-circle-outline"></ion-icon>
-                      <span>{{ validation.message }}</span>
-                    </div>
-                  </ng-container>
-                </div>
-          
-              </ion-list>
-          
-              <ion-button class="login-btn" type="submit" expand="block">Submit</ion-button>
-            </form>
+                
+                </ion-list>
             
-            
+                <ion-button class="login-btn" type="submit" expand="block">Submit</ion-button>
+              </form>              
+
+            </ng-template>
             </ion-card-content>
           </ion-card>
         </ion-col>

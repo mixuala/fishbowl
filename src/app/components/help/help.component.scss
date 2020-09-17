@@ -28,6 +28,10 @@ ion-grid.center-grid {
 
 }
 
+.rounded {
+  border-radius: 10px;
+}
+
 // in-game interstitials
 ion-card.interstitial {
   // background-color: var(--ion-color-light);
@@ -44,8 +48,6 @@ ion-card.interstitial {
     }
 
   }
-
-
 
 
   .game-summary {
@@ -142,8 +144,10 @@ ion-card.interstitial {
   }
 }
 
-ion-card.pre-game {
-  background-color: black !important;
+ion-card.interstitial {
+  &.pre-game, &.pre-round {
+    background-color: black !important;
+  }
   .title {
     h1 {
       margin: 8px 0px;
@@ -166,14 +170,14 @@ ion-card.pre-game {
   }
 
 
-  &.player-welcome {
+  &.pre-game.player-welcome {
     ion-button.taller {
       --padding-top: var(--ion-padding, 16px);
       --padding-bottom: var(--ion-padding, 16px);
       height: 100%;
     }
   }
-  .check-in {
+  &.pre-game.check-in {
   }
 
 
@@ -215,6 +219,38 @@ ion-card.pre-game {
       }
     }
   }
+}
+
+
+.begin-player-round {
+  p {
+    color: var(--ion-color-light);
+  }
+
+  .player-callout {
+    margin-bottom: 36px !important;
+  }
+
+  .begin-player-round-help {
+    margin: 60px auto;
+    .ready-button {
+      min-height: 180px;
+      line-height: 1;
+      font-size: 3em;
+      font-weight:400;
+      text-transform: none;
+    }
+  }
+
+  .image-wrap.ready-button-image {
+    margin: 36px auto;
+    text-align: center;
+    max-width: 80%;
+  }
 
 }
 
+.button-over-dark {
+  // --box-shadow: 0 3px 1px -2px rgba(0,0,0,0.2),0 2px 2px 0 rgba(0,0,0,0.14),0 1px 5px 0 rgba(0,0,0,0.12);
+  --box-shadow: 0 3px 1px -2px rgba(255,255,255,0.5),0 2px 2px 0 rgba(255,255,255,0.4),0 1px 5px 0 rgba(255,255,255,0.4);
+}

@@ -11,11 +11,44 @@ import {
   GamePlayState,
   GamePlayLogEntries,
   PlayerByUids,
-  GameDict
+  GameDict,
+  WordResult
 } from './types';
 import { Player } from '../user/role';
 
+const WORDS_PER_QUICK_PLAYER = 3;
+
+
 export class FishbowlHelpers {
+
+  static
+  isGameOver( g:Game) {
+    return !!g.complete;
+  }
+
+  /**
+   * usage: moderator can manually toggle a game active BEFORE isGametime()
+   * - 'opens the door" from the Players Lounge early
+   * @param g 
+   */
+  static
+  isActive( g:Game) {
+    return !g.complete && (g.activeGame || FishbowlHelpers.isGametime(g));
+  }
+
+  /**
+   * usage: UX conditions only. based on game.gameTime only.
+   * - listPage: CTA copy 
+   * - gamePage: disable moderator activeGame toggle
+   * - flash [live] badge
+   * 
+   * NOTE: use isActive() for most conditions, moderator can manually toggle true before isGametime()
+   * @param g 
+   */
+  static
+  isGametime( g:Game) {
+    return !g.complete && g.gameTime < Date.now();
+  }
 
   static 
   setGameDateTime(day:number=5, hour:number=19):dayjs.Dayjs {
@@ -47,30 +80,90 @@ export class FishbowlHelpers {
     return teams;
   }
 
+  /**
+   * assign a new checkIn player to the smaller team
+   * use for in-game, activeRound assignments
+   * @param pid 
+   * @param teams 
+   */
   static
-  buildGamePlayRound(gameId: string, game:Game, type:RoundEnum, teams:TeamRosters=null): GamePlayRound{
-    let teamNames = game.teamNames;
-    if (!teamNames) teamNames = ['mahi mahi', 'yoko ono']
-    let combined = Object.assign({}, game.players, game.checkIn)
-    let checkedInPlayers:PlayerByUids = Object.entries(game.checkIn).reduce( (o, [pid, v])=>{
+  assignPlayerToTeam( pid:string, teams:TeamRosters):TeamRosters {
+    let doTeamAssignment = !Object.values(teams).find( playerIds=>playerIds.includes(pid));
+    if (doTeamAssignment) {
+      let playerCounts = Object.values(teams).map( playerIds=>playerIds.length);
+      let smaller = Math.min(...playerCounts);
+      let i = Object.values(teams).findIndex( playerIds=>playerIds.length==smaller );
+      let newTeams:TeamRosters = Object.entries(teams).reduce( (o,[k,v])=>{
+        o[k]=v.slice();
+        if (v.length==smaller) {
+          o[k].push(pid);
+          smaller = -1;
+        }
+        return o;
+      }, {})
+      return newTeams;
+    }
+    return null;
+  }
+
+  static
+  getCheckedInPlayers(game:Game):PlayerByUids {
+    return Object.entries(game.checkIn).reduce( (o, [pid, v])=>{
       if (typeof v=='boolean' && v===false) {
         return o; // skip
       }
       o[pid] = game.players[pid];
       return o;
     },{});
+  }
+
+  static
+  doPlayerEntryLookup(name:string=null, game:Game):[string, string] {
+    let {players, checkIn} = game;
+    // console.warn( "doPlayerEntryLookup()")
+    if (game.activeRound){
+      // confirm player has not checked in
+      let pid = Object.keys(players).find( k=>players[k].toLowerCase()==name.trim().toLowerCase());
+      if (pid && !!checkIn[pid]) {
+        // return null;  
+        // already checkedIn, show Toast
+        if (!game['isDev']) {
+          let msg = `Player \'${name}\' is already checked in on another device. Are you sure?`;
+          let resp = window.confirm(msg)
+          if (!resp) return;
+        }
+      }
+    }
+    let found = Object.entries(players).find( ([k,v])=>v.trim().toLowerCase()==name.toLowerCase());
+    return !!found ? found : null;
+  }
+
+  static
+  buildGamePlayRound(gameId: string, game:Game, type:RoundEnum, teams:TeamRosters=null, words:string[]=null): GamePlayRound{
+    let teamNames = game.teamNames;
+    if (!teamNames) teamNames = ['mahi mahi', 'yoko ono']
+    let combined = Object.assign({}, game.players, game.checkIn)
+    let checkedInPlayers = FishbowlHelpers.getCheckedInPlayers(game);
+    teams = teams || FishbowlHelpers.assignTeams(checkedInPlayers, teamNames);
 
     if (Object.entries(checkedInPlayers).length<2) 
       throw new Error("Not Enough Players CheckedIn");
 
-    let entries = Object.entries(game.entries).reduce( (o,[pid,_3words])=>{
-      if (checkedInPlayers[pid]){
-        _3words.forEach( w=>o[w]=true);
-      }
-      return o;
-    } ,{});
-    teams = teams || FishbowlHelpers.assignTeams(checkedInPlayers, teamNames);
-
+    let {quickPlay} = game;
+    let entries:{[word:string]:boolean};
+    if (words) {
+      let playerCount = Object.keys(checkedInPlayers).length;
+      words = Helpful.shuffle(words, playerCount*WORDS_PER_QUICK_PLAYER );
+      entries = words.reduce( (o,w)=>(o[w]=true,o), {});
+    }
+    else {
+      entries = Object.entries(game.entries).reduce( (o,[pid,_3words])=>{
+        if (checkedInPlayers[pid]){
+          _3words.forEach( w=>o[w]=true);
+        }
+        return o;
+      } ,{});
+    }
 
     return {
       uid: null,    // firebase pushId
@@ -116,8 +209,12 @@ export class FishbowlHelpers {
   getLatestRoster(gameDict: GameDict):Partial<GamePlayRound> {
     let roundIndex = FishbowlHelpers.getRoundIndex(gameDict);
     if (!roundIndex) {
-      // gameOver, all rounds complete
-      return null;
+      let {complete, teams, players} = gameDict.game;
+      if (complete && teams) {
+        // gameOver, all rounds complete
+        return {teams, players, orderOfPlay: gameDict.game.teamNames.slice() }
+      }
+      else return null;
     }
     // copy teams from prev round, if available
     let copyFrom = gameDict[roundIndex.prev || roundIndex.next] as GamePlayRound;
@@ -275,6 +372,13 @@ export class FishbowlHelpers {
     return fishbowl as {[word:string]: boolean};
   }
 
+
+  static BEGIN_ROUND_MARKER = "##begin-round##"
+  static
+  filter_BeginRoundMarker = (o={})=>{
+    return Object.entries(o).filter( ([k,v]:[string, WordResult])=>v.word!=FishbowlHelpers.BEGIN_ROUND_MARKER ).reduce( (o,[k,v])=>(o[k]=v,o), {});
+  }
+
   static
   DEV_patchMissingAttrs(o, type:string){
     switch(type) {
@@ -302,7 +406,36 @@ export class FishbowlHelpers {
         return arr
       })
     )
-    
+  }
+
+  static 
+  pipeSortKeys(keys:string[], asc:boolean[]=[], compareAsBoolean:string[]=[]){
+    return pipe(
+      map( (arr:any[])=>{
+        arr = arr.sort( (a,b)=>{
+          let check = 0;
+          keys.find( (key,i)=>{
+            let order:number = (asc.length>i) ? (!!asc[i] ? 1 : -1) : (asc[asc.length-1] && 1);
+            if (compareAsBoolean.includes(key)==false && (typeof a[key]=='boolean' || typeof b[key]=='boolean')) {
+              compareAsBoolean.push(key)
+            }
+            if ( compareAsBoolean.includes(key) ) {
+              check = order * (a[key] ? 1 : 0)-(b[key] ? 1 : 0)
+            }
+            else {
+              check = order * a[key]-b[key];
+            }
+            if (check===0) return false;
+            return true;
+          })
+          return check;
+        });
+
+        // console.log(arr.map( (o,i)=>Helpful.pick(o, 'complete', 'gameTime', 'label')));
+        return arr;
+
+      })
+    )
   }
 
   static

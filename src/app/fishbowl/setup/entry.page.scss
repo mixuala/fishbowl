@@ -1,34 +1,20 @@
 app-countdown-timer {
-  --countdown-fill-border: none;
-  --countdown-fill-border-radius: 10px;
-  --countdown-fill-background: #FFFFFF;
-  --countdown-fill-shadow: 0px 0px 5px 0px rgba(0,0,0, 0.2);
-}
-app-countdown-timer {
   --countdown-margin: 4px;
-  --countdown-padding: 4px;
-  --countdown-time-margin: 4px;
-  --countdown-time-padding: 4px;
+  --countdown-time-margin: 0px 4px;
   --countdown-inner-time-margin: 2px;
   --countdown-inner-time-padding: 0px;
-}
-
-app-countdown-timer {
-  background-color: transparent;
   --countdown-padding: 10px;
-  --countdown-time-margin: 0px 4px;
   --countdown-time-padding: 10px 10px;
   --countdown-fill-border: none;
   --countdown-fill-border-radius: 10px;
   --countdown-fill-shadow: 0px 0px 5px 0px rgba(0,0,0, 0.2);
   --countdown-value-font-size: 1.5em;
   --countdown-value-font-weight: 500;
-}
-
-app-countdown-timer {
   --countdown-fill-background: var(--ion-color-tertiary);
   --countdown-value-color: var(--ion-color-light);
   --countdown-unit-color: var(--ion-color-light);
+
+  background-color: transparent;
 }
 
 
@@ -44,6 +30,27 @@ ion-item-divider {
 
 .rounded {
   border-radius: 4px;
+}
+
+.outline {
+  &.ion-color-tertiary {
+    --ion-color-base: var(--ion-color-tertiary);
+  }
+  &.ion-color-dark {
+    --ion-color-base: var(--ion-color-dark);
+  }
+  &.rounded {
+    border-radius: 10px;
+  }
+  margin: 14px 0 0;
+  padding: 20px 20px;
+  color: var(--ion-color-light);
+  background-color: var(--ion-color-dark);
+  p {
+    color: var(--ion-color-light);
+    font-size: 1em;
+    font-weight: 500;
+  }
 }
 
 
@@ -79,3 +86,7 @@ ion-input[formControlName="chatRoom"] {
   color: var(--ion-color-danger)
 }
 
+
+.ion-hide {
+  display: none;
+}

@@ -110,7 +110,7 @@ export class PlaygroundPage implements OnInit {
 
     // # set initial volume
     let volume = (AppConfig.detectBrowser().includes('safari')) ? 0 : 1;
-    this.toggleVolumeIcon(volume, false);
+    this.volumeClick(volume, false);
   }
 
 
@@ -162,7 +162,7 @@ export class PlaygroundPage implements OnInit {
   }
   
   // Helpers
-  toggleVolumeIcon(volume:number = null, playSound=true){
+  volumeClick(volume:number = null, playSound=true){
     if (!volume) {
       volume = this.audioVolumeIcons.findIndex(v=>v==this.stash.audioVolumeIcon);
       volume += 1;

@@ -20,7 +20,7 @@
   <ion-col class="time" *ngIf="_endingUnit === 'second'">
     <ng-container *ngIf="stopAtZero && _initialUnit === 'second' && _secondsLeft==0; else tick">
       <div class="inner-time">
-        <span class="time-value"><ng-content></ng-content></span>
+        <span class="time-value"><ng-content select="[slot=body]"></ng-content></span>
       </div>
     </ng-container>
     <ng-template #tick>
@@ -30,4 +30,7 @@
       </div>
     </ng-template>
   </ion-col>
+</ion-row>
+<ion-row>
+  <ng-content select="[slot=footer]"></ng-content>
 </ion-row>

@@ -20,12 +20,13 @@
     <ion-row [class.ion-justify-content-center]="games.length==1">
         <ion-col size="12" size-sm="6" size-xl="4" *ngFor="let game of games, let i=index">
           <ion-card class="game">
-            <ion-card-header color="tertiary">
+            <ion-card-header [color]="isGameOver(game) ? 'success' : 'tertiary'">
               <ion-card-title>
-                <!-- <ion-icon size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
                 {{game.label}}
                 <div class="ion-float-right inline-text-wrap">
+                  <ion-badge  *ngIf="game.quickPlay" color="warning" >QuickPlay</ion-badge>
                   <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
+                  <ion-badge  *ngIf="isGameOver(game)" color="tertiary" >Game Over</ion-badge>
                   <ion-badge  *ngIf="isActive(game)" color="success" class="is-live">live</ion-badge>
                 </div>
               </ion-card-title>
@@ -36,7 +37,7 @@
                 <app-countdown-timer fill="time" [end]="game.gameTime" [units]="{from: 'day', to: 'second'}" stopAtZero="true"
                 (onBuzz)="onGameTime($event)"
                 ></app-countdown-timer>
-                <ion-text  color="dark">
+                <ion-text  color="dark"  slot="footer">
                   Game Time: {{ game.gameTime | appTimeAgo:"ddd, MMM D @ h:mma" }}
                 </ion-text>
               </div>  
@@ -46,7 +47,9 @@
                   <ion-badge color="tertiary" class="ion-padding-horizontal">{{game.playerCount || 0}}</ion-badge>
                 </ion-label>
               </ion-item>
-              <ion-button expand="block" color="success" (click)="join(game, i)">{{ isGametime(game) ? 'Join Game' : 'Grab a Spot Now'}}</ion-button>   
+              <ion-button expand="block" [color]="!isGameOver(game) ? 'success':'tertiary'"
+              (click)="doAction(game, i)"
+              >{{ getCallToAction(game) }}</ion-button>   
             </ion-card-content>
           </ion-card>
         </ion-col>
@@ -59,7 +62,7 @@
               </ion-avatar>
               <ion-label class="ion-text-wrap">
                 <h1 class="header">Welcome to Fishbowl</h1>
-                <p><ion-note color="dark">The shelter-in-place game for all ages</ion-note></p>
+                <p><ion-note color="dark">The shelter-in-place guessing game for all ages</ion-note></p>
               </ion-label>
             </ion-item>   
             <ion-card-content>
@@ -88,12 +91,45 @@
         </ion-col>
 
     </ion-row>
+
+    <ion-row *ngIf="stash.showSocialButtons"
+      class="ion-justify-content-center ion-align-items-center social-buttons">
+      <ion-col class="ion-text-center">
+        <ion-button fill="clear" routerDirection="forward" [routerLink]="['/app/overview']">
+          <ion-icon src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon>
+        </ion-button>
+        <ion-button fill="clear" href="https://www.facebook.com/Fishbowl-the-Game-110669510661123" target="_blank" >
+          <ion-icon name="logo-facebook" color="facebook"></ion-icon>
+        </ion-button>
+        <ion-button fill="clear" disabled="true" >
+          <ion-icon name="logo-instagram" color=""></ion-icon>
+        </ion-button>
+        <ion-button fill="clear" disabled="true" >
+          <ion-icon name="logo-twitter" color=""></ion-icon>
+        </ion-button>
+      </ion-col>      
+    </ion-row>
+
   </ion-grid>
   <ion-fab vertical="bottom" horizontal="end" slot="fixed">
     <ion-fab-button type="button" show="true" color="success" 
-      routerDirection="forward" [routerLink]="['/app/game/new/settings']" 
     >
       <ion-icon name="add"></ion-icon>
     </ion-fab-button>
+    <ion-fab-list side="top">
+      <ion-fab-button color="success"  data-desc="Schedule a Game"
+        routerDirection="forward" [routerLink]="['/app/game/new/settings']" >
+        <ion-icon name="calendar-outline" color="dark"></ion-icon>
+      </ion-fab-button>
+      <!-- <ion-fab-button color="success" data-desc="Play Now"
+        routerDirection="forward" [routerLink]="['/app/game/new/settings', {now:1}]" >
+        <ion-icon name="game-controller-outline" color="dark"></ion-icon>
+      </ion-fab-button> -->
+      <ion-fab-button color="warning" data-desc="[QuickPlay] Animal Pack!"
+      routerDirection="forward" [routerLink]="['/app/game/new/settings', {quickPlay:'animals'}]" >
+        <ion-icon name="game-controller-outline" color="dark"></ion-icon>
+      </ion-fab-button>
+    </ion-fab-list>
+  
   </ion-fab>
 </ion-content>

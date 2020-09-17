@@ -1,11 +1,11 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LoadingController, ModalController, } from '@ionic/angular';
+import { LoadingController, } from '@ionic/angular';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, of, from, BehaviorSubject } from 'rxjs';
-import { map, tap, switchMap, take, filter } from 'rxjs/operators';
+import { Observable, Subject, of, from, BehaviorSubject, interval } from 'rxjs';
+import { map, tap, switchMap, take, filter, first } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -41,7 +41,6 @@ export class ListPage implements OnInit {
     private  activatedRoute: ActivatedRoute,
     private  router: Router,
     private loadingController: LoadingController,
-    private modalCtrl: ModalController,
     private db: AngularFireDatabase,
     private authService: AuthService,
     private gameHelpers: GameHelpers,
@@ -86,7 +85,7 @@ export class ListPage implements OnInit {
       filter( ()=>this.stash.listen),
       map( (games, i)=>{
         games.forEach( g=>{
-          g.activeGame = this.isActive(g);
+          g.activeGame = FishbowlHelpers.isActive(g);
         })
         if (!invite) return games;
         return games.filter( g=>g.uid==invite)
@@ -143,9 +142,11 @@ export class ListPage implements OnInit {
   }
 
   ionViewDidEnter() {
+    interval(500).pipe(first()).subscribe(()=>this.stash.showSocialButtons = true)
     this.stash.listen = true;
   }
   ionViewDidLeave() {
+    this.stash.showSocialButtons = false;
     this.stash.listen = false;
   }
   
@@ -160,12 +161,23 @@ export class ListPage implements OnInit {
     return loading;
   }
 
+    
+  isGameOver( g:Game) {
+    return FishbowlHelpers.isGameOver(g);
+  }
+
   isActive( g:Game) {
-    return g.activeGame || this.isGametime(g);
+    return FishbowlHelpers.isActive(g);
   }
 
   isGametime( g:Game) {
-    return g.gameTime < Date.now();
+    return FishbowlHelpers.isGametime(g);
+  }
+
+  getCallToAction( g:Game ) {
+    if (FishbowlHelpers.isGameOver(g)) return "Game Over";
+    if (FishbowlHelpers.isGametime(g)) return "Join Game";
+    else return "Grab a Spot Now"
   }
 
   onGameTime(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
@@ -174,16 +186,23 @@ export class ListPage implements OnInit {
     return
   }
   
-  join(game, index) {
+  doAction(game, index) {
     this.player$.pipe(
       tap( p=>{
-        if (game.players && game.players[p.uid]) {
+        if( FishbowlHelpers.isGameOver(game) ) {
+          // activeGame
           this.router.navigate(['/app/game', game.uid]);
         }
-        else if( game.activeGame) {
+        else if (game.players && game.players[p.uid]) {
+          // preGame with registered player
+          this.router.navigate(['/app/game', game.uid]);
+        }
+        else if (game.moderator && game.moderator[p.uid]) {
+          // moderator
           this.router.navigate(['/app/game', game.uid]);
         }
         else {
+          // playerEntry CTA
           this.router.navigate(['/app/game', game.uid, 'player']);
         }
       })

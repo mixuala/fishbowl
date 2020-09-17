@@ -1,7 +1,7 @@
 {
   "name": "Fishbowl-the-Game",
   "description": "The shelter-in-place game for all ages",
-  "version": "0.3",
+  "version": "0.6",
   "author": "github:mixuala",
   "contributors": [
     "Dayana <dayana@startapplabs.com>",
@@ -37,18 +37,19 @@
     "core-js": "^2.5.7",
     "dayjs": "1.8.0",
     "firebase": "^7.14.1",
-    "firebase-functions": "^3.6.1",
+    "firebase-admin": "^8.12.1",
+    "firebase-functions": "^3.8.0",
     "google-libphonenumber": "^3.2.1",
     "howler": "^2.1.3",
     "minimist": "^1.2.5",
-    "npm": "^6.14.4",
+    "npm": "^6.14.7",
     "rxjs": "6.5.2",
     "tslib": "^1.10.0",
     "zone.js": "~0.9.1"
   },
   "devDependencies": {
-    "@angular-devkit/architect": "^0.802.1",
-    "@angular-devkit/build-angular": "^0.803.24",
+    "@angular-devkit/architect": "^0.802.2",
+    "@angular-devkit/build-angular": "^0.803.28",
     "@angular-devkit/core": "^8.2.1",
     "@angular-devkit/schematics": "^8.2.1",
     "@angular/cli": "^8.2.1",

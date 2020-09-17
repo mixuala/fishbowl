@@ -1,19 +1,19 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LoadingController, IonButton } from '@ionic/angular';
+import { LoadingController, IonButton, ToastController, IonInput } from '@ionic/angular';
 import { Validators, FormGroup, FormControl, ValidatorFn, AbstractControl } from '@angular/forms';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, of, from, throwError } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
+import { Observable, Subject, of, from, } from 'rxjs';
+import { map, tap, switchMap, take, filter } from 'rxjs/operators';
 
-import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
+import { GamePackService } from '../../fishbowl/game-pack.service';
 import { Player } from '../../user/role';
 import { AudioService } from '../../services/audio.service';
 import { Helpful } from '../../services/app.helpers';
-import { FishbowlHelpers } from '../fishbowl.helpers'
+import { FishbowlHelpers } from '../fishbowl.helpers';
 import { GameHelpers } from '../game-helpers';
 import { 
   Game, GameWatch, GameDict, RoundEnum,
@@ -31,6 +31,7 @@ export class EntryPage implements OnInit {
   
   public stash:any = {
     listen: true,
+    addMoreWords: false,
   };
 
   public listen$ : Subject<boolean> = new Subject<boolean>();
@@ -40,7 +41,7 @@ export class EntryPage implements OnInit {
   public player: Player;
 
   public entryForm: FormGroup;
-  validation_messages = {
+  public validation_messages = {
     'name':[
       { type: 'required', message: 'Please enter your game name.' },
       // { type: 'unique', message: 'Wow, that name is already taken. You better choose another.' },
@@ -64,17 +65,21 @@ export class EntryPage implements OnInit {
     private activatedRoute: ActivatedRoute,
     private router: Router,
     private loadingController: LoadingController,
+    public toastController: ToastController,
     private audio: AudioService,
     private db: AngularFireDatabase,
     private authService: AuthService,
     private gameHelpers: GameHelpers,
+    private gamePackService: GamePackService,
     ) {
       
     let validEntry = Validators.compose([
       Validators.required,
       Validators.pattern('^[a-zA-Z0-9_.+-\\s]+$')
     ]);
-
+    let validExtraEntry = Validators.compose([
+      Validators.pattern('^[a-zA-Z0-9_.+-\\s]+$')
+    ]);
 
     this.entryForm = new FormGroup({
       'name': new FormControl('', Validators.compose([
@@ -84,7 +89,9 @@ export class EntryPage implements OnInit {
       ])),
       'word_1': new FormControl('', validEntry),
       'word_2': new FormControl('', validEntry),
-      'word_3': new FormControl('', validEntry),   
+      'word_3': new FormControl('', validEntry),
+      'word_4': new FormControl('', validExtraEntry),
+      'word_5': new FormControl('', validExtraEntry),   
     });
 
   }
@@ -105,7 +112,6 @@ export class EntryPage implements OnInit {
         this.game$ = this.gameRef.valueChanges().pipe( 
           tap( o=>{
             this.game = o;
-            this.stash.activeGame = o.gameTime < Date.now();
             this.loadEntries();
           })
         )
@@ -150,16 +156,102 @@ export class EntryPage implements OnInit {
       word_1: "",
       word_2: "",
       word_3: "",
+      word_4: "",
+      word_5: "",
     }
     let words = this.game.entries && this.game.entries[this.player.uid] || [];
+    let name = this.game.players && this.game.players[this.player.uid] || this.player.displayName || "";
+
+    let replace = this.activatedRoute.snapshot.paramMap.get('replace');
+    if (replace) {
+      let {uid, playerName} = JSON.parse(replace)
+      name = playerName;
+    }
+
     words.forEach( (v,i)=>{
       entry[`word_${i+1}`] = v;
     });
-
-    let name = this.game.players && this.game.players[this.player.uid] || this.player.displayName || "";
+    if (words.length>3) {
+      this.stash.addMoreWords = true;
+    }
     entry['name'] = name as string;
-    this.entryForm.setValue(entry)
+    this.entryForm.setValue(entry);
+
+    if (replace) {
+      const control = this.entryForm.get('name');
+      control.markAsTouched({ onlySelf: true });
+    }
   }
+
+  onWordChanged(o:IonInput, i:number) {
+    
+    this.stash.autoFillIndex = this.stash.autoFillIndex.filter( v=>v!=i);
+  }
+
+  onWordCleared(o:IonInput, i:number) {
+    let value = o.value;
+    if (!value) {
+      this.stash.autoFillIndex.push(i);
+    }
+  }
+
+  async doAutoFillClick(game:Game){
+    let keys = ["word_1", "word_2", "word_3", "word_4", "word_5",]
+    let categories = ['person', 'place', 'thing'];
+
+    let _getEntries = (game:Game):string[]=>{
+      return Object.values(game.entries || []).reduce( (arr, v)=>arr.concat(...v), []);
+    }
+    let _getSuggestions = async (categories:string[], whitelist:string[]=[]) =>{
+      if (categories==null) categories = whitelist
+      else if (categories.length) categories = categories.filter( v=>whitelist.includes(v) );
+      else return; // use cached words
+
+      let suggestions = await categories.reduce( async (o,k)=>{
+        let words = await this.gamePackService.getWords(k);
+        (await o)[k] = Helpful.shuffle(words);
+        return o;
+      }, {});
+      return suggestions;
+    }
+
+    let autoFillWords = this.stash.autoFillWords || null;
+    let refresh = autoFillWords && categories.filter( k=>!autoFillWords[k] || !autoFillWords[k].length );
+    let suggestions = await _getSuggestions( refresh, categories );
+    this.stash.autoFillWords = autoFillWords = Object.assign(autoFillWords || {}, suggestions);
+
+    // track autoFill word slots, do NOT replace manually entered/modified words
+    this.stash.autoFillIndex = this.stash.autoFillIndex ||  keys.map( (k,i)=>{
+      let input = this.entryForm.get(k);
+      if (!input.value) return i;
+      return null;
+    }).filter( v=>v!==null);
+
+    // console.log( "autoFillIndex", this.stash.autoFillIndex)
+
+    let exclude = keys.reduce( (arr,k,i)=>{ 
+      if (!this.stash.autoFillIndex.includes(i)) {
+        let word = this.entryForm.get(k).value as string;
+        arr.push(word);
+      }
+      return arr;
+    }, []);
+    exclude = exclude.concat( _getEntries(game) )
+
+    this.stash.autoFillIndex.forEach( (i,j)=>{
+      if (!this.stash.addMoreWords && i>=3) return;
+      let k = keys[i];
+      let input = this.entryForm.get(k);
+      let word:string;
+      let categoryIndex = i<3 ? i%categories.length : (Date.now()%categories.length);
+      let categoryWords = autoFillWords[ categories[categoryIndex]];
+      do {
+        word = categoryWords.pop();
+      } while (exclude.includes(word) && categoryWords.length)
+      input.patchValue(word);
+    });
+  }
+
 
   ionViewDidEnter() {
     this.stash.listen = true;
@@ -169,6 +261,18 @@ export class EntryPage implements OnInit {
   }
 
   // Helpers
+
+  isPregame(g:Game=null) {
+    g = g || this.game;
+    return !FishbowlHelpers.isGameOver(g) && !FishbowlHelpers.isGametime(g);
+  }
+
+  toggleStashClick(key, ev){
+    this.stash[key] = !this.stash[key]
+    // not sure why this is necessary, but it is
+    setTimeout( ()=>ev.target.checked = this.stash[key], 100)
+  }
+  
   async presentLoading() {
     const loading = await this.loadingController.create({
       message: 'Loading...',
@@ -180,35 +284,43 @@ export class EntryPage implements OnInit {
   }
 
   doPlayerEntryLookup(name:string=null):[string, string] {
-    if (this.player.isAnonymous==false) return null;
-    if (this.game.activeRound) return null;
-
-    name = this.entryForm.get('name').value;
-    let found = Object.entries(this.game.players).find( ([k,v])=>v.trim().toLowerCase()==name.toLowerCase());
-    return !!found ? found : null;
+    name = name || this.entryForm.get('name').value;
+    return FishbowlHelpers.doPlayerEntryLookup(name, this.game);
   }
 
   async onTakePlayerIdentity(v:any) {
     try {
-      if (v==false) throw new Error('cancel');
+      if (v==false) throw 'cancel';
+
       let found = this.doPlayerEntryLookup();
-      if (!found) throw new Error('cancel');
+      if (!found) throw 'cancel';
       let [oldPid, name] = found;
-      if (!this.game.players[oldPid]) throw new Error('cancel');
-      if (this.game.activeRound) throw new Error('cancel');
+      if (!this.game.players[oldPid]) throw 'cancel';
       
       let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
+      // TODO: add a [force] button, so Moderator can change devices
+      let allowChangePlayerIfALREADYcheckedIn = true;
       let done = await this.gameHelpers.patchPlayerId( gameId, this.game, {
-        old: oldPid, 
-        new: this.player.uid,
-      }).then( ()=>{
-        this.entryForm.reset(this.entryForm.value);
+          old: oldPid, 
+          new: this.player.uid,
+        }, allowChangePlayerIfALREADYcheckedIn
+      ).then( 
+        ()=>{
+          this.entryForm.reset(this.entryForm.value);
+        }
+        , (err)=>{
+          return Promise.reject(err)
       });
       return;
       // let game$ do the rest
     } catch (err) {
-      if (err=='cancel')
+      if (err=="ERROR: player already checked in"){
+        this.presentToast(`Sorry, player ${name} has already checked in.`)
         this.entryForm.patchValue({name:""});
+      }
+      else if (err=='cancel'){
+        this.entryForm.patchValue({name:""});
+      }
     }
   }
 
@@ -221,9 +333,15 @@ export class EntryPage implements OnInit {
   }
   
   doEntry(){
-    if (!this.entryForm.valid) {
-      this.doValidate(this.entryForm)
-      return
+    this.doValidate(this.entryForm);
+    if (this.game.quickPlay) {
+      // validate just the name control
+      let nameControl = this.entryForm.get('name');
+      if (!!nameControl.errors)
+        return
+    }
+    else if (!this.entryForm.valid) {
+        return
     }
     let formData = this.entryForm.value;
     let u = this.player;
@@ -231,19 +349,54 @@ export class EntryPage implements OnInit {
     players[u.uid]=formData.name;
     let playerCount = Object.keys(players).length;
     let entries = this.game.entries || {};
-    // trim
-    Object.keys(entries).forEach( k=>{
-      entries[k] = entries[k].map( v=>v.trim() )
-    })
-    entries[u.uid] = Object.entries(formData).filter( ([k,v])=>k.startsWith('word_')).map( ([k,v])=>v as string);
+    if (this.game.quickPlay) {
+      entries[u.uid]=['~quickPlay~'];
+    }
+    else {
+      // trim
+      Object.keys(entries).forEach( k=>{
+        entries[k] = entries[k].map( v=>v.trim() )
+      });
+      let keys = [
+        "word_1", "word_2", "word_3", "word_4", "word_5",
+      ]
+      let entry = keys.filter( (k,i)=>{
+        if (!this.stash.addMoreWords && i>=3) return false;
+        return true;
+      }).map( k=>{
+        let v = formData[k];
+        return (v as string).trim();
+      }); 
+      entries[u.uid] = entry;
+    }
+
+
     let update = {players, playerCount, entries} as Game;
     this.gameRef.update( update ).then(
       res=>{
+        let msg = this.game.quickPlay ? "You are in the game." :  "Your entry was accepted";
+        this.presentToast(msg);
         let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
         this.router.navigate(['/app/game', gameId]);
       }
     );
   }
+
+  async presentToast(msg, options:any={}) {
+    let defaults = {
+      message: msg,
+      position: "top",
+      animated: true,
+      color: "tertiary",
+      keyboardClose: true,
+      cssClass: "toast-below-header",
+      duration: 2000,
+    }
+    options = Object.assign( defaults, options);
+    const toast = await this.toastController.create(options);
+    toast.present();
+  }
+
 
 }
 

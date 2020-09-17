@@ -1,17 +1,12 @@
 import { NgModule } from '@angular/core';
-import { BrowserModule } from '@angular/platform-browser';
+import { BrowserModule, Title } from '@angular/platform-browser';
 import { RouteReuseStrategy } from '@angular/router';
-
+import { ServiceWorkerModule } from '@angular/service-worker';
 import { IonicModule, IonicRouteStrategy } from '@ionic/angular';
-import { IonicStorageModule } from '@ionic/storage';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-
 import { ComponentsModule } from './components/components.module';
-
-import { ServiceWorkerModule } from '@angular/service-worker';
-
 import { environment } from '../environments/environment';
 
 import { AngularFireModule } from '@angular/fire';
@@ -29,10 +24,12 @@ import { NativeAudio } from '@ionic-native/native-audio/ngx';
   imports: [
     BrowserModule,
     IonicModule.forRoot(),
-    IonicStorageModule.forRoot(),
     AppRoutingModule,
     ComponentsModule,
-    ServiceWorkerModule.register('/ngsw-worker.js', { enabled: environment.production }),
+
+    ServiceWorkerModule.register('/ngsw-worker.js', { enabled: environment.production }),       // OK
+    // ServiceWorkerModule.register('/combined-sw.js', { enabled: environment.production }),    // FAIL
+
     AngularFireModule.initializeApp(environment.firebase), // imports firebase/app
     // AngularFirestoreModule, // imports firebase/firestore
     // AngularFirestoreModule.enablePersistence(),    // with offline support
@@ -44,6 +41,7 @@ import { NativeAudio } from '@ionic-native/native-audio/ngx';
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     NativeAudio,
+    Title,
     // AngularFireDatabase
   ],
   bootstrap: [AppComponent]

@@ -31,9 +31,11 @@ export class AppConfig {
   // static currentLoc:{lat:number, lng:number} = DEFAULT_LOC;
 
   // init config "constants"
-  static init(platform:Platform) {
+  static 
+  async init(platform:Platform):Promise<void>{
     AppConfig.platform = platform;
-    platform.ready().then(async ()=>{
+    return platform.ready()
+    .then( async ()=>{
       AppConfig.device = await Device.getInfo()
       AppConfig.detectBrowser(AppConfig.device);
   
@@ -47,6 +49,7 @@ export class AppConfig {
       }, 10);
 
       // if (!AppConfig.mapReady) AppConfig.mapReady = Promise.resolve(null);
+      return;
     });
   }
 

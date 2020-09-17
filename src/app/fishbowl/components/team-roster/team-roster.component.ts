@@ -30,6 +30,7 @@ export class TeamRosterComponent implements OnInit {
   public isModerator = false;
   private done$:Subject<void>;
   private gameDict:GameDict;
+  public passThePhone: boolean;
 
   @Input() gameDict$:Observable<GameDict>;
 
@@ -38,6 +39,10 @@ export class TeamRosterComponent implements OnInit {
   @Input() player$:Observable<Player>;
 
   @Input() asModerator:boolean = false;
+
+  @Input() spotlightTeam:boolean = false;     // just render one (spotlight) team, 
+
+  @Input() changePlayer:boolean = false;
 
   @Output() onChange = new EventEmitter<TeamRosters>();
 
@@ -110,6 +115,8 @@ export class TeamRosterComponent implements OnInit {
         this.teamNamesInPlayOrder = orderOfPlay;
         this.teamRostersAsRows = this.getRostersForDisplay(teams, players, orderOfPlay);
         this.gameDict = gameDict;
+
+        this.passThePhone = this.gameDict.game.doPassThePhone || this.changePlayer;
       }),
     ).subscribe();
   }
@@ -142,21 +149,24 @@ export class TeamRosterComponent implements OnInit {
           break;
         }
         case "spotlight":{
+          // console.log("14: TeamRosters ", JSON.stringify(this.spotlight))
+          break;
+        }
+        case "passThePhone": {
+          // console.log("14: passThePhone=", this.passThePhone);
           break;
         }
       }
     });
   }
 
-
   isOnlyPlayer(teamName) {
-    return this.teams[teamName].length==1;
+    return this.asModerator && this.teams[teamName].length==1;
   }
 
   doPlayerClick(item) {
     if (!this.isModerator) return;
     this.switchTeams(item)
-
   }
 
   switchTeams(item:any){

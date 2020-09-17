@@ -129,3 +129,64 @@ html.md {
 .inline-text-wrap > * {
   vertical-align: middle;
 }
+
+ion-badge.wide {
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+ion-list.wide {
+  --inner-padding-end: 0;
+  ion-item {
+    --inner-padding-end: 0;
+    ion-button[slot="end"] {
+      margin-inline-start: 4px;
+    }
+  }
+  &.toggle-hide {
+    padding: 0;
+  }
+}
+
+
+ion-toast {
+  &.toast-below-header{
+    position: fixed;
+    top: calc(var(--ion-safe-area-top, 0) + calc( 1.5 *  var(--app-header-height)));
+  }
+  &.ion-color.ion-color-tertiary {
+    --ion-color-base: rgba(var(--ion-color-tertiary-rgb), 0.85) !important;
+  }
+  &.ion-color.ion-color-success {
+    --ion-color-base: rgba(var(--ion-color-success-rgb), 0.85) !important;
+  }
+}
+
+.social-buttons {
+  ion-icon {
+    font-size: 32px;
+  }
+}
+
+// condensed slots inside ion-item
+.condensed-flex-wrap-slots {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  align-items: center;
+
+  .start, .end { width: 25%; }
+  .middle { flex-grow: 1;}
+  .button-inner-wrap {
+    white-space: normal;
+    text-align: center;
+  }
+  }
+
+// wrap IonButton text with a span
+ion-button {
+  .button-inner-wrap {
+    white-space: normal;
+    text-align: center;
+  }
+}

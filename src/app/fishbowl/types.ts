@@ -19,6 +19,7 @@ export interface Game {
   timezoneOffset: number;
   playerCount?: number;
   players?: PlayerByUids;
+  isGameOpen?: boolean;
   checkIn?: CheckInByUids;
   moderators?: {
     [uid:string]: boolean;
@@ -33,7 +34,10 @@ export interface Game {
   // TODO: rename activeRoundId
   activeRound?: string;
   complete?: boolean;
+  teams?: TeamRosters;    // final team roster
   public?: boolean;
+  doPassThePhone?: boolean;
+  quickPlay?:string;
 }
 
 // TODO: refactor
@@ -68,7 +72,7 @@ export interface WordResult {
 
 /**
  * HACK: push GameAdminState to `/gamePlay`
- * - manage Game.activeGame==true BEFORE loadRounds()
+ * - manage isActive(game) BEFORE loadRounds()
  * - triggers cloudAction for all users
  * - monitor changes in Game.doInterstitials()
  */
@@ -87,6 +91,17 @@ export interface GameAdminState {
   teamRostersComplete?:boolean;
   // admin states 
   gameComplete?: boolean;
+
+  /**
+   * 
+   * additional private attrs for internal processing
+      _deviceId: for detecting local state changes
+      _rid: roundId or gameId
+      _isBootstrap: used to detect countdownTimer elapsed vs offset time
+          isReloadWhileTicking = isBootstrap && isTicking;
+   *
+   */
+  
 }
 
 export interface GamePlayState extends GameAdminState {
@@ -110,10 +125,10 @@ export interface GamePlayState extends GameAdminState {
   // admin states
   timerPausedAt?: number;
   doBeginGameRound?: number;
+  doBeginPlayerRound?: boolean;
   playerRoundBegin?: boolean;
   playerRoundComplete?: boolean;
   gameRoundComplete?: boolean;
-  doGameOver?: boolean;
 }
 
 export interface GamePlayLogEntries {
@@ -158,9 +173,7 @@ export interface GameWatch {
   gameDict$: Observable<GameDict>,
 }
 
-// TODO: refactor, uid=>roundId
 export interface GamePlayWatch {
-  uid: string;  // activeRound.uid
   gamePlay$: Observable<GamePlayState>;
   gameLog$: Observable<GamePlayLog>;
 }

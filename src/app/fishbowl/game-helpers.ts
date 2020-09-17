@@ -1,9 +1,11 @@
 import { Injectable } from '@angular/core';
+import { Plugins, } from '@capacitor/core';
+
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as firebase from 'firebase/app';
 
-import { Observable, of, combineLatest, ReplaySubject, Subject, } from 'rxjs';
-import { map, take, share, tap, first, debounceTime, pairwise, startWith, takeUntil } from 'rxjs/operators';
+import { Observable, of, combineLatest, ReplaySubject, Subject, BehaviorSubject, pipe, UnaryFunction, } from 'rxjs';
+import { map, take, share, tap, first, filter, debounceTime, pairwise, takeUntil, withLatestFrom, throttleTime, startWith } from 'rxjs/operators';
 
 import * as dayjs from 'dayjs';
 
@@ -17,6 +19,7 @@ import {
   PlayerListByUids, PlayerByUids, TeamRosters, CheckInByUids, 
 } from './types';
 
+const { Storage } = Plugins;
 
 
 /* Firebase dbRef cheat sheet:
@@ -64,7 +67,6 @@ ionViewWillEnter():
     - set: gameDict, activeRound, game
     - set: gamePlayWatch if game.activeRound
       - [activeRoundId, gamePlayByRoundId$, gameLogByRoundId$]
-  - set: stash.activeGame <= game.gameTime
   - set: player {name, teamId, teamName}
   => gamePlay$:  
     - set: wordsRemaining
@@ -123,10 +125,145 @@ TODO:
 })
 export class GameHelpers {
 
+  private static _serverOffset: number[];
+  private static _uid: string;
+
   constructor(
     private db: AngularFireDatabase,
   ) {
+    GameHelpers.deviceId( Date.now().toString() );
+    Storage.get({key:'SERVER_OFFSET_TRAILING'}).then( resp=>{
+      GameHelpers._serverOffset = JSON.parse(resp.value);
+    })
   }
+
+  /**
+   * GameHelper helpers
+   */
+
+  /**
+   * unique Id used to filter out Ux Echos
+   * @param pid 
+   */
+  static deviceId(pid:string=null):string{
+    if (pid!==null) GameHelpers._uid = pid;
+    return GameHelpers._uid;
+  }
+
+  static changedKeys(cur:Partial<GamePlayState>, prev:GamePlayState=null): string[] {
+    let changedKeys = Object.keys(
+      Helpful.cleanProperties(cur)
+    ).filter( k=>{
+      if (cur[k]===false) return false;
+      if (cur[k]===null) return false;
+      if (prev==null) return true;
+      if (['spotlight','timer','remaining'].includes(k)) {
+        // if (k=="spotlight"){
+        //   let changed = JSON.stringify(cur[k])!=JSON.stringify(prev[k]);
+        //   console.warn( "16::1 changedKeys() spotlight changed=", changed, JSON.stringify(cur[k]),JSON.stringify(prev[k]) )
+        // }
+        return JSON.stringify(cur[k])!=JSON.stringify(prev[k])
+      }
+      return cur[k]!==prev[k];
+    });
+    if (changedKeys.length==1 && changedKeys[0]=="timestamp") {
+      // OK??? HACK: skipPlayer does NOT go through pairwise correctly
+      //    prev.spotlight is ALREADY changed, only cur.timestamp is detected
+      if (cur.hasOwnProperty('spotlight') && false) {
+        // changedKeys.push('spotlight');
+        // console.warn("HACK: skipPlayer does NOT go through pairwise correctly")
+        // console.warn("##### 28: SERVER_TIME: manually push spotlight change", changedKeys);
+      }
+      else {
+        changedKeys=[];
+      }
+    }
+    return changedKeys;
+  }
+
+  /**
+   * get the avg server offset, timestamp-Date.now(), 
+   * - latency expressed as a negative offset
+   * - sampled over the last 10 requests
+   * - use Storage to persist values across page reload
+   * 
+   * NOTE: serverOffset > 0: implies clock error, e.g. latency < 0
+   * 
+   * @param timestamp 
+   */
+  static serverOffset(timestamp:number=null){
+    var _average = arr => arr.reduce( ( p, c ) => p + c, 0 ) / arr.length;
+    let trailing10 = GameHelpers._serverOffset || [];
+    if (timestamp!==null) {
+      let latency = Date.now() - timestamp;
+      trailing10.unshift(latency);
+      GameHelpers._serverOffset = trailing10.slice(0,10);
+      // console.log("120: serverOffset trailing10", trailing10);
+      Storage.set({key:'SERVER_OFFSET_TRAILING', value:JSON.stringify(GameHelpers._serverOffset)});
+
+    }
+    else {
+      // console.log("120: serverOffset1 trailing10 values", trailing10)
+    }
+    let result = !!trailing10.length ? _average(trailing10) : 0;
+    return -1*result;
+  }
+
+  /**
+   * 
+   * @param gamePlay 
+   */
+  static patch_GamePlayState_TimerSyncAttr(gamePlay:GamePlayState, isBootstrap=false):GamePlayState{
+    if (!gamePlay.timer) return gamePlay;
+    if (!gamePlay.timer.key) return gamePlay;
+
+    let {timer, isTicking} = gamePlay;
+    // start timer from cloud resp
+    /**
+     * add extended attributes to start countdownTimer from cloud state change
+     * - infer elapsed time from detected page reload
+     * - calculate offsets from state change remote and local clocks for accurate sync
+     */
+    if (gamePlay.timestamp && typeof gamePlay.timestamp=="number") {
+      let now = Date.now();
+      let serverTime = gamePlay.timestamp;                  // static, all clients sync to serverTime
+      let serverOffset0 = serverTime - timer.key;           // does NOT change with elapsed
+      let serverOffset1 = serverTime - now;
+
+      let elapsed = 0;  
+      
+      let isReloadWhileTicking = isBootstrap && isTicking;
+      if (isReloadWhileTicking) {
+        // elapsed as a fn(timer.key)
+        elapsed = now - (timer.key + serverOffset0);  
+        // correct clock errors relative to source
+        let clockOffset = gamePlay["_sourceOffset"] -GameHelpers.serverOffset();
+        elapsed += -clockOffset;
+        // console.warn("\n120: MAX_LATENCY_MS: now-serverTime elapsed=ELAPSED", {elapsed, serverOffset1, serverOffset1_source: clockOffset, serverOffset0});
+      }
+      else {
+        GameHelpers.serverOffset(serverTime);          // avg of trailing 10 serverOffset1
+        elapsed = 0;
+        // console.info("\n120: MAX_LATENCY_MS: now-serverTime elapsed=LATENCY", {elapsed, serverOffset1, serverOffset0});
+      }
+      
+      gamePlay.timer = Object.assign({}, gamePlay.timer, {
+        serverTime, serverOffset0, serverOffset1,
+        elapsed, 
+        // isReload: isReloadWhileTicking, 
+      })
+      // console.warn("120:\t y> gamePlay$ timer opt=", gamePlay.timer,"\n *** \n")
+    }
+    /**
+     * end
+     */
+
+    return gamePlay;
+  }
+
+  // reference to inject gamePlay state updates locally, used with pairwise()
+  static gamePlay$: BehaviorSubject<GamePlayState>;
+  static gameLog$: BehaviorSubject<GamePlayLog>;    // reset on HARD reset
 
   getGamesByInvite$(uid:string):Observable<Game[]>{
     return this.db.object<Game>(`/games/${uid}`).snapshotChanges().pipe(
@@ -142,7 +279,8 @@ export class GameHelpers {
     ).snapshotChanges().pipe(
       FishbowlHelpers.pipeSnapshot2Data(),
       FishbowlHelpers.pipeGameIsPublished(player$),
-      FishbowlHelpers.pipeSort('gameTime')
+      // FishbowlHelpers.pipeSort('gameTime'),
+      FishbowlHelpers.pipeSortKeys(['complete', 'gameTime'], [true,true], ['complete']),
     )
   }
 
@@ -162,14 +300,17 @@ export class GameHelpers {
     )
     // let game$ = game_af.valueChanges();
     let HOT_game$ = new ReplaySubject<Game>(1);
+    let HOT_gameDict$ = new ReplaySubject<GameDict>(1);
+
     game_af.valueChanges().pipe(
       map( g=>{
-        return FishbowlHelpers.DEV_patchMissingAttrs(g, 'game')
+        // return FishbowlHelpers.DEV_patchMissingAttrs(g, 'game');
+        g = FishbowlHelpers.DEV_patchMissingAttrs(g, 'game');
+        return g;
       })
     )
     .subscribe(HOT_game$);  // "hot" observable
 
-    let HOT_gameDict$ = new ReplaySubject<GameDict>(1);
     combineLatest(
       hasManyRounds_af.valueChanges().pipe(
         debounceTime(100),      // loadGameRounds() will update 3 rounds "together"
@@ -182,9 +323,12 @@ export class GameHelpers {
           [gameId]: g,
           'game': g,
         };
-        if (!g.rounds) return uidLookup;
+        if (!g.rounds) {
+          return uidLookup;   // pre-game, BEFORE [load rounds]
+        }
 
         Object.entries(g.rounds).forEach( ([k,v])=>{
+          // add game rounds to gameDict
           let round = rounds.find( r=>r.round==v && g.rounds[r.uid])
           uidLookup[k] = round;
           if (k==g.activeRound){
@@ -194,110 +338,125 @@ export class GameHelpers {
         return uidLookup;
       }),
     ).subscribe(HOT_gameDict$);  // "hot" observable
+
+
     return {
       gameId,
       game$: HOT_game$,   // same as gameDict.game
+
+
+      // ???: deprecate?   gameWatch.game$ seems to be used ONLY for gameOver, 
+      //    use (game$ | async) in template?
+
+
       hasManyRounds$,     // sorted
       gameDict$: HOT_gameDict$,          // by key
     }
   }
 
-  /**
-   * 
-   * NOTE: automatically completes existing Subscriptions when gameId|game.activeRound changes
-   * @param gameId 
-   * @param game 
-   * @returns {
-   *  uid: gameID or roundId being watched
-   *  gamePlay$:  HOT gamePlay passed through pairwise() with extra attrs
-   *              - changedKeys: only keys where value is truthy and != old value
-   *              - timestamp
-   *              - resolves to {} when requesting empty db key
-   *  gameLog$: 
-   *              - resolves to {} when requesting empty db key
-   *              - TODO: resolve to null
-   * }
-   */
-  _memo_GamePlayWatch: {
-    watch: GamePlayWatch,
-    done$: Subject<void>
-  }
-  getGamePlay(gameId: string, game:Game):GamePlayWatch{
-    let rid = game.activeRound || gameId;
 
-    /**
-     * memoize results
-     */
-    let isFresh = this._memo_GamePlayWatch && this._memo_GamePlayWatch.watch.uid == rid;
-    if (isFresh) {
-      console.warn("120: >> reuse CACHED gamePlayWatch uid=", rid);
-      return this._memo_GamePlayWatch.watch;
-    }
-    if (this._memo_GamePlayWatch && this._memo_GamePlayWatch.done$) {
-      // complete gamePlay$, gameLog$
-      console.warn("120: >> TEARDOWN old gamePlayWatch uid=", this._memo_GamePlayWatch.watch.uid);
-      this._memo_GamePlayWatch.done$.next();
-    }
-    /**
-     * end memoize
-     */    
-    
-    
-    this._memo_GamePlayWatch = {
-      watch: null,
-      done$: new Subject(),
-    }
-    let HOT_gamePlay$ = new ReplaySubject<GamePlayState>(1);
-    
-    console.warn("121: 0>> gameWatch.gamePlay$ has changed!!! uid=", rid);
-    this.db.object<GamePlayState>(`/gamePlay/${rid}`).valueChanges().pipe(
-      takeUntil(this._memo_GamePlayWatch.done$),
-      startWith(undefined),
-      pairwise(),
-      tap( v=>console.log("120: gamePlay$ > pairwise", v[0], v[1])), 
+
+  /**
+   * detect bootstrap, changedKeys, add clock sync attr for countdownTimers
+   */
+  pipe_DetectChanges():UnaryFunction<Observable<GamePlayState>, Observable<GamePlayState>> {
+    return pipe(
+
+
+      throttleTime(100),
+      // ???: interstitials may be suppressed without throttleTime
+
+
+      startWith(null),
+      pairwise<GamePlayState>(),
+      filter( ([_,b])=>!!b),    // TODO: unnecessary??, init with null
       map( ([prev, gamePlay])=>{
-        if (prev===undefined && gamePlay) 
-          console.log( "120: ===>>> gamePlay isFirst==true, rid=", rid)
-        if (gamePlay){
-          // gamePlay==null after RESET, from valueChanges() on empty key
-          let changedKeys = Object.keys(gamePlay).filter( k=>{
-            if (gamePlay[k]===false) return false;
-            if (prev==null) return true;
-            if (['spotlight','timer','remaining'].includes(k)) {
-              // let changed = JSON.stringify(gamePlay[k])!=JSON.stringify(prev[k]);
-              // if (changed) console.warn( "120: spotlight changed:  ", JSON.stringify(gamePlay[k]),JSON.stringify(prev[k]) )
-              return JSON.stringify(gamePlay[k])!=JSON.stringify(prev[k])
-            }
-            return gamePlay[k]!==prev[k];
-          });
-          console.warn( `121: ===>>> getGamePlay changedKeys=` , changedKeys)
-          gamePlay.changedKeys = changedKeys;
-        }
-        return gamePlay || {}
+        // gamePlay==null after RESET, from valueChanges() on empty key
+        gamePlay.changedKeys = GameHelpers.changedKeys( gamePlay, prev);        
+        console.info("\t28:::3 getGamePlay(): GameHelpers.gamePlay$ emits gamePlayState from cloud update")
+        console.warn(`28: ===>>> getGamePlay changedKeys=` , gamePlay.changedKeys, gamePlay)
+        return gamePlay;
+      }),
+      
+    );
+
+  }
+
+  pipe_AddClockOffsets():UnaryFunction<Observable<GamePlayState>, Observable<GamePlayState>> {
+    return pipe(
+      map( (g)=>{
+        let isBootstrap = !!g["_isBootstrap"];  // set in outer context of GamePage
+        return GameHelpers.patch_GamePlayState_TimerSyncAttr(g, isBootstrap);
       }),
     )
-    .subscribe(HOT_gamePlay$);
-
-    let gamePlay$ = HOT_gamePlay$.asObservable();
-
-    let gameLog$:Observable<GamePlayLog>
-    if (gameId) {
-      gameLog$ = this.db.object<GamePlayLog>(`/gameLogs/${gameId}`).valueChanges()
-      .pipe(
-        takeUntil(this._memo_GamePlayWatch.done$),
-        share() 
-      )
-    }
-    else {
-      gameLog$ = of({} as GamePlayLog )
-    }
-    this._memo_GamePlayWatch.watch = {uid:rid, gamePlay$, gameLog$};
-    return this._memo_GamePlayWatch.watch;
   }
 
+  /**
+   * patch gamePlay before game event loops, and before CountdownTimer for clock sync
+   *  - pipe_DetectChanges(), 
+   *  - pipe_AddClockOffsets(),
+   * 
+   * - LOCAL and REMOTE gamePlay state changes are both piped through here
+   */
+  watchGamePlay(isBootstrap:boolean=false):UnaryFunction<Observable<GamePlayState>, Observable<GamePlayState>> {
+    return pipe(
+      // tap( g=>console.warn( "28:x pipe_DetectChanges() from watchGamePlay, timestamp=",g && g.timestamp)),
+      this.pipe_DetectChanges(),
+      this.pipe_AddClockOffsets(),
+    )
+  }
+
+  /**
+   * get gamePlayWatch = {gamePlay$, gameLog$} for current game.gameId
+   *  - gamePlayWatch is same for entire game, including across game.activeRounds
+   *  - expose GameHelpers.gamePlay$ BehaviorSubject for LOCAL gamePlay$ pipeline 
+   * 
+   * gamePlay$: entry point for injecting local gamePlay updates:
+   *  - gamePlay_LOCAL$.next(gamePlay), gamePlay[isLocal] == true
+   *  - skip echo from firebase state change. GameHelpers.wasLocalStateChange(g)==false
+   * 
+   * @param gameId 
+   */
+  getGamePlay(gameId: string, done$:Subject<boolean>):GamePlayWatch {
+    // watchId: make closure
+    let _gamePlay_LOCAL$ = new BehaviorSubject<GamePlayState>(null);
+    let _gamePlay_READY$ = new ReplaySubject<GamePlayState>(1);
+    
+    /**
+     * gamePlay$: entry point for injecting local gamePlay updates:
+     *  - gamePlay_LOCAL$.next(gamePlay), gamePlay[isLocal] == true
+     *  - skip echo from firebase state change. GameHelpers.wasLocalStateChange(g)==false
+     */
+    GameHelpers.gamePlay$ = _gamePlay_LOCAL$;  // expose local entrypoint as static
 
 
+    _gamePlay_LOCAL$.pipe(
+      takeUntil(done$),
+      // this.watchGamePlay(),
+    ).subscribe(_gamePlay_READY$);
+      
+      
+      
+    /**
+     * gameLog$
+     * NOTE: 
+     *  - reset gameLog on HARD reset
+     */  
+    GameHelpers.gameLog$ = new BehaviorSubject<GamePlayLog>(null);
+    if (gameId) {
+      this.db.object<GamePlayLog>(`/gameLogs/${gameId}`).valueChanges()
+      .pipe(
+        takeUntil(done$),
+        filter(o=>!!o),
+      ).subscribe(GameHelpers.gameLog$)
+    }
 
+    return {
+      // uid:  gameId, // deprecate, no longer used by pushGamePlayState(), get from gamePlay[_rid]
+      gamePlay$: _gamePlay_READY$, //_gamePlay_LOCAL$, // same as GameHelpers.gamePlay$,
+      gameLog$: GameHelpers.gameLog$,
+    } as GamePlayWatch;
+  }
 
   copyTeams(rid: string, teams:TeamRosters){
     // do BEFORE beginGameRound()
@@ -344,9 +503,20 @@ export class GameHelpers {
 
     let roundIndex = FishbowlHelpers.getRoundIndex(gameDict);
     if (!roundIndex) {
-      // gameOver, all rounds complete
-      return Promise.resolve(null);
+      // all rounds complete => gameOver
+      return Promise.reject("gameComplete");
     }
+    let isFirstRound = roundIndex && roundIndex.prev==null;
+      // NOTE: gameDict.activeRound == null
+    if (isFirstRound) {
+      // before round1, complete preGameAdminState
+      let update = {
+        doTeamRosters: false,
+        teamRostersComplete: true,
+      }
+      await this.pushGamePlayState( update, gameId, );
+    }
+
     let nextRoundId = roundIndex.next;
     let activeRound = gameDict[nextRoundId] as GamePlayRound;
     
@@ -370,36 +540,19 @@ export class GameHelpers {
 
     let self = this;
     let promise = Promise.resolve()
-    .then( ()=>{
-      let teamCount = Object.keys(activeRound.teams).length
-      if (roundIndex.prev) {
-        return this.db.object<GamePlayState>(`/gamePlay/${roundIndex.prev}`).valueChanges().pipe(
+    .then( async ()=>{
+      let teamCount = Object.keys(activeRound.teams).length;
+      let copyFrom = roundIndex.prev && await this.db.object<GamePlayState>(`/gamePlay/${roundIndex.prev}`).valueChanges().pipe(
           take(1),
-        ).toPromise().then( (copyFrom)=>{
-          // copy state from LAST GamePlayState to NEXT GamePlayState
-          let gamePlay = Object.assign( {},
-            this.initGamePlayState(nextRoundId, teamCount, copyFrom), 
-            {
-              gameId,
-              doPlayerUpdate: true,           // update teamName, if changed
-          });
-          return gamePlay
-        })
-      }
-      else {
-        let gamePlay = Object.assign( {},
-          this.initGamePlayState(nextRoundId, teamCount), 
-          {
-            gameId,
-            doPlayerUpdate: true,           // update teamName, if changed
-        });
-        return gamePlay
-      }
-    })
-    .then( (gamePlay)=>{
-      // wait for updated gameDict.gamePlayWatch?
-      let watch = {uid:nextRoundId} as GamePlayWatch;
-      return this.pushGamePlayState( watch, gamePlay)
+        ).toPromise();
+      let gamePlay = Object.assign( {},
+        // create initGamePlayState in watchGameDict:activeRoundDidChange==true
+        this.initGamePlayState(nextRoundId, teamCount, copyFrom), 
+        {
+          gameId,
+          doPlayerUpdate: true,           // update teamName, if changed
+      });
+      return this.pushGamePlayState( gamePlay, nextRoundId)
       .then( v=>{
         console.log("GameHelper.createGamePlayState() GamePlayState=", gamePlay)
       });
@@ -407,8 +560,7 @@ export class GameHelpers {
     waitFor.push( promise );
 
 
-    // MOVE to adjustTeams(): 
-    // WARNNING: do NOT copy teams, teamRosters adjusted BEFORE begin Next Round
+    // teamRosters adjusted realtime in GameHelpers.pushTeamRosters()
     let lastRound = gameDict[ roundIndex.prev ]  as GamePlayRound;
     if (lastRound) {
       waitFor.push(
@@ -460,29 +612,85 @@ export class GameHelpers {
    * @param watch 
    */
   // gamePlay is null after RESET
-  initGameAdminState(watch:GamePlayWatch, gamePlay:Partial<GameAdminState>={}){
+  initGameAdminState(gameId:string, gamePlay:Partial<GameAdminState>={}){
     let reset:GameAdminState = {
-      gameId: watch.uid,
+      gameId,
+      doPlayerUpdate: true,
       doPlayerWelcome: false,
     }
     let update = Object.assign({}, reset, gamePlay)
-    this.pushGamePlayState(watch, update).then( ()=>{
+    this.pushGamePlayState( update, gameId ).then( ()=>{
       console.info( "GameAdminState created, testing doCheckIn()", )
     });
   }  
 
-  pushGamePlayState(watch:GamePlayWatch, gamePlay:Partial<GamePlayState>, ...changes):Promise<void>{
+  /**
+   * push GamePlayState to cloud for sync with all players
+   * 
+   * 
+   * @param update 
+   * @param rid optional, infer rid from gamePlay0["_rid"] if null
+   */
+  async pushGamePlayState(update:Partial<GamePlayState>, rid:string=null):Promise<void>{
+
+    // TODO: add prev state to confirm update, confirm through firebase functions
+    //      OR, add throttle via firebase functions
+
     // push to cloud, add timestamp
-    const USE_SERVER_TIMESTAMP = false;
-    console.info("120: =========>>> pushGamePlayState ",gamePlay)
-    let fields = changes.length ? [].concat(...changes) : null;
-    let update = Object.assign(Helpful.cleanProperties(gamePlay, fields), {
-      timestamp: USE_SERVER_TIMESTAMP ? firebase.database.ServerValue.TIMESTAMP : Date.now(),
-    });
-    return this.db.list<GamePlayState>('/gamePlay').update(watch.uid, update)
-    // .then( v=>{
-    //   console.log(">>> GameHelper.pushGamePlayState() COMPLETE update=", update)
-    // });
+    // NOTE: server timestamps required for countdownTimer sync between clients
+    const USE_SERVER_TIMESTAMP = true;  
+    update = Helpful.cleanProperties(update);  // strip all "_*" attributes
+    Object.assign( update, 
+      {
+        "timestamp": USE_SERVER_TIMESTAMP ? firebase.database.ServerValue.TIMESTAMP : Date.now(),
+        "_deviceId": GameHelpers.deviceId(),
+        "_sourceOffset": GameHelpers.serverOffset() || 0,
+      },
+    );
+    // NOTE:  handle updates LOCALLY using GameHelpers.gamePlay$ entry point
+    //        - ignore echo form cloud emit in _gamePlay_REMOTE$ subscriber, see GamePage.watchGameDict()
+
+    console.info("\n\n\t*** [BEGIN gamePlay STATE CHANGE] *** \n\t28::a gamePlay$ LOCAL gamePlayState", rid, update);
+    let gamePlay0 = GameHelpers.gamePlay$.getValue();
+    if (!rid) {
+      rid = gamePlay0["_rid"];
+      console.warn(`\t\t\t>>> 28:x   pushGamePlayState() => carry on as usual with SAME rid`, rid)
+    }
+    let localUpdate = Object.assign({}, gamePlay0, update, {"_rid": rid} );
+    
+    GameHelpers.gamePlay$.next( localUpdate );
+
+    // ???: why does this delay suppress a gameDict emit? cancels [doTeamRosters] 
+    //      give time for  HelpComponent.presentModal() to complete
+    await Helpful.waitFor(10);
+
+
+    try {
+      console.info("\t28::b GameHelpers.pushGamePlayState() push to firebase \n\t*** [END gamePlay STATE CHANGE] ***\n\n");
+      return this.db.list<GamePlayState>('/gamePlay').update(rid, update)
+    } catch (err){
+      console.error("*** \n\t28 invalid rid?", rid, err)
+    }
+  }
+
+  /**
+   * detect cloud UX events that have already been played locally
+   * 
+   * strategies for detection:
+   * - filter by keys saved to localStorage
+   * - filter by deviceId
+   * 
+   * @param gamePlay 
+   */
+  static wasLocalStateChange(gamePlay: GamePlayState):boolean{
+    if (!gamePlay) return false;
+    let isLocal = false;
+    isLocal = isLocal || gamePlay["_deviceId"] === GameHelpers.deviceId();
+    return isLocal;
+  }
+
+  static isLocalStateChange(update: Partial<GamePlayState>){
+    return update.timestamp && update.timestamp.hasOwnProperty(".sv");
   }
 
 
@@ -494,7 +702,8 @@ export class GameHelpers {
     watch.gamePlay$.pipe( 
       first(),
     ).subscribe( (gamePlay)=>{
-      this.pushGamePlayState( watch, Object.assign({},gamePlay));
+      let mutated = Object.assign({},gamePlay);
+      this.pushGamePlayState( mutated );
     })
   } 
 
@@ -547,7 +756,7 @@ export class GameHelpers {
             log: gamePlay.log,
             remaining,
           }
-          this.pushGamePlayState(watch, update).then( ()=>{
+          this.pushGamePlayState(update).then( ()=>{
             console.warn(">>> 126: pushGamePlayLogUpdate(), moderator update=", update);
             resolve(update);
           });
@@ -555,76 +764,123 @@ export class GameHelpers {
     })
   }
 
-      
+
+  /**
+   * moveSpotlight to next player, by default it will infer spotlight from 
+   * the last entry in the GameLog. 
+   * to advance spotlight manually, set options.useGamePlaySpotlight==true
+   * 
+   * @param watch 
+   * @param round 
+   * @param options 
+   *    useGamePlaySpotlight: if true, use spotlight from gamePlay 
+   */
   moveSpotlight(
     watch:GamePlayWatch, 
     round:GamePlayRound, 
-    options:{ nextTeam?:boolean, defaultDuration?:number} = {} 
+    options:{ nextTeam?:boolean, defaultDuration?:number
+      , useGamePlaySpotlight?:boolean
+    } = {} 
   ): 
-    Promise<void>
+    Promise<any>
   {
-    let {uid, gamePlay$} = watch;
-    // rewrite without promise
-    return new Promise( (resolve, reject)=>{
-      gamePlay$.pipe(
-        take(1),
-        tap( (gamePlay)=>{       
-          
-          if (!gamePlay) return;  // round is complete
-          if (!round) {
-            console.error("round is empty")
-            return      // not sure this is the right path
+    let teamNamesInPlayOrder = round.orderOfPlay;
+    let limits = {
+      teamIndex: teamNamesInPlayOrder.length,
+      playerIndex: teamNamesInPlayOrder.map( teamName=>{
+        return round.teams[teamName].length
+      })
+    }
+    let { gamePlay$, gameLog$ } = watch;
+    return gameLog$.pipe(
+      withLatestFrom(gamePlay$),
+      take(1),
+      map( (res:[GamePlayLog, GamePlayState])=>{
+        let [gameLog, gamePlay ] = res;
+        let spotlight:any;
+        if (!gameLog || !!options.useGamePlaySpotlight ) {
+          spotlight = Helpful.pick(gamePlay.spotlight, "teamIndex", "teamName", "playerIndex");
+        }
+        else {
+          // get spotlight state from gameLog
+          let roundKey = `round${gamePlay.doBeginGameRound}`;
+          let log = gameLog[roundKey]
+          if (log) {
+            // get spotlight from gameLog
+            let sortedTimestamps = Object.keys(log).map( v=>parseInt(v) ).sort().reverse();  // sort Timestamps in MostRecent first, DESC order
+            let lastWordResult = log[ sortedTimestamps[0] ];
+            let {playerName, teamName } = lastWordResult;
+            let teamIndex = teamNamesInPlayOrder.findIndex( v=>v==teamName);
+            let playerIndex = teamNamesInPlayOrder.map( (t,i)=>{
+              let found = sortedTimestamps.find( k=> log[k] && log[k].teamName==t );
+              let wordResult = found && log[found];
+              if (!wordResult) return 0;
+              let j = round.teams[t].findIndex( k=>round.players[k]==wordResult.playerName );
+              if (~j) {
+                if (i>teamIndex) {
+                  j++; // pre-increment playerIndex, for teamIndex++
+                }
+                if (j>=limits.playerIndex[i]) {
+                  j=0;
+                }
+              }
+              return ~j ? j : 0;
+            });
+            let spotlight0 = {teamIndex, teamName, playerIndex };
+            console.warn("13:a gameLog spotlight=", JSON.stringify(spotlight0), limits.playerIndex)
+            spotlight = {teamIndex, teamName, playerIndex };
           }
-
-
-          let spotlight = Object.assign( {} , gamePlay && gamePlay.spotlight );
-          let teamNamesInPlayOrder = round.orderOfPlay;
-          let limits = {
-            teamIndex: teamNamesInPlayOrder.length,
-            playerIndex: teamNamesInPlayOrder.map( teamName=>{
-              return round.teams[teamName].length
-            })
+          else {
+            // new GameRound, gameLog[roundkey]==undefined
+            // WARNING: check for echo, this should be called only by moderator
+            spotlight = gamePlay.spotlight;  // copied from lastRound 
           }
-          if (options.nextTeam!==false){
-            // increment team first
-            spotlight.teamIndex +=1;
-            if (spotlight.teamIndex >= limits.teamIndex){
-              // after last team, 
-              spotlight.teamIndex = 0;
-              // increment players
-              spotlight.playerIndex = spotlight.playerIndex.map( (v,i)=>{
-                v +=1;
-                return v >= limits.playerIndex[i] ? 0 : v;
-              });
-            }
-          } else {
-            // increment player on the SAME team
-            if (spotlight.teamIndex == -1) spotlight.teamIndex = 0;
-            let i = spotlight.teamIndex;
-            spotlight.playerIndex[ i ] += 1;
-            if (spotlight.playerIndex[ i ] >= limits.playerIndex[ i ]) spotlight.playerIndex[ i ] = 0;
-          }
-          spotlight.teamName = teamNamesInPlayOrder[spotlight.teamIndex];
-          // where does gamePlayTimerDuration first get set?
-          let timerDuration = gamePlay.timerDuration || options.defaultDuration;
+        }
 
-          let update = {
-            spotlight,
-            timer: null,
-            log: {},
-            timerDuration,
-            word: null,
-            isTicking: false,
-            timerPausedAt: null,
-          } as GamePlayState;
-          this.pushGamePlayState(watch, update).then( ()=>{
-            resolve();
-          });
-        }),
-      ).subscribe();
-    });  
+        spotlight = Object.assign({},spotlight); // change copy of spotlight
+        if (options.nextTeam!==false){
+          // increment team first
+          spotlight.teamIndex +=1;
+          if (spotlight.teamIndex >= limits.teamIndex){
+            // after last team, 
+            spotlight.teamIndex = 0;
+            // increment players
+            spotlight.playerIndex = spotlight.playerIndex.map( (v,i)=>{
+              v +=1;
+              return v >= limits.playerIndex[i] ? 0 : v;
+            });
+          }
+        } else {
+          // increment player on the SAME team
+          // console.log("13:a2 SKIP player on same team",  JSON.stringify(spotlight))
+          if (spotlight.teamIndex == -1) spotlight.teamIndex = 0;
+          let i = spotlight.teamIndex;
+          spotlight.playerIndex[ i ] += 1;
+          if (spotlight.playerIndex[ i ] >= limits.playerIndex[ i ]) spotlight.playerIndex[ i ] = 0;
+        }
+        spotlight.teamName = teamNamesInPlayOrder[spotlight.teamIndex];
+        // where does gamePlayTimerDuration first get set? initGamePlayState()
+        let timerDuration = gamePlay.timerDuration || options.defaultDuration;
+
+        let update = {
+          spotlight,  // mutated
+          timer: null,
+          log: {},
+          timerDuration,
+          word: null,
+          isTicking: false,
+          timerPausedAt: null,
+          doBeginPlayerRound: true,
+          playerRoundComplete: false,   // playerRoundComplete stays true until moveSpotlight
+        } as GamePlayState;
+        console.warn("13:b moveSpotlight=", JSON.stringify(spotlight))
+
+        return this.pushGamePlayState(update)
+      }),
+    ).toPromise()
   }
-
+      
+  
 
   /**
    * update GamePlayLog with the lastest values from the player round, gamePlay.log
@@ -633,9 +889,8 @@ export class GameHelpers {
    * @param round 
    */
   pushGameLog(watch:GamePlayWatch, round:GamePlayRound ) :Promise<void>{
-    let {uid, gamePlay$, gameLog$} = watch;
+    let {gamePlay$, gameLog$} = watch;
     let gameId = round.gameId;
-    let rid = uid;
     return new Promise( (resolve, reject)=>{
       combineLatest( gamePlay$, gameLog$ ).pipe(
         take(1),
@@ -646,21 +901,28 @@ export class GameHelpers {
           // copy results to GamePlayLog  path=/gamePlayLog/[gameId]
           let roundKey = `round${round.round}`
           let curVal = gameLog[roundKey] as GamePlayLogEntries;
-          let mergeLogEntries = Object.assign( {} , curVal, gamePlay.log) as GamePlayLogEntries;
+          let cleanLog = Object.entries(gamePlay.log).reduce( (o,[k,v])=>{
+            o[k]=Helpful.cleanProperties(v);
+            return o;
+          }
+          , {});
+          let mergeLogEntries = Object.assign( {} , curVal, cleanLog) as GamePlayLogEntries;
           // let updateLog = {[roundKey]: mergeLogEntries};
           // updateLog = Helpful.sortObjectByKey( updateLog, -1 ); // DESC
           return Promise.resolve()
           .then( ()=>{
             let logPath = `/gameLogs/${gameId}/${roundKey}`;
-            // console.log(">>> pushGameLog(): mergeLogEntries", mergeLogEntries)
+            console.log("13: >>> pushGameLog(): mergeLogEntries", mergeLogEntries)
             return this.db.object<GamePlayLog>(logPath).update(mergeLogEntries)
           })
           .then( v=>{
             // merge gameLog entries into round.entries
-            let merged = FishbowlHelpers.updateFishbowl(round, mergeLogEntries);
+            let cleanLog = FishbowlHelpers.filter_BeginRoundMarker(gamePlay.log);
+            let merged = FishbowlHelpers.updateFishbowl(round, cleanLog);
             let updateRound = {
               entries: merged,
             } as GamePlayRound;
+            let rid = gamePlay["_rid"];
             return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(updateRound).then(
               ()=>console.log("0>>> update round.entries=", updateRound)
             )
@@ -693,6 +955,7 @@ export class GameHelpers {
     }
 
     return watch.gameLog$.pipe( 
+      filter( o=>!!o),
       first(), 
       map( (gameLog)=>{
         if (!gameLog) {
@@ -749,14 +1012,27 @@ export class GameHelpers {
       this.db.object<GamePlayRound>(`/rounds/${rid}`).update(roundUpdate);
     });
   }
-
+  
+  pushGameState( gameId: string, update:Partial<Game>): Promise<void>{
+    let whitelist = ['label', 'activeGame', 'playerCount', 'isGameOpen', 'complete', 'public', 'doPassThePhone']
+    update = Helpful.pick( update, ...whitelist );
+    return this.db.object<Game>(`/games/${gameId}`).update( update )
+  }
+  
   pushCheckIn( gameId: string, checkIn:CheckInByUids): Promise<void>{
     let update = checkIn;
     return this.db.object<Game>(`/games/${gameId}/checkIn`).update( update )
   }
 
-  async patchPlayerId( gameId: string, game:Game, changeId:{old:string, new:string}): Promise<any>{
-    if (!!game.activeRound) return Promise.reject("ERROR: cannot PatchPlayerid, game as already begun")
+  async patchPlayerId( gameId: string, game:Game, changeId:{old:string, new:string}, force:boolean=false): Promise<any>{
+    if (!!game.activeRound) {
+      // reject if already checkedIn
+      if (!!game.checkIn[changeId.old] && !force)
+        return Promise.reject("ERROR: player already checked in")
+      
+    }
+
+    // patch Games
     let update = {}
     let keys = ['players', 'entries', 'checkIn', 'moderators'];
     keys.map( k=>{
@@ -771,6 +1047,33 @@ export class GameHelpers {
     let waitFor = Object.entries(update).map( ([k,v])=>{
       return this.db.object<Game>(`/games/${gameId}/${k}`).set( v as any )
     });
+
+    // patch Rounds: players & Team Assignments
+    let roundIds = Object.keys(game.rounds);
+    let waitFor2 = roundIds.map( (rid=>{
+      return this.db.object<GamePlayRound>(`/rounds/${rid}`).valueChanges().pipe(first()).toPromise()
+      .then( round=>{
+        let update2 = {};
+        let {players, teams} = round;
+        if (players.hasOwnProperty(changeId.old)) {
+          players[changeId.new] = players[changeId.old];
+          players[changeId.old] = null;
+          Object.assign( update2, {players});
+        };
+        Object.entries(teams).find( ([teamName,pids])=>{
+          let foundIndex = pids.findIndex( pid=>pid==changeId.old );
+          if (~foundIndex) {
+            teams[teamName].splice( foundIndex, 1, changeId.new)
+            Object.assign( update2, {teams});
+            return true;
+          }
+        })
+        return this.db.object<GamePlayRound>(`/rounds/${rid}`).update(update2);
+      });
+    }));
+
+    waitFor = [].concat( ...waitFor, ...waitFor2 );
+
     return Promise.all(waitFor).then( ()=>{
       console.warn( "patchPlayerid DONE  ", gameId, update)
     },
@@ -785,14 +1088,14 @@ export class GameHelpers {
   /**
    * moderator/admin methods
    */
-  pushTeamRosters( gameDict:GameDict, teams:TeamRosters): Promise<void>{
+  pushTeamRosters( gameDict:GameDict, gamePlayWatch:GamePlayWatch, teams:TeamRosters): Promise<void>{
     let activeRoundId = gameDict.game.activeRound;
     if (!activeRoundId) {
       let {prev, next} = FishbowlHelpers.getRoundIndex(gameDict)
       activeRoundId = next;
     }
     // update gamePlay.spotlight.playerIndex
-    return gameDict.gamePlayWatch.gamePlay$.pipe(
+    return gamePlayWatch.gamePlay$.pipe(
       first(),
     ).toPromise()
     .then( gamePlay=>{
@@ -804,10 +1107,9 @@ export class GameHelpers {
       Object.entries(teams).forEach( ([teamName,playerIds], i)=>{
         if (spotlight.playerIndex[i]>playerIds.length-1) spotlight.playerIndex[i]=0;
       });
-      
       let waitFor=[
         this.db.object<GamePlayRound>(`/rounds/${activeRoundId}`).update( {teams} ),
-        this.pushGamePlayState( gameDict.gamePlayWatch, {spotlight} ),
+        this.pushGamePlayState( {spotlight} ),
       ];
       return Promise.all(waitFor)
     })
@@ -817,7 +1119,7 @@ export class GameHelpers {
   listenTeamRosters$( gameDict:GameDict):Observable<TeamRosters>{
     let activeRoundId = gameDict.game.activeRound;
     if (!activeRoundId) {
-      let {prev, next} = FishbowlHelpers.getRoundIndex(gameDict)
+      let {next} = FishbowlHelpers.getRoundIndex(gameDict)
       activeRoundId = next;
     }
     return this.db.object<TeamRosters>(`/rounds/${activeRoundId}/teams`).valueChanges();
@@ -854,6 +1156,7 @@ export class GameHelpers {
       }
       let resetGame = {
         complete: false,
+        isGameOpen: null,
         activeRound: null,
         checkIn: Object.keys(game.moderators).reduce( (o,k)=>(o[k]=false,o),{}),   // default moderator are hidden
         rounds: onlyUnplayed ? unplayed : null,

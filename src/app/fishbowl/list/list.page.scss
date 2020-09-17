@@ -1,34 +1,20 @@
 app-countdown-timer {
-  --countdown-fill-border: none;
-  --countdown-fill-border-radius: 10px;
-  --countdown-fill-background: #FFFFFF;
-  --countdown-fill-shadow: 0px 0px 5px 0px rgba(0,0,0, 0.2);
-}
-app-countdown-timer {
   --countdown-margin: 4px;
-  --countdown-padding: 4px;
-  --countdown-time-margin: 4px;
-  --countdown-time-padding: 4px;
+  --countdown-time-margin: 0px 4px;
   --countdown-inner-time-margin: 2px;
   --countdown-inner-time-padding: 0px;
-}
-
-app-countdown-timer {
-  background-color: transparent;
   --countdown-padding: 10px;
-  --countdown-time-margin: 0px 4px;
   --countdown-time-padding: 10px 10px;
   --countdown-fill-border: none;
   --countdown-fill-border-radius: 10px;
   --countdown-fill-shadow: 0px 0px 5px 0px rgba(0,0,0, 0.2);
   --countdown-value-font-size: 1.5em;
   --countdown-value-font-weight: 500;
-}
-
-app-countdown-timer {
   --countdown-fill-background: var(--ion-color-tertiary);
   --countdown-value-color: var(--ion-color-light);
   --countdown-unit-color: var(--ion-color-light);
+
+  background-color: transparent;
 }
 
 .game-time {
@@ -48,4 +34,28 @@ ion-card.welcome {
     font-size: 20px;
     font-weight: 700;
   }
+}
+
+
+ion-fab-button[data-desc] {
+  position: relative;
+}
+
+ion-fab-button[data-desc]::after {
+  position: absolute;
+  content: attr(data-desc);
+  z-index: 99;
+  right: 55px;
+  bottom: 4px;
+  background-color: rgba(var(--ion-color-success-rgb), 1);
+  padding: 6px 16px;
+  border-radius: 3px;
+  color: var(--ion-color-dark);
+  box-shadow: 0 3px 5px -1px rgba(0,0,0,0.2), 0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12);
+}
+ion-fab-button[color="tertiary"][data-desc]::after {
+  background-color: rgba(var(--ion-color-tertiary-rgb), 1);
+}
+ion-fab-button[color="warning"][data-desc]::after {
+  background-color: rgba(var(--ion-color-warning-rgb), 1);
 }

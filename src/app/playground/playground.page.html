@@ -34,7 +34,7 @@
               </div>
               <div class="timer-controls">
                 <ion-button #playTimer id="play-timer" expand="block" color="success" (click)="resetTimer()">30s timer</ion-button>
-                <ion-button color="light" (click)="toggleVolumeIcon()">
+                <ion-button color="light" (click)="volumeClick()">
                   <ion-icon [name]="stash.audioVolumeIcon" >
                     <audio #timerAudio expand="block" color="success" (click)="preload()"></audio>
                   </ion-icon>

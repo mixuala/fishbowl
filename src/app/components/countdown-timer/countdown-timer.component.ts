@@ -7,6 +7,12 @@ import * as dayjs from 'dayjs';
 
 const LATENCY_MS = 900;  // add time so timer display begins at 30
 
+export interface CountdownTimerDurationOptions {
+  seconds: number;
+  key: number;
+  offset?: number;
+}
+
 @Component({
   selector: 'app-countdown-timer',
   templateUrl: './countdown-timer.component.html',
@@ -15,12 +21,21 @@ const LATENCY_MS = 900;  // add time so timer display begins at 30
   ]
 })
 export class CountdownTimerComponent implements OnInit, OnDestroy {
-  _endingTime: any;
+  static completed = {};
+
+  _endingTime: dayjs.Dayjs;
   _initialUnit = 'hour';
   _endingUnit = 'second';
 
   _updateInterval: Observable<any> = interval(1000);
   private _unsubscribeSubject: Subject<void> = new Subject();
+
+  /**
+   * detect component bootstrap 
+   * - required for adjusting elapsed time when duration timer is already ticking
+   */
+  private _isBootstrap: boolean = true;
+
   pauseTimer$: BehaviorSubject<boolean> = new BehaviorSubject(false);
   complete$: BehaviorSubject<boolean> = new BehaviorSubject(false);
 
@@ -58,50 +73,81 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
 
   @Input() 
   /**
-   * set duration to operation in "timer" mode
+   * set countdownTimer in "timer" mode
+   * 
    *  o={
    *    seconds: number
    *    key: number (use unixtime)
+   *    serverTime: firebase serverTime, common to all clients
+   *    serverOffset0: serverTime - timer.key (reference timestamp for options.seconds)
+   *    serverOffset1: serverTime - now (time on local client)
+   *    elapsed: now - (timer.key + serverOffset0) if timer is ALREADY ticking, otherwise 0
    *  }
-   *  o==null cancels timer
-   *  o=={ pause:true } pauses timer, without  clearing ending time
+   *  o==null cancels timer without buzz
+   *  o=={ pause:true } pauses timer, without clearing ending time
+   * 
+   *  NOTE: this.duration is NEVER set, use this._endingTime
    */
-  set duration( o: {seconds?: number, pause?:boolean, key?: number}) {
-    if (!o || o.seconds===null) {
-      // reset timer
+  set duration( options:CountdownTimerDurationOptions|{pause?:boolean} ) {
+    // console.warn("\n\n\t\t 28::::A set duration(), options=", options);
+    const MAX_OFFSET_MS = 2000  // max timer offset to account for network latency
+    let { pause, key, seconds } = options || {} as any;
+        
+    if (!!pause){
+      this.stop();  // and do NOT restart ngOnChanges
+      return;
+    }
+
+    if (!seconds || options==null || JSON.stringify(options)==="{}") {
       this._endingTime=null;
       return;
     }
     
-    if (o && o.key && o.key==this.key){
-      // console.info("-1> $$$ timer ending time:", this._endingTime.toDate())
-      return
+    if (!!this.timerOptions){
+      let tid = JSON.parse(this.timerOptions);
+      if (!!key && key===tid.key){
+        // console.info("28::::A \t ### countdownTimer  duration timer >>> CACHE HIT, SKIP, timer:", this.timerOptions)
+        return
+      }
     }
 
-    let {pause, key, seconds } = Object.assign({},o);  // mutating somehow?
-    if (pause){
-      this.stop();  // and do NOT restart ngOnChange
-      return;
-    }
     
-
+    
     /**
      * ngOnChange gets called regardless, so trigger on 
      * SimpleChange.currentValue, not this._endingTime which is mutated here
      */
-    if (key) {
-      this.offset = 0;
-      if (typeof key == "number"){
-        let offset = Date.now()-key;
-        if (offset < 10*1000) {
-          this.offset = offset;
-        }
-      }
+    let now = Date.now();
+    let duration = seconds*1000 + LATENCY_MS;
+    let offset: number;
+    let {serverTime, serverOffset0, serverOffset1, elapsed} = options as any;
+    if (!serverTime) {
+      // set countdownTimer from pushGamePlayState( localFirst ), skip cloud state change
+      elapsed = now - key; // key = now
+      offset = -elapsed;
+      // console.warn("120:LOCAL\t y> countdownTimer: set duration(), LOCAL=", {offset, elapsed, key, now})
+    } else {
+      // from cloud state change
+      // (remote) serverTime = timer.key + serverOffset0
+      // (local) serverTime = now + serverOffset1
+      // key = now -serverOffset0 +serverOffset1 (mov avg)
+      // now = -serverOffset0 + serverOffset1 + key
+
+      offset = (serverOffset1||-elapsed) -serverOffset0
+      // console.warn("120:\t y> countdownTimer: set duration(), adding offsetMS=", {
+      //   offset, elapsed, serverOffset0, serverOffset1, serverTime, key, 
+      // });
     }
 
-    let duration = seconds*1000 - this.offset + LATENCY_MS;
-    this._endingTime = dayjs().add(duration, 'millisecond');
-    // => onto ngOnChange()
+    let clock = duration -elapsed
+    // same as clock=duration -serverOffset1
+    if (this._isBootstrap) {
+      clock -= serverOffset0;     // serverOffset0 represents elapsed time at bootstrap
+      // same as clock=duration -serverOffset1 - serverOffset0
+      // console.warn("\t\t 28::::B set duration", serverOffset0, options);
+    }
+    this._endingTime = dayjs(key-offset).add(clock, 'millisecond');
+    // same as key-serverOffset1+serverOffset0 + duration -serverOffset1 - serverOffset0
   }
 
   @Input()
@@ -138,18 +184,17 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     }
   }
 
-  @Output() onBuzz = new EventEmitter<Date | {seconds: number}>(); 
+  @Output() onBuzz = new EventEmitter<Date | CountdownTimerDurationOptions>(); 
+
   @Input() stopAtZero:boolean = false;
 
-  key: number;          // id for active timer, use unixtime()
-  offset: number;       // latency between db post time and first() response
+  timerOptions: string; // options for active timer, JSON.stringify()
   subscription: Subscription;
   hasBuzzed: boolean;   // [duration=[o]] && [stopAtZero=false] should only buzz once
 
   constructor() { }
 
   ngOnInit(): void {
-    this.startCountdown();
   }
 
   public getTimeRemaining(units:dayjs.UnitType='second'):number{
@@ -167,31 +212,53 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
     }
     this.complete$.next(true);
     this.pauseTimer$.next(true);
-    this.key = null;
+    this.timerOptions = null;
     return time;
   }
 
   public buzzTimer(reset=false) {
-    let result = (this._endingTime as dayjs.Dayjs).toDate();
-    this.onBuzz.emit(result);
-    this.hasBuzzed = true;
-    if (reset){
-      this.complete$.next(true);
-      this._secondsLeft = 0;
+    let resp = JSON.parse(this.timerOptions);
+    if (CountdownTimerComponent.completed[this.timerOptions]) {
+
+      
+      // TODO: countdownTimer must return animateTarget if we want to animate/buzz(silent) multiple timers on moderator page
+      
+
+      // resp['silent']=true;
+      console.warn( "\t>>> 16. Timer already buzzed by another instance, timer=", resp);
+      // this.onBuzz.emit(resp);
     }
+    else {
+      this.onBuzz.emit(resp);
+    }
+    this.hasBuzzed = true;
+    CountdownTimerComponent.completed[this.timerOptions] = 1
+    reset && this.doReset();
   }
 
-  startCountdown(o:{key?:number}={}): void {
-    if (!!o.key && o.key == this.key){
-      // same timer, pass
-      // ???: BUG: timer resets if the spotlightUser is signed in multiple times!!!
-      return
-    }
+  public doReset() {
+    this.complete$.next(true);
+    this._secondsLeft = 0;
+    this.timerOptions = null;
+    setTimeout( ()=>{this.timerOptions = null}, 500);
+  }
+
+  startCountdown(options:any=null): void {
+    try {
+      let o = JSON.parse(this.timerOptions);
+      let shouldSkip = !this._isBootstrap;
+      shouldSkip = shouldSkip && !!options.key && options.key===o.key;
+      if (shouldSkip){
+        // console.info("\t\t 28::::A startCountdown() >>> CACHE HIT, SKIP, timer=", o);
+        return
+      }
+    } catch (err) {}
 
     if (!this._endingTime) {
       this._secondsLeft = 0;
       return
     }
+
     if (this.stopAtZero) {
       const secondsLeft = this._endingTime.diff(dayjs(), 'second');
       if (secondsLeft<=0) {
@@ -201,15 +268,20 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
       }
     }
 
-
-
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
     this.complete$.next(false);
     this.pauseTimer$.next(false);
     this.hasBuzzed = false;
-    this.key = o.key || Date.now();
+    if (!this.timerOptions){
+      // save options so we can detect and ignore duplicate calls by options.key
+      this.timerOptions = JSON.stringify(options || this._endingTime.unix());
+    }
+    // console.warn("\t\t 28::::A startCountdown() [options,timerOptions]=", options, this.timerOptions, "\n\n\n");
+
+
+
     this.subscription = this._updateInterval.pipe(
       takeUntil(this._unsubscribeSubject),
       takeWhile( _=>this.complete$.value==false),
@@ -220,7 +292,6 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
 
         // console.info("1> $$$ timer ending time:", this._endingTime.toDate())
         const secondsLeft = this._endingTime.diff(dayjs(), 'second');
-
         
         this._daysLeft = Math.floor(this._dayModulus(secondsLeft) / this._dayDivisor);
         this._hoursLeft = Math.floor(this._hourModulus(secondsLeft) / this._hourDivisor);
@@ -229,8 +300,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
 
         if (secondsLeft <=0 ) {
           let result = (this._endingTime as dayjs.Dayjs).toDate();
-          let doReset = this.stopAtZero;
-          if (!this.hasBuzzed) this.buzzTimer(doReset);
+          if (!this.hasBuzzed) this.buzzTimer( this.stopAtZero );
         }
       },
       (error) => console.error(error),
@@ -254,24 +324,31 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
             }
           }
           else {
-            this.startCountdown(this._endingTime);
+            this.startCountdown();
           }
+          if (!!change.firstChange) this._isBootstrap = false;
           break;
         }
         case 'duration':
         {
-          if (change.firstChange) {  // skip firstChange from ngOnInit()
-            return
-          }
-          if (this._endingTime>0 && change.currentValue.pause!=true)  {
+          /**
+           * bootstrap lifecycle for:
+           *  - duration setter()
+           *    - this._endingTime
+           *  - ngOnChanges({duration: timerOptions})
+           *    - startCountdown(change.currentValue)
+           *  - ngOnInit()
+           * */ 
+          if (!!this._endingTime && change.currentValue.pause!=true)  {
             this.startCountdown(change.currentValue);
           }
-          else if (this._endingTime===null || this._endingTime===0) {
+          else if (!this._endingTime) {
             this.complete$.next(true);
             this.pauseTimer$.next(true);
             this._secondsLeft = 0;
             // console.log("countdownTimer stopped with value=null");
           }
+          if (!!change.firstChange) this._isBootstrap = false;
           break;
         }
       }

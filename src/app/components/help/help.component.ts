@@ -22,13 +22,17 @@ export class HelpComponent implements OnInit {
    * @param options
    */
   public static dismissed:any = null; // check before modal.present()
-  public static last:HTMLIonModalElement;
+  public static last:HTMLIonModalElement = null;
   public template: string;
 
   /**
    * 
    * @param modalCtrl 
    * @param options 
+   *        dismissKeyPrefix: add prefix to dismissKey, e.g. game.label
+   *        throttleTime:number, skip creation until throttleTime has passed
+   *        replace:boolean, when true, dismiss HelpComponent.last
+   *        replaceSame:boolean, when true replace duplicate template
    * @returns Promise<any> resolves on modelCtrl.onDidDismiss
    */
   public static
@@ -38,18 +42,34 @@ export class HelpComponent implements OnInit {
       // return Promise.resolve();
     }
     const defaults:any = {
-      once: true,
+      once: false,
+      replace: true,                  // TODO: confirm this should be the default
+      replaceSame: false,
       // backdropDismiss: true,
       // enableBackdropDismiss: true,
       // showBackdrop: true,
     };
     options = Object.assign( defaults, options);
     let done$ = new Subject<boolean>(); 
-
+    
+    console.log("14:2 HelpComponent.presentModal(), template=", options.template)
     return Promise.resolve()
     .then( ()=>{
       if (!!HelpComponent.last) {
-        return HelpComponent.last && HelpComponent.last.dismiss(true);
+        /**
+         * dismiss last template, if necessary
+         */
+        let template = HelpComponent.curTemplate();
+        if (!!options.replace) {
+          return HelpComponent.dismissTemplate(); // replace regardless
+        }
+        if (template==options.template){
+          if (!options.replaceSame) {             // replace only if same
+            return Promise.reject('skip');
+          }
+          return HelpComponent.dismissTemplate(template);
+        }
+        return Promise.reject('skip');            // skip, modal in use
       }
     })
     .then( async ()=>{
@@ -58,9 +78,20 @@ export class HelpComponent implements OnInit {
       if (HelpComponent.dismissed == null) {
         await HelpComponent._loadStorage();
       }
-      let dismissKey = typeof options.once == "string" ?  `${options.template}:${options.once}` : options.template;
-      if (HelpComponent.dismissed[dismissKey]) {
-        return Promise.reject('skip');
+      let dismissKey = HelpComponent.getDismissKey(options);
+      let dismissedValue = HelpComponent.dismissed[dismissKey];
+      switch (typeof dismissedValue) {
+        case 'number': {
+          // dismissedValue = timestamp of last dismissal
+          let {throttleTime} = options;
+          if (throttleTime && Date.now() < (dismissedValue+throttleTime)) {
+            return Promise.reject('skip');
+          }
+          break;
+        }
+        case 'boolean':{
+          if (dismissedValue) return Promise.reject('skip');
+        }
       }
     })
     .then( ()=>{
@@ -70,6 +101,9 @@ export class HelpComponent implements OnInit {
       });
     })
     .then( async (modal) => {
+      HelpComponent.last = modal;
+
+
       modal.classList.add('help-modal');  
       modal.style.zIndex = '99999';       // force z-index
       let waitForDissmissal = new Promise<any>( resolve=>{
@@ -79,6 +113,7 @@ export class HelpComponent implements OnInit {
             tap(()=>modal.dismiss())
           ).subscribe();
         }
+
         modal.present()
         .then( async ()=>{
           await modal.onWillDismiss()
@@ -90,11 +125,12 @@ export class HelpComponent implements OnInit {
           .then( (resp)=>{
             let result = (options.onDidDismiss) ? options.onDidDismiss(resp) : resp;
             HelpComponent.last = null;
+            // console.warn("14:4 modal.onDidDismiss(), template=", modal.componentProps.template)
             resolve(result)
             // let {template} = modal.componentProps;
           });
-        })
-        HelpComponent.last = modal;
+        });
+        
       });
       return waitForDissmissal;
     })
@@ -106,6 +142,33 @@ export class HelpComponent implements OnInit {
     });
   }  
 
+  public static
+  getDismissKey(options):string {
+    let dismissKey = [options.template]
+    if (!!options.dismissKeyPrefix) dismissKey.unshift( options.dismissKeyPrefix );
+    return dismissKey.join('~')
+  }
+
+  public static
+  curTemplate():string{
+    try {
+      return HelpComponent.last.componentProps.template;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  public static
+  dismissTemplate(template:string=null):Promise<boolean>{
+    try {
+      let lastTemplate = HelpComponent.curTemplate();
+      if (template && template==lastTemplate) {
+        return HelpComponent.last.dismiss(true);
+      }
+      if (!template) return HelpComponent.last.dismiss(true);
+    } catch (err) {
+    }
+  }
 
 
   private static
@@ -136,18 +199,18 @@ export class HelpComponent implements OnInit {
   }
 
   onDismissClick(ev:MouseEvent){
-    let self = this as any;
-    if (!!self.once) {
-      let dismissKey = typeof self.once == "string" ?  `${self.template}:${self.once}` : self.template;
+    let self = this as any;  // same as self.modal.componentProps 
+    let options = self.modal.componentProps || {};
+    let dismissKey = HelpComponent.getDismissKey(options);
+    if (!!options.once) {
       HelpComponent.dismissed[dismissKey] = true;
-      let key = HelpComponent.STORAGE_KEY;
-      let value = JSON.stringify(HelpComponent.dismissed);
-      Storage.set( { key, value } )
-      // .then( async ()=>{
-      //   let res = await Storage.get( {key} );
-      //   console.log("Storage set value=", key, JSON.parse(res.value) );
-      // });
-    }    
-    self.modal.dismiss();
+    }
+    else if (!!options.throttleTime) {
+      HelpComponent.dismissed[dismissKey] = Date.now();
+    }
+    let key = HelpComponent.STORAGE_KEY;
+    let value = JSON.stringify(HelpComponent.dismissed);
+    Storage.set( { key, value } )
+    self.modal.dismiss(true);
   }
 }

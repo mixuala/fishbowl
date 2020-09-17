@@ -1,6 +1,7 @@
 <ion-header>
   <ion-toolbar color="success">
     <ion-buttons slot="start">
+      <ion-back-button></ion-back-button>
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
     <ion-title>
@@ -19,6 +20,10 @@
             <ion-card-header color="tertiary">
               <ion-card-title>
                 {{game.label}}
+                <div class="ion-float-right inline-text-wrap">
+                  <ion-badge  *ngIf="game.quickPlay" color="warning" >QuickPlay</ion-badge>
+                  <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
+                </div>
               </ion-card-title>
               <ion-card-subtitle>
                 Game Settings
@@ -51,7 +56,7 @@
                   
                 <ion-item class="input-item">
                   <ion-label position="stacked">Game Title</ion-label>
-                  <ion-input type="text" placeholder="A super-fun title" formControlName="label" clearInput autocapitalize="words" inputmode="text"></ion-input>
+                  <ion-input type="text" placeholder="A super-fun title" formControlName="label" clearInput inputmode="text"></ion-input>
                 </ion-item>
                 <div class="error-container">
                   <ng-container *ngFor="let validation of validation_messages.label">
@@ -64,7 +69,7 @@
 
                 <ion-item class="input-item">
                   <ion-label position="stacked">Start Time</ion-label>
-                  <!-- <ion-input type="text" placeholder="" formControlName="startTime" clearInput autocapitalize="word" inputmode="text"></ion-input> -->
+                  <!-- <ion-input type="text" placeholder="" formControlName="startTime" clearInput inputmode="text"></ion-input> -->
                   <ion-datetime [displayFormat]="stash.pickDatetime.format" [min]="stash.pickDatetime.min" [max]="stash.pickDatetime.max" minuteValues="0,15,30,45"
                   [value]="stash.pickDatetime.value" (ionChange)="gameTimeChanged($event)"
                   ></ion-datetime>
@@ -79,7 +84,7 @@
                 </div>
                 <!-- <ion-item class="input-item" color="medium">
                   <ion-label position="stacked">Game Time</ion-label>
-                  <ion-input type="text" readonly="true" placeholder="" formControlName="startTime" clearInput autocapitalize="word" inputmode="text"></ion-input>
+                  <ion-input type="text" readonly="true" placeholder="" formControlName="startTime" clearInput inputmode="text"></ion-input>
                 </ion-item>
                 <div class="error-container">
                   <ng-container *ngFor="let validation of validation_messages.startTime">
@@ -94,7 +99,7 @@
                 <ion-item class="input-item">
                   <ion-label position="stacked">Video Link</ion-label>
                   <ion-textarea class="url-wrap" type="url" inputmode="url" rows="2" auto-grow="true"
-                  placeholder="The Zoom/Google Meet link all players will join" formControlName="chatRoom" clearInput></ion-textarea>
+                  [placeholder]="chatRoomPlaceholder" formControlName="chatRoom" clearInput></ion-textarea>
                 </ion-item>
                 <div class="error-container">
                   <ng-container *ngFor="let validation of validation_messages.chatRoom">
@@ -109,10 +114,10 @@
 
 
             
-              <ion-list class="inputs-list" lines="full">
+              <ion-list class="inputs-list wide" lines="full">
                 <ion-item class="input-item">
                   <ion-label position="stacked">Game Master Name</ion-label>
-                  <ion-input type="text" placeholder="Your all-powerful screen name" formControlName="name" clearInput autocapitalize="word" inputmode="text"></ion-input>
+                  <ion-input type="text" placeholder="Your all-powerful screen name" formControlName="name" clearInput inputmode="text"></ion-input>
                 </ion-item>
                 <div class="error-container">
                   <ng-container *ngFor="let validation of validation_messages.name">
@@ -126,7 +131,7 @@
 
                 <ion-item class="input-item">
                   <ion-label position="stacked">Team Name A</ion-label>
-                  <ion-input type="text" placeholder="like Blue Team" formControlName="teamA" clearInput autocapitalize="words" inputmode="text"></ion-input>
+                  <ion-input type="text" placeholder="like Blue Team" formControlName="teamA" clearInput inputmode="text"></ion-input>
                 </ion-item>
                 <div class="error-container">
                   <ng-container *ngFor="let validation of validation_messages.team">
@@ -139,7 +144,7 @@
                 
                 <ion-item class="input-item">
                   <ion-label position="stacked">Team Name B</ion-label>
-                  <ion-input type="text" placeholder="and Green Team" formControlName="teamB" clearInput autocapitalize="words" inputmode="text"></ion-input>
+                  <ion-input type="text" placeholder="and Green Team" formControlName="teamB" clearInput inputmode="text"></ion-input>
                 </ion-item>
                 <div class="error-container">
                   <ng-container *ngFor="let validation of validation_messages.team">

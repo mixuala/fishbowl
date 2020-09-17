@@ -14,7 +14,7 @@
       </ion-col>
     </ion-row>
     <ion-row class="ion-no-padding wide">
-      <ion-col size="6" *ngFor="let log of ( getLog(gamePlay) | keyvalue)">
+      <ion-col size="6" *ngFor="let log of ( getLog(gamePlay) | keyvalue:timeOrder )">
         <ion-item >
           <ion-icon slot="start" *ngIf="!isModerator; else moderatorToggle "
             [name]="log.value.result ? 'checkbox' : 'close-circle'" 

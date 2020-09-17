@@ -5,7 +5,7 @@
     <ion-col size="12" size-sm="7" size-xl="5">
     <ng-container [ngSwitch]="template">
 
-      <ion-card class="content" padding *ngSwitchCase="'intro'">
+      <ion-card class="content interstitial" padding *ngSwitchCase="'intro'">
         <ion-item color="tertiary">
           <!-- <ion-icon slot="start" size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
           <ion-avatar slot="start" size="large" >
@@ -31,6 +31,7 @@
         </ion-card-content>        
       </ion-card>
 
+      <!-- doInterstitialsWithScoreboard() -->
       <ion-card class="content interstitial player-round-complete" padding *ngSwitchCase="'player-round-complete'">
         <ion-card-header color="tertiary">
           <ion-card-title>
@@ -68,7 +69,7 @@
             </ion-grid>
           </div>
 
-
+          <!-- doInterstitialsWithScoreboard() -->
           <div class="game-summary">
             <ion-item-divider class="ion-margin-top">
               <ion-note>game summary</ion-note>
@@ -120,7 +121,7 @@
 
 
 
-      
+      <!-- doInterstitialsWithScoreboard() -->
       <ion-card class="content interstitial game-round-complete" padding *ngSwitchCase="'game-round-complete'">
         <ion-card-header color="tertiary">
           <ion-card-title>
@@ -186,10 +187,9 @@
 
 
       
-
-      <ion-card class="content pre-game player-welcome" padding *ngSwitchCase="'player-welcome'">
+      <!-- showWelcomeInterstitial() -->
+      <ion-card class="content interstitial pre-game player-welcome" padding *ngSwitchCase="'player-welcome'">
         <ion-item color="tertiary"  class="title">
-          <!-- <ion-icon slot="start" size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
           <ion-avatar slot="start" size="large" >
             <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
           </ion-avatar>
@@ -202,56 +202,93 @@
 
         <ion-card-content>
 
-          <h1 class="content-header inline-text-wrap">
-            <span>
-              <ion-text color="tertiary"><strong> {{gameTitle}} </strong></ion-text>
-              is now
-            </span> 
-            <ion-badge color="success" class="is-live">live</ion-badge>
-          </h1>
+          <ng-container *ngIf="game && !game.quickPlay; else quickPlayWelcome">
+            <h1 class="content-header inline-text-wrap">
+              <span>
+                <ion-text color="tertiary"><strong> {{gameTitle}} </strong></ion-text>
+                is waiting for Player Entries.
+              </span> 
+            </h1>
 
-          <div *ngIf="hasEntry; else doEntry">
-            <div class="ion-text-center">
-              <div class="hero">
-                <ion-note class="ion-text-left" color="tertiary">player</ion-note>
-                <p class="player-name"><ion-text color="light">
-                  {{playerName}}
-                </ion-text></p>
+            <div *ngIf="hasEntry; else doEntry">
+              <div class="ion-text-center">
+                <div class="hero">
+                  <ion-note class="ion-text-left" color="tertiary">You are Player</ion-note>
+                  <p class="player-name"><ion-text color="light">
+                    {{playerName}}
+                  </ion-text></p>
+                </div>
               </div>
+
+              <h3><ion-text color="light">
+                Join the video stream and relax until the game begins...
+              </ion-text></h3>
+              <ion-button expand="block" color="success" class="ion-margin-vertical taller"
+              [href]="chatRoom" [title]="chatRoom" target="_blank">
+                <ion-icon name="videocam" slot="start"></ion-icon>
+                Open Video Chat Room
+              </ion-button>
+              <div class="ion-margin-vertical"></div>
             </div>
 
-            <h3><ion-text color="light">
-              Join the video stream and relax until the game begins...
-            </ion-text></h3>
-            <ion-button expand="block" color="success" class="ion-margin-vertical taller"
-            [href]="chatRoom" [title]="chatRoom" target="_blank">
-              <ion-icon name="videocam" slot="start"></ion-icon>
-              Open Video Chat Room
-            </ion-button>
-            <div class="ion-margin-vertical"></div>
-          </div>
+            <ng-template #doEntry>
+              <div class="ion-margin-vertical">
+                <h2><ion-text color="tertiary">Game Entry</ion-text></h2>
+                <h3><ion-text color="light">
+                  To join this game, you must put 3 secret words into the fishbowl.
+                </ion-text></h3>
+              </div>
 
-          <ng-template #doEntry>
-            <div class="ion-margin-vertical">
-              <h2><ion-text color="tertiary">Game Entry</ion-text></h2>
-              <h3><ion-text color="light">
-                To join this game, you must put 3 secret words into the fishbowl.
+              <ion-button expand="block" color="tertiary" size="large" class="ion-margin-vertical"
+              routerDirection="forward" [routerLink]="entryLink" (click)="onDismissClick(true)">
+                Create Game Entry
+              </ion-button>
+              <div class="ion-margin-vertical"></div>
+            </ng-template>
+          </ng-container>
+
+          <ng-template #quickPlayWelcome>
+            <ion-label class="ion-text-center">
+              <h1 class="content-header">
+                <ion-text color="tertiary"><strong> {{gameTitle}} </strong></ion-text>
+                <br />
+                is waiting for Players.
+              </h1>
+            </ion-label>
+
+            <div *ngIf="hasEntry; else doEntry">
+              <div class="ion-text-center">
+                <div class="hero">
+                  <ion-note class="ion-text-left" color="tertiary">You are Player</ion-note>
+                  <p class="player-name"><ion-text color="light">
+                    {{playerName}}
+                  </ion-text></p>
+                </div>
+              </div>
+
+              <h3 class="ion-text-center"><ion-text color="light">
+                Just relax until the game begins...
               </ion-text></h3>
             </div>
+            <ng-template #doEntry>
+              <ion-button expand="block" color="tertiary" size="large" class="taller ion-margin-top"
+              routerDirection="forward" [routerLink]="entryLink" (click)="onDismissClick(true)">
+                Join Game
+              </ion-button>
+              <!-- <ion-button expand="block" color="success" size="large" class="taller ion-margin-top"
+              click="">
+                Find Entry
+              </ion-button> -->
+            </ng-template>
 
-            <ion-button expand="block" color="tertiary" size="large" class="ion-margin-vertical"
-            routerDirection="forward" [routerLink]="entryLink" (click)="onDismissClick(true)">
-              Create Game Entry
-            </ion-button>
-            <div class="ion-margin-vertical"></div>
           </ng-template>
 
         </ion-card-content>        
       </ion-card>
 
 
-
-      <ion-card class="content pre-game check-in" padding *ngSwitchCase="'check-in'">
+      <!-- showCheckInInterstitial() -->
+      <ion-card class="content interstitial pre-game check-in" padding *ngSwitchCase="'check-in'">
         <ion-item color="tertiary" class="title">
           <!-- <ion-icon slot="start" size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
           <ion-avatar slot="start" size="large" >
@@ -300,10 +337,9 @@
 
 
 
-
-      <ion-card class="content pre-game team-rosters" padding *ngSwitchCase="'team-rosters'">
+      <!-- showTeamRostersInterstitial() -->
+      <ion-card class="content interstitial pre-game team-rosters" padding *ngSwitchCase="'team-rosters'">
         <ion-item color="tertiary" class="title">
-          <!-- <ion-icon slot="start" size="large" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon> -->
           <ion-avatar slot="start" size="large" >
             <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
           </ion-avatar>
@@ -328,12 +364,126 @@
         </ion-card-content>        
       </ion-card>
 
+      <ng-container *ngSwitchCase="'begin-player-round'">
+        <ng-container *ngIf="(spotlight$ | async) as spotlight">
+          <ng-container *ngIf="(player$ | async) as player">
+            <!-- seen by ONLY spotlight player -->
+            <ng-container *ngIf="spotlight?.uid==getActingPlayerId(player); else passThePhone">
+              <ion-card class="content interstitial pre-round begin-player-round" padding>
+                <ion-item color="tertiary" class="title">
+                  <ion-card-title>
+                    Next Player Round
+                  </ion-card-title>
+                </ion-item>   
+
+                <ion-card-content>
+                  <h1>
+                    <ion-text color="light">
+                      Now on the Spot:
+                    </ion-text> 
+                    &nbsp;
+                    <ion-text [color]="spotlight.teamIndex ? 'success' : 'tertiary'" >
+                      {{ spotlight.playerName }}
+                    </ion-text>
+                  </h1>
+
+                  <div class="begin-player-round-help">
+                    <p>
+                      Click or tap the [start] button to begin your round.
+                    </p>
+                    <ion-button class="ready-button button-over-dark" color="medium" expand="block" size="large"
+                    (click)="spotlightPlayerReadyClick()">
+                      [start]
+                    </ion-button>
+                  </div>
+
+
+                </ion-card-content>        
+              </ion-card>
+            </ng-container>
+
+            <!-- seen by all other players -->
+            <ng-template #passThePhone>
+              <ion-card class="content team-rosters pre-round begin-player-round pass-the-phone">
+                <ion-item color="tertiary" class="title">
+                  <ion-card-title>
+                    Next Player Round
+                  </ion-card-title>
+                </ion-item>   
+      
+                <ion-card-content>
+                  <p class="ion-text-center inline-text-wrap player-callout">
+                    You are player &nbsp;
+                    <ion-badge [color]="player.teamId ? 'success' : 'tertiary'" class="wide">
+                      {{player.displayName}}
+                    </ion-badge> 
+                  </p>
+                  <app-team-roster
+                    [gameDict$]="gameDict$"
+                    [spotlight]="spotlight"
+                    spotlightTeam="true"
+                  ></app-team-roster>
+      
+                </ion-card-content>        
+              </ion-card>
+            </ng-template>
+          </ng-container>
+        </ng-container>
+      </ng-container>
 
 
 
 
+      <ion-card class="content interstitial pre-round change-player" padding *ngSwitchCase="'change-player'">
+        <ion-item color="tertiary" class="title">
+          <ion-card-title>
+            Change Player
+          </ion-card-title>
+        </ion-item>
+        <ion-card-content>
+          <ion-grid>
+            <ion-row>
+              <ion-col size="12" class="ion-text-center">
+                <ion-label color="light">
+                  <h2 class="ion-text-center inline-text-wrap player-callout">
+                    You are player &nbsp;
+                    <ion-badge [color]="player.teamId ? 'success' : 'tertiary'" class="wide">
+                      {{player.displayName}}
+                    </ion-badge> 
+                  </h2>
+                </ion-label>
+              </ion-col>
+            </ion-row>
+            <ion-row  class="ion-justify-content-center ion-margin-top">
+              <ion-col size="12" class="ion-text-center">
+                <h2 class="rules"><ion-text color="light">
+                  You can "pass the phone" and take the spotlight between rounds.</ion-text></h2>
+              </ion-col>
+            </ion-row>
+            <ion-row  class="ion-justify-content-center ion-margin-top">
+              <ion-col size="12" class="ion-text-center">
+                <ion-label color="light">
+                  <h1 class="inline-text-wrap">
+                    Do you want to play as
+                      <br /><ion-badge [color]="spotlight.teamIndex ? 'success' : 'tertiary'"  class="wide"> {{ spotlight.playerName }} </ion-badge>&nbsp;
+                      <br />on this device?
+                  </h1>
+                </ion-label>
+              </ion-col>
+              <ion-col size="4">
+                <ion-button color="warning" expand="block" size="large" (click)="dismiss(true)"> No </ion-button>
+              </ion-col>
+              <ion-col size="8">
+                <ion-button color="success" expand="block" size="large" (click)="doPlayAsClick(spotlight)"> Yes </ion-button>
+              </ion-col>
+            </ion-row>
+          </ion-grid>
+        </ion-card-content>
+      </ion-card>
 
-      <ion-card class="content pre-game begin-game-round" padding *ngSwitchCase="'begin-game-round'">
+
+      <!-- showBeginGameRoundInterstitial() for rounds 1,2,3 -->
+      <ion-card class="content interstitial pre-round begin-game-round" padding *ngSwitchCase="'begin-game-round'">
         <ion-item color="tertiary" class="title">
           <ion-avatar slot="start" size="large" >
             <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
@@ -373,8 +523,6 @@
 
         </ion-card-content>        
       </ion-card>
-
-
 
 
     </ng-container>
