@@ -43,7 +43,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
   _daysLeft: number;
   _hoursLeft: number;
   _minutesLeft: number;
-  _secondsLeft: number;
+  _secondsLeft: number = 0;
 
   // DIVISORS
   // 60 seconds * 60 (minutes) * 24 (hours) = 86400 seconds = 1 day
@@ -297,6 +297,7 @@ export class CountdownTimerComponent implements OnInit, OnDestroy {
         this._hoursLeft = Math.floor(this._hourModulus(secondsLeft) / this._hourDivisor);
         this._minutesLeft = Math.floor(this._minuteModulus(secondsLeft) / this._minuteDivisor);
         this._secondsLeft = Math.floor(this._secondModulus(secondsLeft) / this._secondDivisor);
+        if (isNaN(this._secondsLeft)) this._secondsLeft=0;
 
         if (secondsLeft <=0 ) {
           let result = (this._endingTime as dayjs.Dayjs).toDate();
