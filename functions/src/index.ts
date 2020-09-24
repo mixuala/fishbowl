@@ -57,7 +57,7 @@ app.use(cors({ origin: true }));
 app.post('/', (request:any, response:any) => {
   const {meetingNumber, role} = request.body;
   // console.log( "zoomSig:", meetingNumber, role , "\nrequest.body=", request.body, "\nrequest", request)
-  if (!meetingNumber || typeof role != "number") {
+  if (!meetingNumber || typeof role !== "number") {
     response.status(400).send({ message: 'missing meetingNumber or role' });
     return 
   }
@@ -87,7 +87,7 @@ export const zoomSigWithoutExpress = functions.https.onRequest((request, respons
   cors({ origin: true })(request, response, () => {
     const {meetingNumber, role} = request.body;
     console.log( "zoomSig:", meetingNumber, role , "\nrequest.body=", JSON.stringify(request.body), "\nrequest", request)
-    if (!meetingNumber || typeof role != "number") {
+    if (!meetingNumber || typeof role !== "number") {
       response.status(400).send({ message: 'missing meetingNumber or role' });
       return 
     }
@@ -97,3 +97,10 @@ export const zoomSigWithoutExpress = functions.https.onRequest((request, respons
 }); 
 
 
+export const serverTime = functions.https.onRequest((req, res) => {
+  if (req.method !== 'GET') {
+    return res.status(405).send(`${req.method} method not allowed`);
+  }
+  const now = Date.now();
+  return res.send( {serverTime:now} );
+});
