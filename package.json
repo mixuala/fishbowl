@@ -1,13 +1,13 @@
 {
-  "name": "Fishbowl-the-Game",
+  "name": "Fishbowl-Game",
   "description": "The shelter-in-place game for all ages",
-  "version": "0.6",
+  "version": "0.9",
   "author": "github:mixuala",
   "contributors": [
     "Dayana <dayana@startapplabs.com>",
     "Agustín <agustin@startapplabs.com>"
   ],
-  "homepage": "https://fishbowl-the-game.web.app",
+  "homepage": "https://fishbowl-game.web.app",
   "private": false,
   "scripts": {
     "ng": "ng",
