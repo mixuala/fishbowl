@@ -32,6 +32,7 @@ export class EntryPage implements OnInit {
   public stash:any = {
     listen: true,
     addMoreWords: false,
+    autoFillIndex: [],
   };
 
   public listen$ : Subject<boolean> = new Subject<boolean>();
@@ -184,7 +185,6 @@ export class EntryPage implements OnInit {
   }
 
   onWordChanged(o:IonInput, i:number) {
-    
     this.stash.autoFillIndex = this.stash.autoFillIndex.filter( v=>v!=i);
   }
 
@@ -221,11 +221,13 @@ export class EntryPage implements OnInit {
     this.stash.autoFillWords = autoFillWords = Object.assign(autoFillWords || {}, suggestions);
 
     // track autoFill word slots, do NOT replace manually entered/modified words
-    this.stash.autoFillIndex = this.stash.autoFillIndex ||  keys.map( (k,i)=>{
-      let input = this.entryForm.get(k);
-      if (!input.value) return i;
-      return null;
-    }).filter( v=>v!==null);
+    if (this.stash.autoFillIndex.length==0) {
+      this.stash.autoFillIndex = keys.map( (k,i)=>{
+        let input = this.entryForm.get(k);
+        if (!input.value) return i;
+        return null;
+      }).filter( v=>v!==null);
+    }
 
     // console.log( "autoFillIndex", this.stash.autoFillIndex)
 
@@ -250,6 +252,7 @@ export class EntryPage implements OnInit {
       } while (exclude.includes(word) && categoryWords.length)
       input.patchValue(word);
     });
+    this.entryForm.markAsTouched();
   }
 
 
@@ -306,7 +309,11 @@ export class EntryPage implements OnInit {
         }, allowChangePlayerIfALREADYcheckedIn
       ).then( 
         ()=>{
+          // set words to player Entry values
+          // show [OK] button when entryForm.pristine==true && entryForm.status=="VALID" 
           this.entryForm.reset(this.entryForm.value);
+          this.doValidate(this.entryForm);
+          this.entryForm.markAsPristine();
         }
         , (err)=>{
           return Promise.reject(err)
@@ -324,7 +331,21 @@ export class EntryPage implements OnInit {
     }
   }
 
+  getButtonAttrs(name:string):object {
+    switch (name) {
+      case "submit_OK":
+        if (this.entryForm.status=="VALID" && !!this.entryForm.pristine){
+          // no changes needed, usually from onTakePlayerIdentity() 
+          return {color:'tertiary', label:'OK', 'disabled': false}
+        }
+        const isNotReady = ['name', 'word_1', 'word_2', 'word_3',].find( v=>this.entryForm.value[v]==false );
+        return {color:'primary', label:'Submit', 'disabled': isNotReady}
+    }
+    return {}
+  }
+
   doValidate(form:FormGroup){
+    // mark all controls as touched, does markAsTouched() set control.errors?
     Object.keys(form.controls).forEach(field => {
       const control = form.get(field);
       if (control instanceof FormGroup) this.doValidate(control)

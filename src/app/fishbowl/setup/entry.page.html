@@ -197,8 +197,12 @@
                   </ion-list>   
                   <!-- end addMoreWords -->
                 </ion-list>
-            
-                <ion-button class="login-btn" type="submit" expand="block">Submit</ion-button>
+                
+                <ng-container *ngIf="getButtonAttrs('submit_OK') as attrs">
+                  <ion-button class="login-btn" type="submit" expand="block" 
+                    [color]="attrs.color" [disabled]="attrs.disabled">{{attrs.label}}
+                  </ion-button>
+                </ng-container>
               </form>
               
             </ng-container>
@@ -269,7 +273,7 @@
                 
                 </ion-list>
             
-                <ion-button class="login-btn" type="submit" expand="block">Submit</ion-button>
+                <ion-button class="login-btn" type="submit" expand="block" [disabled]="entryForm?.pristine">Submit</ion-button>
               </form>              
 
             </ng-template>

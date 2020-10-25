@@ -1049,7 +1049,7 @@ export class GameHelpers {
     });
 
     // patch Rounds: players & Team Assignments
-    let roundIds = Object.keys(game.rounds);
+    let roundIds = Object.keys(game.rounds || {});
     let waitFor2 = roundIds.map( (rid=>{
       return this.db.object<GamePlayRound>(`/rounds/${rid}`).valueChanges().pipe(first()).toPromise()
       .then( round=>{
