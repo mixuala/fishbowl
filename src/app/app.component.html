@@ -12,7 +12,7 @@
             </ion-col>
             <ion-col class="user-info-wrapper" size="8">
               <h3 class="user-name">Fishbowl</h3>
-              <!-- <h5 class="user-handle">@IonicThemes</h5> -->
+              <h5 class="user-handle" *ngIf="!isAnonymous">{{this.displayName}}</h5>
             </ion-col>
           </ion-row>
           <!-- <ion-row class="user-stats-wrapper user-details-wrapper">
@@ -29,18 +29,22 @@
       </ion-header>
       <ion-content>
         <ion-list id="login">
+          <ion-list-header *ngIf="isAnonymous">
+            <ion-label class="padding-right">You are playing as: <ion-text class="no-wrap" color="light">Guest</ion-text></ion-label>
+          </ion-list-header>
           <ion-menu-toggle auto-hide="false">
-            <ion-item routerDirection="root" [routerLink]="['/auth/login']" lines="none" detail="false">
-              <ion-icon slot="start"
-                [name]="isAuthorized ? 'log-out-outline' : 'log-in-outline'" 
-                [ios]="isAuthorized ? 'log-out-outline' : 'log-in-outline'" 
-                [md]="isAuthorized ? 'log-out-sharp' : 'log-in-sharp'">
-              </ion-icon>
-              <ion-label>login</ion-label>
+            <ion-item  *ngIf="isAnonymous && myGames.length==0" 
+            routerDirection="root" [routerLink]="['/auth', 'login']" lines="none" detail="false">
+              <ion-icon slot="start" name="log-in-outline" md="log-in-sharp"></ion-icon>
+              <ion-label>sign in</ion-label>
             </ion-item>
-            <ion-item routerDirection="root" [routerLink]="['/auth/logout']" lines="none" detail="false"
-              *ngIf="isAuthorized">
-              <ion-icon slot="start" name="lock-closed"></ion-icon>
+            <ion-item  *ngIf="isAnonymous && myGames.length>0" 
+            routerDirection="root" [routerLink]="['/auth', 'signup']" lines="none" detail="false">
+              <ion-icon slot="start" name="log-in-outline" md="log-in-sharp"></ion-icon>
+              <ion-label>sign up</ion-label>
+            </ion-item>
+            <ion-item routerDirection="root" [routerLink]="['/auth/logout']" lines="none" detail="false">
+              <ion-icon slot="start" name="log-out-outline" md="log-out-sharp"></ion-icon>
               <ion-label>sign out</ion-label>
             </ion-item>        
             <!-- <ion-item routerDirection="root" [routerLink]="['/auth/change-password']" lines="none" detail="false"
@@ -48,6 +52,28 @@
               <ion-icon slot="start" name="lock-closed"></ion-icon>
               <ion-label>change password</ion-label>
             </ion-item>             -->
+          </ion-menu-toggle>
+        </ion-list>
+
+        <ion-list id="games">
+          <ion-menu-toggle auto-hide="false">
+            <ion-list-header>
+              <ion-label>My Games</ion-label>
+            </ion-list-header>
+            <ng-container *ngIf="myGames.length>0; else find_games">
+              <ng-container *ngFor="let game of myGames; let i = index">
+                <ion-item routerDirection="forward" [routerLink]="['/app/game', game.gameId]" lines="none" detail="false">
+                  <ion-icon slot="start" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon>
+                  <ion-label>{{game.stageName}} @ {{game.label}}</ion-label>
+                </ion-item>
+              </ng-container>
+            </ng-container>
+            <ng-template #find_games>
+              <ion-item routerDirection="forward" [routerLink]="['/app/games']" lines="none" detail="false">
+                <ion-icon slot="start" src="assets/icon/favicon_package_v0.16/fishbowl.svg"></ion-icon>
+                <ion-label>Find a game to join</ion-label>
+              </ion-item>
+            </ng-template>
           </ion-menu-toggle>
         </ion-list> 
 

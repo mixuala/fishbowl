@@ -129,7 +129,7 @@ export class PlaygroundPage implements OnInit {
       map( u=>{
         let p:Player = {
           uid: u.uid,
-          name: u.displayName,
+          displayName: u.displayName,
           gamesPlayed: 0,
           isAnonymous: u.isAnonymous,
         }

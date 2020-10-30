@@ -125,6 +125,9 @@ html.md {
   }
 }
 
+.no-wrap {
+  white-space: nowrap;
+}
 
 .inline-text-wrap > * {
   vertical-align: middle;

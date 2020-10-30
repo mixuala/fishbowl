@@ -8,7 +8,6 @@ export interface GameMaster {
 
 export interface Player {
   uid: string;
-  name: string;
   playingAsUid?: string; 
   displayName?: string;
   teamId?: string; 

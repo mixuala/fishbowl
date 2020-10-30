@@ -1,11 +1,14 @@
 import { Component } from '@angular/core';
 import { Platform } from '@ionic/angular';
 import { Plugins, App, AppState } from '@capacitor/core';
+import { Subscription } from 'rxjs';
 
-import { AppConfig } from './services/app.helpers';
+import { AppConfig, Helpful } from './services/app.helpers';
 import { AuthService } from './services/auth-service.service';
+import { UserGameService } from './services/user-game.service';
 import { PwaUpdateService } from './services/pwa-update.service';
 import { environment } from '../environments/environment';
+import { UserGameEntry } from './fishbowl/types';
 
 const { SplashScreen, StatusBar, Storage } = Plugins;
 
@@ -24,7 +27,9 @@ declare let document;
 })
 export class AppComponent {
 
-  public isAuthorized: boolean = false;
+  public isAnonymous = false;
+  public displayName = "";
+  public myGames:UserGameEntry[] = [];
 
   appPages = [
    {
@@ -47,8 +52,8 @@ export class AppComponent {
      url: '/app/notifications',
      ionicIcon: 'notifications-outline'
    }
- ];
- accountPages = [
+  ];
+  accountPages = [
    {
      title: 'Log In',
      url: '/auth/login',
@@ -73,11 +78,12 @@ export class AppComponent {
      title: '404 page',
      url: '/page-not-found',
      ionicIcon: 'alert-circle-outline'
-   }
- ];
+    }
+  ];
 
   constructor(
     private authService: AuthService,
+    private userGameService: UserGameService,
     private appConfig: AppConfig,
     private platform: Platform,
     private pwaUpdateService: PwaUpdateService,
@@ -98,7 +104,17 @@ export class AppComponent {
     });
 
     this.authService.getCurrentUser$().subscribe( v=>{
-      this.isAuthorized = !!v;
+      // AuthService.doAnonymousSignIn() enabled
+      if (!!v){
+        // 
+        this.isAnonymous = v.isAnonymous;
+        this.displayName = v.isAnonymous ? "Guest" : v.email;
+        this.watchUserGames(v.uid);
+      }
+      else {
+        this.isAnonymous = false;
+        this.displayName = "";
+      }
     });
 
     this.platform.ready().then( async ()=>{
@@ -108,6 +124,25 @@ export class AppComponent {
       this.exposeDebug();
     });
 
+  }
+
+  public watchUserGames(uid:string) {
+    if (this.watchUserGames['_subscription']) {
+      (this.watchUserGames['_subscription'] as Subscription).unsubscribe();
+    }
+    if (!uid) return;
+    this.watchUserGames['_subscription'] = this.userGameService.getGames$(uid).subscribe( o=>{
+      const LIMIT = 5;
+      const now = Date.now()
+      let games = Object.entries(o||{}).map( ([gid, g])=>(g['gameId']=gid, g ));
+      if (games.length>LIMIT) {
+        debugger;
+        games.sort( (a,b)=>Math.abs(a.gameTime-now) - Math.abs(b.gameTime-now) );
+        games = games.slice(0,LIMIT);
+      }
+      games.sort( (a,b)=>a.gameTime - b.gameTime );
+      this.myGames = games;
+    });
   }
 
 

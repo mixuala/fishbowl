@@ -9,6 +9,7 @@ import { Observable, Subject, of, from, } from 'rxjs';
 import { map, tap, switchMap, take, filter } from 'rxjs/operators';
 
 import { AuthService } from '../../services/auth-service.service';
+import { UserGameService } from '../../services/user-game.service';
 import { GamePackService } from '../../fishbowl/game-pack.service';
 import { Player } from '../../user/role';
 import { AudioService } from '../../services/audio.service';
@@ -17,7 +18,7 @@ import { FishbowlHelpers } from '../fishbowl.helpers';
 import { GameHelpers } from '../game-helpers';
 import { 
   Game, GameWatch, GameDict, RoundEnum,
-  PlayerListByUids, TeamRosters,  
+  PlayerListByUids, TeamRosters, UserGames, UserGameEntry,  
 } from '../types';
 
 declare let window;
@@ -70,6 +71,7 @@ export class EntryPage implements OnInit {
     private audio: AudioService,
     private db: AngularFireDatabase,
     private authService: AuthService,
+    private userGameService: UserGameService,
     private gameHelpers: GameHelpers,
     private gamePackService: GamePackService,
     ) {
@@ -142,7 +144,7 @@ export class EntryPage implements OnInit {
       map( u=>{
         let p:Player = {
           uid: u.uid,
-          name: u.displayName,
+          displayName: u.displayName,
           gamesPlayed: 0,
           isAnonymous: u.isAnonymous,
         }
@@ -161,7 +163,8 @@ export class EntryPage implements OnInit {
       word_5: "",
     }
     let words = this.game.entries && this.game.entries[this.player.uid] || [];
-    let name = this.game.players && this.game.players[this.player.uid] || this.player.displayName || "";
+    let stageName = this.game.players && this.game.players[this.player.uid] || null;
+    let name = stageName || this.player.displayName || "";
 
     let replace = this.activatedRoute.snapshot.paramMap.get('replace');
     if (replace) {
@@ -366,8 +369,9 @@ export class EntryPage implements OnInit {
     }
     let formData = this.entryForm.value;
     let u = this.player;
+    let stageName = formData.name;
     let players = this.game.players || {};
-    players[u.uid]=formData.name;
+    players[u.uid]=stageName;
     let playerCount = Object.keys(players).length;
     let entries = this.game.entries || {};
     if (this.game.quickPlay) {
@@ -395,9 +399,12 @@ export class EntryPage implements OnInit {
     let update = {players, playerCount, entries} as Game;
     this.gameRef.update( update ).then(
       res=>{
+        let gameId = this.activatedRoute.snapshot.paramMap.get('uid');
+        let item = Object.assign({stageName}, Helpful.pick(this.game, 'label', 'gameTime')) as UserGameEntry;
+        let dontwait = this.userGameService.setGame(u.uid, gameId, item);
+        // this.db.object<UserGames>(`/userGames/${u.uid}`).update( {[gameId]:item});
         let msg = this.game.quickPlay ? "You are in the game." :  "Your entry was accepted";
         this.presentToast(msg);
-        let gameId = this.activatedRoute.snapshot.paramMap.get('uid')
         this.router.navigate(['/app/game', gameId]);
       }
     );

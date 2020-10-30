@@ -10,13 +10,14 @@ import { map, take, share, tap, first, filter, debounceTime, pairwise, takeUntil
 import * as dayjs from 'dayjs';
 
 import { Helpful } from '../services/app.helpers';
+import { UserGameService } from '../services/user-game.service';
 import { FishbowlHelpers } from './fishbowl.helpers';
 import { Player } from '../user/role';
 import { 
   Game, GameWatch, GameDict, GameAdminState, RoundEnum,
   GamePlayWatch, GamePlayState, GamePlayRound, GamePlayLogEntries, GamePlayLog,
   SpotlightPlayer, WordResult, Scoreboard,
-  PlayerListByUids, PlayerByUids, TeamRosters, CheckInByUids, 
+  PlayerListByUids, PlayerByUids, TeamRosters, CheckInByUids, UserGames, UserGameEntry, 
 } from './types';
 
 const { Storage } = Plugins;
@@ -130,6 +131,7 @@ export class GameHelpers {
 
   constructor(
     private db: AngularFireDatabase,
+    private userGameService: UserGameService,
   ) {
     GameHelpers.deviceId( Date.now().toString() );
     Storage.get({key:'SERVER_OFFSET_TRAILING'}).then( resp=>{
@@ -1072,7 +1074,20 @@ export class GameHelpers {
       });
     }));
 
-    waitFor = [].concat( ...waitFor, ...waitFor2 );
+    // patch user_games
+    let stageName = game.players[changeId.new];
+    let item = Object.assign({stageName}, Helpful.pick(game, 'label', 'gameTime')) as UserGameEntry;
+    let waitFor3 = [
+      // delete gameId from uid=changeId.old
+      // this.db.object<UserGames>(`/userGames/${changeId.old}`).update( {[gameId]:null}),
+      this.userGameService.setGame(changeId.old, gameId, null),
+
+      // add gameId to uid=changeId.new
+      // this.db.object<UserGames>(`/userGames/${changeId.new}`).update( {[gameId]:item}),
+      this.userGameService.setGame(changeId.new, gameId, item),
+    ];
+
+    waitFor = [].concat( ...waitFor, ...waitFor2, ...waitFor3 );
 
     return Promise.all(waitFor).then( ()=>{
       console.warn( "patchPlayerid DONE  ", gameId, update)

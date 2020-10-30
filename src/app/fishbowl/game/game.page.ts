@@ -834,7 +834,7 @@ export class GamePage implements OnInit {
       take(1),
       tap( (player)=>{
         let playerId =  player.uid;
-        let playerName = game.players && game.players[playerId];
+        let stageName = game.players && game.players[playerId];
         let hasEntry = (game.entries && !!game.entries[playerId]) || this.isModerator();
         let gameTitle = game.label;
         let entryLink = ['/app/game', this.gameId, 'player'];
@@ -847,7 +847,8 @@ export class GamePage implements OnInit {
           replaceSame: false,
           dismissKeyPrefix: game.label,
           gameTitle, chatRoom,
-          playerName, hasEntry, entryLink,
+          playerName: stageName, 
+          hasEntry, entryLink,
           backdropDismiss: false,
           // duration: status===false ? null : ALREADY_CHECKED_IN_DISMISS,
           swipeToClose: false,
@@ -924,10 +925,11 @@ export class GamePage implements OnInit {
     // console.info("\t\t28:::3b doTeamRosters()");
     let player = this.player$.getValue();
     // console.info("\t\t28:::3c doTeamRosters()", player);
+    let stageName = gameDict.game.players && gameDict.game.players[player.uid];
     let options = {
       template:'team-rosters',
       once:false,
-      playerName: player.displayName,
+      playerName: stageName || player.displayName,
       backdropDismiss: false,
       replaceSame: false,
       duration: TEAM_ROSTER_DISMISS,
@@ -1111,10 +1113,9 @@ export class GamePage implements OnInit {
 
         let p:Player = {
           uid: u.uid,
-          name: u.displayName, // deprecate
-          displayName: u.displayName,
           gamesPlayed: 0,
           isAnonymous: u.isAnonymous,
+          displayName: null,          // stageName set in setGamePlayer()
           teamId: null,
           teamName: null,
         }
@@ -1143,26 +1144,22 @@ export class GamePage implements OnInit {
   }
 
   /**
-   * update this.player$ Observable with game and team details
+   * update this.player$ Observable with game, stageName and team details
    *  - depends on player.uid
-   *  - trigger on gamePlay.doPlayerUpdate==true,
-   * 
-   * - TODO: call on bootstrap, and whenever teamRosters change
+   *  - triggers on:
+   *    - gameDict$ emit 
+   *    - gamePlay.doPlayerUpdate==true,
    * 
    * @param d 
    */
   setGamePlayer(d:GameDict=null) {
-    // set in loadGameRounds() and loadNextRound()
-    // OR, every gameWatch.gameDict$ emit, DEPRECATE
-
     let player = this.player$.getValue();
     if (!player) return;
     
     let {game, activeRound} = d || this.gameDict;
-    let pid = player.uid; 
-    // let pid = this.getActingPlayerId(player);
+    let pid = player.uid;
     let playerSettings = FishbowlHelpers.getPlayerSettings(pid, game, activeRound);
-    if (playerSettings.teamName !== player.teamName){
+    if (playerSettings.displayName !== player.displayName || playerSettings.teamName !== player.teamName){
       let update = Object.assign({}, player, playerSettings);
       this.player$.next( update );
     }

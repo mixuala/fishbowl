@@ -24,6 +24,7 @@
               <ion-card-title>
                 {{game.label}}
                 <div class="ion-float-right inline-text-wrap">
+                  <ion-badge  *ngIf="myGames[game.uid]" color="secondary">{{myGames[game.uid].countdown>0 ? "joined" : "played"}}</ion-badge>
                   <ion-badge  *ngIf="game.quickPlay" color="warning" >QuickPlay</ion-badge>
                   <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
                   <ion-badge  *ngIf="isGameOver(game)" color="tertiary" >Game Over</ion-badge>

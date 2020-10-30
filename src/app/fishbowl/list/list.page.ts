@@ -4,18 +4,19 @@ import { LoadingController, } from '@ionic/angular';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, of, from, BehaviorSubject, interval } from 'rxjs';
+import { Observable, Subject, of, from, BehaviorSubject, interval, Subscription } from 'rxjs';
 import { map, tap, switchMap, take, filter, first } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
+import { UserGameService } from '../../services/user-game.service';
 import { HelpComponent } from '../../components/help/help.component';
 import { Player } from '../../user/role';
 import { Helpful } from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers'
 import { GameHelpers } from '../game-helpers';
 import { 
-  Game, GameWatch, GameDict, RoundEnum,  
+  Game, GameWatch, GameDict, RoundEnum, UserGameEntry, UserGames,  
 } from '../types';
 
 declare let window;
@@ -36,6 +37,7 @@ export class ListPage implements OnInit {
   public player: Player;
   public playerId: string;
   private player$ = new BehaviorSubject<Player>(null);
+  public myGames:UserGames = {};
 
   constructor(
     private  activatedRoute: ActivatedRoute,
@@ -43,6 +45,7 @@ export class ListPage implements OnInit {
     private loadingController: LoadingController,
     private db: AngularFireDatabase,
     private authService: AuthService,
+    private userGameService: UserGameService,
     private gameHelpers: GameHelpers,
   ) {
 
@@ -130,15 +133,28 @@ export class ListPage implements OnInit {
 
         let p:Player = {
           uid: u.uid,
-          name: u.displayName,
+          displayName: u.displayName,
           gamesPlayed: 0,
           isAnonymous: u.isAnonymous,
         }
+        this.watchUserGames(this.playerId);
         this.player$.next(p);
 
         return this.player$.asObservable();
       })
     );
+  }
+
+  public watchUserGames(uid:string) {
+    if (this.watchUserGames['_subscription']) {
+      (this.watchUserGames['_subscription'] as Subscription).unsubscribe();
+    }
+    if (!uid) return;
+    let now = Date.now();
+    this.watchUserGames['_subscription'] = this.userGameService.getGames$(uid).subscribe( o=>{
+      Object.keys(o||{}).forEach( k=>o[k]['countdown']=o[k].gameTime-now );
+      this.myGames = o;
+    });
   }
 
   ionViewDidEnter() {
@@ -177,7 +193,13 @@ export class ListPage implements OnInit {
   getCallToAction( g:Game ) {
     if (FishbowlHelpers.isGameOver(g)) return "Game Over";
     if (FishbowlHelpers.isGametime(g)) return "Join Game";
-    else return "Grab a Spot Now"
+    let gameEntries = this.userGameService.getGames$(this.playerId);
+    let entry = this.myGames[g.uid];
+    if (!!entry) {
+      if (FishbowlHelpers.isPlayersLoungeOpen(g)) return "Enter the Players Lounge"
+      else return "Review Game Entry"
+    }
+    return "Grab a Spot Now";
   }
 
   onGameTime(t:Date|{seconds:number}=null, buzz=true):Promise<void> {
@@ -186,7 +208,7 @@ export class ListPage implements OnInit {
     return
   }
   
-  doAction(game, index) {
+  doAction(game:Game, index) {
     this.player$.pipe(
       tap( p=>{
         if( FishbowlHelpers.isGameOver(game) ) {
@@ -194,12 +216,22 @@ export class ListPage implements OnInit {
           this.router.navigate(['/app/game', game.uid]);
         }
         else if (game.players && game.players[p.uid]) {
+          if (!this.myGames[game.uid]) {
+            // patch UserGames
+            let stageName = game.players[p.uid];
+            let item = Object.assign({stageName}, Helpful.pick(game, 'label', 'gameTime')) as UserGameEntry;
+            let dontwait = this.userGameService.setGame(p.uid, game.uid, item);
+          }
+          
           // preGame with registered player
-          this.router.navigate(['/app/game', game.uid]);
-        }
-        else if (game.moderator && game.moderator[p.uid]) {
-          // moderator
-          this.router.navigate(['/app/game', game.uid]);
+          let isModerator = game.moderators && game.moderators[p.uid];
+          let isPlayersLoungeOpen = FishbowlHelpers.isPlayersLoungeOpen(game);
+
+          if (!isModerator && isPlayersLoungeOpen==false) {
+            // players, but not moderators, can go directly to review Entry
+            this.router.navigate(['/app/game', game.uid, 'player']);  
+          }
+          else this.router.navigate(['/app/game', game.uid]);
         }
         else {
           // playerEntry CTA

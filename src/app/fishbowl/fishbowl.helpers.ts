@@ -50,6 +50,15 @@ export class FishbowlHelpers {
     return !g.complete && g.gameTime < Date.now();
   }
 
+  static
+  isPlayersLoungeOpen( g:Game ) {
+    if (FishbowlHelpers.isActive(g)) return true;
+    if (FishbowlHelpers.isGameOver(g)) return false;
+    const PLAYERS_LOUNGE_OPEN_TIME = 10*60*1000;
+    let countdown = g.gameTime - Date.now();
+    return countdown < PLAYERS_LOUNGE_OPEN_TIME;
+  }
+
   static 
   setGameDateTime(day:number=5, hour:number=19):dayjs.Dayjs {
     let min = dayjs().day();
@@ -228,11 +237,11 @@ export class FishbowlHelpers {
   {
     // get Player {displayName, teamName?, teamId? } from game
     // get Player.displayName from game.Players
-    let displayName = game && game.players && game.players[pid];
-    if (!displayName) return {} as any;
+    let stageName = game && game.players && game.players[pid];
+    if (!stageName) return {} as any;
 
     
-    let playerTeam = {displayName};
+    let playerTeam = {displayName: stageName};
     // team assignment AFTER loadRounds() but BEFORE beginGameRound
     // be careful of state BETWEEN rounds
     if (round && round.teams) {

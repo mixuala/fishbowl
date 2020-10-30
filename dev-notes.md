@@ -1,5 +1,110 @@
 Fishbowl App
 
+CLOUD UX event loop
+players lounge
+- player checkin
+- activeGame event
+setup
+- team assignments, changed.includes('doTeamRosters')
+gameplay
+- hasSpotlight event, changed.includes('spotlight')
+- beginPlayerRound (same as start Timer?)
+  - changed.includes('playerRoundBegin')
+- start Timer, changed.includes('isTicking')
+- pause Timer, changed.includes('timerPausedAt')
+- wordAction, changed.includes('log')
+- ??? gameLogChangedByAuditorClick, changed.includes('log')
+- onTimerDone, changed.includes('playerRoundComplete')
+  - ??? overtime timer done
+- begin Game Round
+
+
+LOCAL UX event loop (player)
+- player checkin
+- volumeClick()
+- goPlayerSettingsClick() // player settings
+- beginChangePlayerClick() // prepare to changePlayer
+  - showChangePlayerInterstitial:doPlayAsClick()
+
+LOCAL UX event loop (spotlight)
+- beginPlayerRound
+
+LOCAL UX event loop (spotlight+moderator)
+- startTimer
+- pauseTimer
+- wordAction
+- onTimerDone
+- overtime Timer done
+- gameLogChangedByAuditorClick()
+- onTimerClick()  // start/pause timer
+- onWordActionClick() // OK/pass teleprompter
+- gameLogChangedByAuditorClick() - ???: allow spotlight player privileges
+
+
+LOCAL UX event loop (admin)
+- resetGameClick()
+- doCheckInClick()
+- toggleStashClick()
+- gameStateToggle() // doPassThePhone
+- timerRangeChangeClick()
+- goGameSettingsClick()
+- checkInPlayerToggle()
+- teamRosterChangeClick()
+- showTeamRosterClick()
+- loadRoundClick()
+- beginGameRoundClick()
+
+
+
+Refactor
+
+moderator actions:
+  - goGameSettingsClick()
+  - toggleStashClick()
+  - gameStateToggle() // doPassThePhone
+  - resetGameClick()
+  - doCheckInClick()
+  - checkInPlayerToggle()
+  - loadRoundClick()
+  - teamRosterChangeClick()
+  - showTeamRosterClick()
+  - beginGameRoundClick()
+  - timerRangeChangeClick()
+
+moderator+spotlight player actions:
+  - beginPlayerRoundClick() // begin player round
+  - onTheSpotClick() // scroll to teleprompter
+  - onTimerClick()  // start/pause timer
+  - onWordActionClick() // OK/pass teleprompter
+  - gameLogChangedByAuditorClick() - ???: allow spotlight player privileges
+
+
+spotlight player actions:
+  - showBeginPlayerRoundInterstitial:spotlightPlayerReadyClick() 
+                                    // same as beginPlayerRoundClick()
+
+ANY player click
+  - beginChangePlayerClick() // prepare to changePlayer
+
+all player actions:  
+  - showChangePlayerInterstitial:doPlayAsClick()
+  - volumeClick()
+  - handleStageNameSearchbarChanged()
+  - goPlayerSettingsClick() // player settings
+
+
+
+- cloud event loop/handlers together
+- init/lifecycle events together
+- refactor all methods with guards for this.isModerator() or this.hasSpotlight('player'/team)
+
+Re-architect
+- local events => local UX handler, including sounds, timer
+- post all state changes to cloud with prev state & ownerId
+  - filter cloud state changes, exclude current ownerId (already handled)
+  - dismiss cloud state changes where prev state does not match
+- cloud functions?
+
 ### TikTok onboarding
 Players:
 * Join a game
@@ -33,7 +138,80 @@ Players:
 
 
 ### bugs
-BUGS: 
+BUGS:
+o- moveSpotlight through end of GameRound
+  x- after PlayerRoundComplete, teleprompter should say [done] says [start]
+  f- ???: moveSpotlight? or rollover time into next round?
+  x- long delay until GameRoundComplete
+- PlayersLounge, review game entry for "null"
+- beginRound, moderator pushes gamePlay.log={}, doesn't appear in cloud gamePlayState
+
+x- moderator timer shows NaN after moveSpotlight
+o- beginRound suppresses first Help interstitial (beginRound) but not 2nd, beginPlayerRound
+o- do NOT show beginRound Interstitial if isTicking==true 
+o- stash.isActivePage is false when waking the computer. how do we detect and reload page?
+o- gameOver event does not render game score in final view, must reload
+
+
+
+x- [OK] not [submit] after Entry.onTakePlayerIdentity()
+f- manage stageNames
+f- current player CONTINUES TURN after gameRoundComplete, do not fire playerRoundComplete
+f- web: shrink browser window to 320px wide
+f- determinate wordAction (firebase fuction)
+f- save TimerDuration to localStorage, or use serverTime
+
+x- team background not updating because this.player$.value.teamName is null after wake from LONG sleep, call setGamePlayer()
+  x- trigger reload when GameHelpers.gamePlay$.getValue() is null, use this.onTheSpotTeam
+x- timer ChangeDetection/SKIP: not skipping repeated timers, update change detection from component PARENT
+  x- moderator/localhost timer/sync is resetting
+x- timer [start] flashes between doPlayerRoundComplete and moveSpotlight/doBeginPlayerRound
+x- wordAction complete does NOT stop timer
+x- ScoreCard component does not resort
+x- moderator timer shows NaN on prod code when opened with elapsed
+x- stopAtZero not working during overtime for cloud clients, CountdownTimer stopAtZero not always working
+x- Timer is NaN on reload
+x- mutate gameplaySpotlight for change detection
+x- play sound delay
+x- play sound=buzz when starting timer, wordResult===undefined
+x- beginPlayerRound before PlayerRoundComplete 
+x- playerRoundBegin loads multiple times. throttle? ghost subscribers?
+x- moderator Timer resets when toggled open/close WITHOUT reload
+x- resetGame does not reset scoreboard, must reset GameHelpers.gameLog$
+x- moderator timer sometimes resets on wordAction
+x- overtime click resets Moderator Timer, or stopAtZero not working, maybe system memory error
+x- after cloud reload/bootstrap, next wordAction resets Timer, set CountdownTimer.timerOptions from duration setter() 
+x- wordAction cloud gamePlay.timer is changed, should not be so
+x- cloud timers are not starting
+  x- check isBootstrap > elapsed
+x- local gamePlay update does not get the updated scoreboard, added changed.includes('playerRoundComplete');
+x- move spotlight fails on [beginRound]
+
+o- dismiss interstitial while paused emits a "woof" sound
+x- round.entries not updated correctly from gameLog
+  x- getGamePlay() rid != activeRound because of closure, wrong round.entries updated
+x- playerRoundComplete skipped for spotlight
+  x- beginNextRound does not follow
+x- spotlight not set on [BeginRound]
+x- moderator can pause, but not start timer
+x- after hard reset, clients are not running "doCheckIn", wrong gamePlay.rid
+x- race condition with network>3G, player==null
+x- [start] playerRound button plays a "buzz" sound for moderator, should be click
+
+
+x- timer stopAtZero is NOT working sometimes, clock sometimes resets to seconds for Moderator 
+x- clients have wrong time => need to sync with common time server
+  x- moderator fires timerStop/overtime BEFORE laggy client, that take precedence
+x- start countdownTimer locally for spotlight player
+x- playerRoundBegin seems to start the timer automatically, on moderator 
+x- playerRoundBegin [start] does not start the timer on spotlight
+x- after PlayAsAlias, you don't see the beginPlayerRound interstitial
+x- playAsAlias should return to original player AFTER playerRound is complete.
+
+
+
+
+
 o- round number is null for playerRoundComplete
 o- timer (cloud) renders impossibly large number. make sure timer renders max {seconds}
 - next player bug appears with VERY high latency on network
@@ -168,6 +346,7 @@ x- load round error on Taco Tuesday
 x- ZOOM LINK VALIDATION:  REQUIRES QUERY STRING
 
 ### feature requests 
+- add GameRoundBegin dismiss to localstorage, ignore on page reload
 - add latecomer to game
 - audio drop out when multiple people talking
 x- missed final [ok] before timer expired and didn't get the point, keep scores up at the end of the round

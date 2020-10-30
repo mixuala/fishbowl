@@ -10,6 +10,16 @@ export type CheckInByUids = {
   [uid:string]: string | boolean
 }
 
+export interface UserGameEntry{
+  gameId?: string;
+  label: string;
+  gameTime: number;
+  stageName: string;
+}
+export interface UserGames {
+  [gameId:string]: UserGameEntry;
+}
+
 export interface Game {
   uid: string;
   label: string;
