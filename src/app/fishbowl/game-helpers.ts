@@ -17,7 +17,7 @@ import {
   Game, GameWatch, GameDict, GameAdminState, RoundEnum,
   GamePlayWatch, GamePlayState, GamePlayRound, GamePlayLogEntries, GamePlayLog,
   SpotlightPlayer, WordResult, Scoreboard,
-  PlayerListByUids, PlayerByUids, TeamRosters, CheckInByUids, UserGames, UserGameEntry, 
+  PlayerListByUids, PlayerByUids, TeamRosters, CheckInByUids, UserGames, UserGameEntry, Spotlight, 
 } from './types';
 
 const { Storage } = Plugins;
@@ -766,6 +766,9 @@ export class GameHelpers {
     })
   }
 
+  watchSpotlight$(roundId:string):Observable<Spotlight>{
+    return this.db.object<Spotlight>(`/gamePlay/${roundId}/spotlight`).valueChanges();
+  }
 
   /**
    * moveSpotlight to next player, by default it will infer spotlight from 

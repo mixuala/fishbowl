@@ -121,13 +121,15 @@ export interface GameAdminState {
   
 }
 
+export interface Spotlight {
+  teamIndex: number;
+  playerIndex: number[];
+  teamName?: string;
+}
+
 export interface GamePlayState extends GameAdminState {
   // key: GamePlayRound.uid
-  spotlight:{
-    teamIndex: number;
-    playerIndex: number[];
-    teamName?: string;
-  }
+  spotlight: Spotlight;
   timer: {
     seconds?: number;
     key?: number;

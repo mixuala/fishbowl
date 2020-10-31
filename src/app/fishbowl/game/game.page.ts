@@ -6,8 +6,8 @@ import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularf
 import { Plugins, } from '@capacitor/core';
 import * as dayjs from 'dayjs';
 
-import { Observable, Subject, BehaviorSubject, of, from, interval, pipe, zip, ReplaySubject, Subscription, combineLatest, } from 'rxjs';
-import { map, tap, switchMap, take, takeWhile, first, filter, withLatestFrom, throttleTime, takeUntil, concatMap, pairwise, startWith, } from 'rxjs/operators';
+import { Observable, Subject, BehaviorSubject, of, from, interval, pipe, zip, } from 'rxjs';
+import { map, tap, switchMap, take, takeWhile, first, filter, withLatestFrom, takeUntil, concatMap, skip, } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
@@ -1158,6 +1158,9 @@ export class GamePage implements OnInit {
     
     let {game, activeRound} = d || this.gameDict;
     let pid = player.uid;
+    if (!!player.playingAsUid) {
+      let pid = this.getActingPlayerId(player);
+    }
     let playerSettings = FishbowlHelpers.getPlayerSettings(pid, game, activeRound);
     if (playerSettings.displayName !== player.displayName || playerSettings.teamName !== player.teamName){
       let update = Object.assign({}, player, playerSettings);
@@ -1811,6 +1814,25 @@ export class GamePage implements OnInit {
 
     // only active player pushes updates to the cloud
     let activeRound = this.gameDict.activeRound;
+    
+    /**
+     * watch for spotlight change
+     * NOTES: 
+     *  - only this.onTheSpot device calls doTimerDone() => completePlayerRound()
+     *  - only seems to take effect when [ChangePlayer] to Moderator
+     *  */ 
+    
+    let spotlightDone$ = new Subject<boolean>();
+    let hasSpotlightChanged = false;
+    this.gameHelpers.watchSpotlight$(this.gameDict.game.activeRound).pipe(
+      takeUntil(spotlightDone$),
+      skip(1),
+      tap( o=>{
+        console.log("31: spotlight change=", o)
+        hasSpotlightChanged = true;
+      })
+    ).subscribe();
+    // END watch for spotlight change
 
     return Promise.resolve()
     .then( ()=>{
@@ -1861,15 +1883,21 @@ export class GamePage implements OnInit {
     })
     
     .then( async ()=>{
-      await Helpful.waitFor(2000)
+      const minDelay = this.isModerator() ? 7000 : 5000
+      let waitFor:Promise<any>[] = [ Helpful.waitFor(minDelay) ];
       // wait for PlayerRoundComplete interstitial to dismiss
-      let waitFor = HelpComponent.last && HelpComponent.last.onDidDismiss();
-      await waitFor
+      waitFor.push( HelpComponent.last && HelpComponent.last.onDidDismiss() );
+      await Promise.all(waitFor);
       console.info("\t>>>> playerRoundDidComplete()");
 
       if (!gameRoundComplete) {
-        console.log("12: nextPlayerRound")
-        return this.nextPlayerRound(); // calls moveSpotlight()
+        if (!hasSpotlightChanged){
+          console.log("31: nextPlayerRound")
+          return this.nextPlayerRound(); // calls moveSpotlight()
+        }
+        else {
+          console.log("31: nextPlayerRound SKIPPED")
+        }
       }
       else {
         console.info("\t>>>> game Round WILL Complete()");
@@ -1893,6 +1921,7 @@ export class GamePage implements OnInit {
 
       }
     })
+    .then( ()=>spotlightDone$.next(true));
   }
 
 
@@ -2294,7 +2323,7 @@ export class GamePage implements OnInit {
     let target = ev.target;
     let onTheSpot = this.hasSpotlight('player')
     if (onTheSpot) {
-      target.scrollIntoView();
+      target.scrollIntoView({behavior:"smooth"});
       this.audio.play("click");
     }
   }
