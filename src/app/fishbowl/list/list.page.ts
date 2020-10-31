@@ -1,6 +1,7 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LoadingController, } from '@ionic/angular';
+import { Validators, FormGroup, FormControl, ValidatorFn, AbstractControl } from '@angular/forms';
 import { AngularFireDatabase, AngularFireObject, AngularFireList} from 'angularfire2/database';
 import * as dayjs from 'dayjs';
 
@@ -10,13 +11,14 @@ import { map, tap, switchMap, take, filter, first } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
 import { UserGameService } from '../../services/user-game.service';
+import { GameCodeService } from '../../services/game-code.service';
 import { HelpComponent } from '../../components/help/help.component';
 import { Player } from '../../user/role';
 import { Helpful } from '../../services/app.helpers';
 import { FishbowlHelpers } from '../fishbowl.helpers'
 import { GameHelpers } from '../game-helpers';
 import { 
-  Game, GameWatch, GameDict, RoundEnum, UserGameEntry, UserGames,  
+  Game, GameWatch, GameDict, RoundEnum, UserGameEntry, UserGames, GameCodeEntry,  
 } from '../types';
 
 declare let window;
@@ -38,6 +40,10 @@ export class ListPage implements OnInit {
   public playerId: string;
   private player$ = new BehaviorSubject<Player>(null);
   public myGames:UserGames = {};
+  public gameCodeForm: FormGroup;
+  public gameCodeNotFound = false;
+
+  @ViewChild('gameCodeEl', {static:false}) gameCodeEl: ElementRef;
 
   constructor(
     private  activatedRoute: ActivatedRoute,
@@ -46,8 +52,20 @@ export class ListPage implements OnInit {
     private db: AngularFireDatabase,
     private authService: AuthService,
     private userGameService: UserGameService,
+    private gameCodeService: GameCodeService,
     private gameHelpers: GameHelpers,
   ) {
+
+    let validEntry = Validators.compose([
+      Validators.pattern('^[a-zA-Z0-9]$')
+    ]);
+
+    this.gameCodeForm = new FormGroup({
+      'char_1': new FormControl('', validEntry),
+      'char_2': new FormControl('', validEntry),
+      'char_3': new FormControl('', validEntry),
+      'char_4': new FormControl('', validEntry),
+    });
 
     if (environment.production==false){
       window['_dbg'] = window['_dbg'] || {};
@@ -153,7 +171,7 @@ export class ListPage implements OnInit {
     let now = Date.now();
     this.watchUserGames['_subscription'] = this.userGameService.getGames$(uid).subscribe( o=>{
       Object.keys(o||{}).forEach( k=>o[k]['countdown']=o[k].gameTime-now );
-      this.myGames = o;
+      this.myGames = o || {};
     });
   }
 
@@ -208,7 +226,7 @@ export class ListPage implements OnInit {
     return
   }
   
-  doAction(game:Game, index) {
+  doAction(game:Game, index=null) {
     this.player$.pipe(
       tap( p=>{
         if( FishbowlHelpers.isGameOver(game) ) {
@@ -239,6 +257,29 @@ export class ListPage implements OnInit {
         }
       })
     ).subscribe()
+  }
+
+  nextFocus(ev) {
+    this.gameCodeNotFound = false;
+    let nextInput = ev.srcElement.nextElementSibling; // get the sibling element
+    if(nextInput == null)  // check the maxLength from here
+        return;
+    else nextInput.setFocus();   // focus if not null
+  }
+
+  doGameCodeLookup() {
+    let code = Object.values(this.gameCodeForm.value).join("");
+
+    this.gameCodeService.getGame$(code).subscribe( async (g)=>{
+      if (!!g) return this.doAction(g);
+
+      this.gameCodeNotFound = true;
+    });
+  }
+
+  searchClick(ev) {
+    let nativeEl = this.gameCodeEl.nativeElement || this.gameCodeEl['el'];
+    nativeEl.scrollIntoView({behavior:"smooth"});
   }
 
 }

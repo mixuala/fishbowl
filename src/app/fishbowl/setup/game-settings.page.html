@@ -40,6 +40,10 @@
                   <pre class="url-wrap force-select-all">
                     {{inviteLink}}
                   </pre>
+                  <ng-container *ngIf="game.gameCode">
+                    <br />
+                    <ion-note>or give them game code: <span class="game-code ion-padding-start">{{game.gameCode}}</span></ion-note>
+                  </ng-container>
                 </ion-label>
               </ion-chip>            
 

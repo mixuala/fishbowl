@@ -10,11 +10,17 @@ export type CheckInByUids = {
   [uid:string]: string | boolean
 }
 
+export interface GameCodeEntry{
+  gameId: string;
+  created: number;
+}
+
 export interface UserGameEntry{
   gameId?: string;
   label: string;
   gameTime: number;
   stageName: string;
+  modified?: number;
 }
 export interface UserGames {
   [gameId:string]: UserGameEntry;
@@ -48,6 +54,7 @@ export interface Game {
   public?: boolean;
   doPassThePhone?: boolean;
   quickPlay?:string;
+  gameCode?:string;
 }
 
 // TODO: refactor

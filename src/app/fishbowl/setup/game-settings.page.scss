@@ -67,3 +67,10 @@ ion-textarea[formControlName="chatRoom"] {
 .error-container {
   color: var(--ion-color-danger)
 }
+
+.game-code {
+  font-family: monospace;
+  letter-spacing: 4px;
+  font-weight: bold;
+  color: var(--ion-color-dark)
+}

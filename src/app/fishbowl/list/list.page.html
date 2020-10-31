@@ -3,6 +3,11 @@
     <ion-buttons slot="start">
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
+    <ion-buttons slot="end" (click)="searchClick($event)">
+      <ion-button>
+        <ion-icon name="search"></ion-icon>  
+      </ion-button>
+    </ion-buttons>
     <ion-title>
       Fishbowls
     </ion-title>
@@ -18,13 +23,14 @@
       ></ion-searchbar>
     </ion-row> -->
     <ion-row [class.ion-justify-content-center]="games.length==1">
+
         <ion-col size="12" size-sm="6" size-xl="4" *ngFor="let game of games, let i=index">
           <ion-card class="game">
             <ion-card-header [color]="isGameOver(game) ? 'success' : 'tertiary'">
               <ion-card-title>
                 {{game.label}}
                 <div class="ion-float-right inline-text-wrap">
-                  <ion-badge  *ngIf="myGames[game.uid]" color="secondary">{{myGames[game.uid].countdown>0 ? "joined" : "played"}}</ion-badge>
+                  <ion-badge  *ngIf="myGames[game.uid]" color="secondary">{{myGames[game.uid]?.countdown>0 ? "joined" : "played"}}</ion-badge>
                   <ion-badge  *ngIf="game.quickPlay" color="warning" >QuickPlay</ion-badge>
                   <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
                   <ion-badge  *ngIf="isGameOver(game)" color="tertiary" >Game Over</ion-badge>
@@ -54,6 +60,44 @@
             </ion-card-content>
           </ion-card>
         </ion-col>
+
+        
+      <ion-col size="12" size-sm="6" size-xl="4">
+        <ion-card #gameCodeEl class="game-code">
+          <ion-item color="tertiary">
+            <ion-avatar slot="start" size="large" >
+              <img src="assets/icon/favicon_package_v0.16/fishbowl.svg">
+            </ion-avatar>
+            <ion-label class="ion-text-wrap">
+              <h1 class="header">Enter Game Code</h1>
+              <p><ion-note color="dark">Ask your Game Master for the game code</ion-note></p>
+            </ion-label>
+          </ion-item>   
+          <ion-card-content>
+
+            <form id="game-code-form" [formGroup]="gameCodeForm" (ngSubmit)="doGameCodeLookup()">
+              <div class="center-wrap">
+                <ion-input color="dark" size="1" maxlength="1" (ionInput)="nextFocus($event)"
+                type="text" placeholder="c" formControlName="char_1" inputmode="text" clear-on-edit="true"></ion-input>
+                <ion-input color="dark" size="1" maxlength="1" (ionInput)="nextFocus($event)"
+                type="text" placeholder="o" formControlName="char_2" inputmode="text" clear-on-edit="true"></ion-input>
+                <ion-input color="dark" size="1" maxlength="1" (ionInput)="nextFocus($event)"
+                type="text" placeholder="d" formControlName="char_3" inputmode="text" clear-on-edit="true"></ion-input>
+                <ion-input color="dark" size="1" maxlength="1" (ionInput)="nextFocus($event)"
+                type="text" placeholder="e" formControlName="char_4" inputmode="text" clear-on-edit="true"></ion-input>
+                <div class="error-container" *ngIf="gameCodeNotFound">
+                  <ion-text color="danger">
+                    Sorry, that game code was not found.
+                  </ion-text>
+                </div>
+              </div>
+              <ion-button expand="block" color="success" type="submit">OK</ion-button>
+            </form>
+
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+
 
         <ion-col size="12" size-sm="6" size-xl="4">
           <ion-card class="welcome">

@@ -29,10 +29,12 @@ ion-card.game {
   }
 }
 
-ion-card.welcome {
-  .header {
-    font-size: 20px;
-    font-weight: 700;
+ion-card {
+  &.welcome, &.game-code {
+    .header {
+      font-size: 20px;
+      font-weight: 700;
+    }
   }
 }
 
@@ -58,4 +60,30 @@ ion-fab-button[color="tertiary"][data-desc]::after {
 }
 ion-fab-button[color="warning"][data-desc]::after {
   background-color: rgba(var(--ion-color-warning-rgb), 1);
+}
+
+#game-code-form {
+  text-align: center;
+  .center-wrap {
+    margin: 0 auto;
+  }
+  ion-input {
+    --countdown-fill-border-radius: 10px;
+    --countdown-fill-shadow: 0px 0px 5px 0px rgba(0,0,0, 0.2);
+    --countdown-fill-background: var(--ion-color-tertiary);
+    --countdown-value-color: var(--ion-color-light);
+    --placeholder-opacity: 0.2;
+    --background: var(--countdown-fill-background);
+    --padding-start: 5px;
+    --padding-end: 5px;
+    font-size: 3em;
+    width: 20%;
+    display: inline-block;
+    text-align: center;
+    margin: 4px;
+    border-radius: var(--countdown-fill-border-radius);
+    // background-color: var(--countdown-fill-background);
+    box-shadow: var(--countdown-fill-shadow);
+    color: var(--countdown-value-color);
+  }
 }

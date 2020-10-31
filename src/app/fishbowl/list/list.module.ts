@@ -12,8 +12,8 @@ import { ListPage } from './list.page';
 @NgModule({
   imports: [
     CommonModule,
-    // FormsModule,
-    // ReactiveFormsModule,
+    FormsModule,
+    ReactiveFormsModule,
     PipesModule,
     ComponentsModule,
     IonicModule,

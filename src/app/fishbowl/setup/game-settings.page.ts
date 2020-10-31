@@ -10,6 +10,7 @@ import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
+import { GameCodeService } from '../../services/game-code.service';
 import { Player } from '../../user/role';
 import { AudioService } from '../../services/audio.service';
 import { Helpful } from '../../services/app.helpers';
@@ -98,6 +99,7 @@ export class GameSettingsPage implements OnInit {
     private audio: AudioService,
     private db: AngularFireDatabase,
     private authService: AuthService,
+    private gameCodeService: GameCodeService,
     private gameHelpers: GameHelpers,
     ) {
       
@@ -316,7 +318,7 @@ export class GameSettingsPage implements OnInit {
   }
   
   
-  doSubmit(){
+  async doSubmit(){
     if (!this.entryForm.valid) {
       this.doValidate(this.entryForm)
       return
@@ -331,11 +333,13 @@ export class GameSettingsPage implements OnInit {
     let {label, startTime, chatRoom} = formData.game;
     let timezoneOffset = new Date(startTime).getTimezoneOffset();
     let teamNames = [formData.teamA, formData.teamB];
+    let gameCode = await this.gameCodeService.getCode();
     
     let update = { 
       players, playerCount, label, 
       gameTime:startTime,  timezoneOffset, chatRoom , teamNames, 
-      public: formData.game.public
+      public: formData.game.public,
+      gameCode,  // backreference
     } as Partial<Game>;
 
     update = Object.assign(this.stash.gameDefaults|| {}, update);
@@ -345,10 +349,11 @@ export class GameSettingsPage implements OnInit {
       update.moderators = { [u.uid]: true };
       update.checkIn = { [u.uid]: false };    // default moderators are hidden from gameplay
     }
-    
+
     this.gameRef = this.db.object(`/games/${this.gameId}`);
     this.gameRef.update( update ).then(
       res=>{
+        this.gameCodeService.setGameCode(this.gameId, update.gameCode);
         this.router.navigate(['/app/game/', this.gameId]);
       }
     );

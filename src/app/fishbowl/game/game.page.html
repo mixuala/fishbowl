@@ -22,7 +22,9 @@
           <ion-card class="moderator-control-panel">
             <ion-card-header color="dark">      
               <ion-card-title>
-                Game Controls for <ion-text color="tertiary">{{game.label}}</ion-text>
+                Game Controls for 
+                <ion-text class="no-wrap" color="tertiary">{{game.label}}</ion-text>
+                
                 <div class="ion-float-right inline-text-wrap">
                   <ion-badge  *ngIf="game.quickPlay" color="warning" >QuickPlay</ion-badge>
                   <ion-badge  *ngIf="!game.public" color="danger" >unlisted</ion-badge>
@@ -104,6 +106,12 @@
 
 
               <ion-list class="game-check-in wide toggle-hide">
+                <ion-item lines="none">
+                  <ion-label slot="start">Game Code</ion-label>
+                  <ion-label class="game-code ion-text-right ion-padding-end">
+                      {{game.gameCode}}
+                  </ion-label>
+                </ion-item>
                 <ion-item lines="none">
                   <ion-label>Player Check-In</ion-label>
                   <ion-toggle color="tertiary" [checked]="stash.showCheckInDetails"
