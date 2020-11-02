@@ -47,6 +47,10 @@ export class UserGameService {
         }
         ,{} as UserGames);
         // console.log("2: validateGames$, validated=", validated);
+        return validated;
+      }),
+      tap( validated=>{
+        // update Subject and firebase
         this._userGames$.next(validated);
         const {uid} = this._subscriptions;
         this.db.object<Game>(`/userGames/${uid}`).update(validated);
