@@ -10,6 +10,7 @@ import { map, tap, switchMap, take, takeWhile, filter } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth-service.service';
+import { UserGameService } from '../../services/user-game.service';
 import { GameCodeService } from '../../services/game-code.service';
 import { Player } from '../../user/role';
 import { AudioService } from '../../services/audio.service';
@@ -18,7 +19,7 @@ import { FishbowlHelpers } from '../fishbowl.helpers'
 import { GameHelpers } from '../game-helpers';
 import { 
   Game, GameWatch, GameDict, RoundEnum,
-  PlayerListByUids, TeamRosters,  
+  PlayerListByUids, TeamRosters, UserGameEntry,  
 } from '../types';
 import { takeUntil } from 'angular-pipes/utils/utils';
 
@@ -99,6 +100,7 @@ export class GameSettingsPage implements OnInit {
     private audio: AudioService,
     private db: AngularFireDatabase,
     private authService: AuthService,
+    private userGameService: UserGameService,
     private gameCodeService: GameCodeService,
     private gameHelpers: GameHelpers,
     ) {
@@ -328,7 +330,8 @@ export class GameSettingsPage implements OnInit {
     let u = this.player;
 
     let players = this.game.players || {};
-    players[u.uid]=formData.name;
+    let stageName = formData.name;
+    players[u.uid]= stageName;
     let playerCount = Object.keys(players).length;
     let {label, startTime, chatRoom} = formData.game;
     let timezoneOffset = new Date(startTime).getTimezoneOffset();
@@ -353,8 +356,13 @@ export class GameSettingsPage implements OnInit {
     this.gameRef = this.db.object(`/games/${this.gameId}`);
     this.gameRef.update( update ).then(
       res=>{
+        let item = Object.assign({stageName}, Helpful.pick(update, 'label', 'gameTime')) as UserGameEntry;
+        let dontwait = this.userGameService.setGame(u.uid, this.gameId, item);
         this.gameCodeService.setGameCode(this.gameId, update.gameCode);
-        this.router.navigate(['/app/game/', this.gameId]);
+        let dest = ['/app/game/', this.gameId];
+        let hasEntry = this.game.entries[u.uid];
+        if (!hasEntry) dest.push('player');
+        this.router.navigate( dest );
       }
     );
   }

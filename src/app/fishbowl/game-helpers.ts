@@ -586,17 +586,20 @@ export class GameHelpers {
    * @param teamCount 
    * @param lastGamePlay 
    */
-  initGamePlayState(rid: string, teamCount:number, lastGamePlay:Partial<GamePlayState>=null):Partial<GamePlayState>{
-    let spotlight = lastGamePlay && lastGamePlay.spotlight || {
+  initGamePlayState(rid: string, teamCount:number, lastGamePlay:Partial<GamePlayState>):Partial<GamePlayState>{
+    lastGamePlay = lastGamePlay || {};
+    let spotlight = lastGamePlay.spotlight || {
       teamIndex: -1,  
       playerIndex: new Array(teamCount).fill(0),
     };
-    let timerDuration = lastGamePlay && lastGamePlay.timerDuration || null;
+    let timerDuration = lastGamePlay.timerDuration || null;
+    let timerPausedAt = lastGamePlay.timerPausedAt || null;
 
     let gamePlayState = {
       // gameId,
       spotlight,
       timer: null,
+      timerPausedAt,        // timerPausedAt: if timer is paused, rollover time to current spotlight player
       log: {},
       timerDuration,
       word: null,
@@ -783,8 +786,11 @@ export class GameHelpers {
   moveSpotlight(
     watch:GamePlayWatch, 
     round:GamePlayRound, 
-    options:{ nextTeam?:boolean, defaultDuration?:number
+    options:{ 
+      nextTeam?:boolean
+      , defaultDuration?:number
       , useGamePlaySpotlight?:boolean
+      , moveSpotlight?:boolean
     } = {} 
   ): 
     Promise<any>
@@ -843,41 +849,48 @@ export class GameHelpers {
         }
 
         spotlight = Object.assign({},spotlight); // change copy of spotlight
-        if (options.nextTeam!==false){
-          // increment team first
-          spotlight.teamIndex +=1;
-          if (spotlight.teamIndex >= limits.teamIndex){
-            // after last team, 
-            spotlight.teamIndex = 0;
-            // increment players
-            spotlight.playerIndex = spotlight.playerIndex.map( (v,i)=>{
-              v +=1;
-              return v >= limits.playerIndex[i] ? 0 : v;
-            });
+        if (options.moveSpotlight!==false) {
+          if (options.nextTeam!==false){
+            // increment team first
+            spotlight.teamIndex +=1;
+            if (spotlight.teamIndex >= limits.teamIndex){
+              // after last team, 
+              spotlight.teamIndex = 0;
+              // increment players
+              spotlight.playerIndex = spotlight.playerIndex.map( (v,i)=>{
+                v +=1;
+                return v >= limits.playerIndex[i] ? 0 : v;
+              });
+            }
+          } else {
+            // increment player on the SAME team
+            // console.log("13:a2 SKIP player on same team",  JSON.stringify(spotlight))
+            if (spotlight.teamIndex == -1) spotlight.teamIndex = 0;
+            let i = spotlight.teamIndex;
+            spotlight.playerIndex[ i ] += 1;
+            if (spotlight.playerIndex[ i ] >= limits.playerIndex[ i ]) spotlight.playerIndex[ i ] = 0;
           }
-        } else {
-          // increment player on the SAME team
-          // console.log("13:a2 SKIP player on same team",  JSON.stringify(spotlight))
-          if (spotlight.teamIndex == -1) spotlight.teamIndex = 0;
-          let i = spotlight.teamIndex;
-          spotlight.playerIndex[ i ] += 1;
-          if (spotlight.playerIndex[ i ] >= limits.playerIndex[ i ]) spotlight.playerIndex[ i ] = 0;
         }
+        
         spotlight.teamName = teamNamesInPlayOrder[spotlight.teamIndex];
         // where does gamePlayTimerDuration first get set? initGamePlayState()
         let timerDuration = gamePlay.timerDuration || options.defaultDuration;
 
         let update = {
           spotlight,  // mutated
-          timer: null,
           log: {},
           timerDuration,
           word: null,
           isTicking: false,
-          timerPausedAt: null,
           doBeginPlayerRound: true,
           playerRoundComplete: false,   // playerRoundComplete stays true until moveSpotlight
         } as GamePlayState;
+        if (options.moveSpotlight!==false) {
+          Object.assign(update, {
+            timer: null,
+            timerPausedAt: null,
+          })
+        }
         console.warn("13:b moveSpotlight=", JSON.stringify(spotlight))
 
         return this.pushGamePlayState(update)
@@ -897,7 +910,7 @@ export class GameHelpers {
     let {gamePlay$, gameLog$} = watch;
     let gameId = round.gameId;
     return new Promise( (resolve, reject)=>{
-      combineLatest( gamePlay$, gameLog$ ).pipe(
+      combineLatest( [gamePlay$, gameLog$] ).pipe(
         take(1),
         tap( res=>{
           let [gamePlay, gameLog] = res;

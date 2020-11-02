@@ -127,11 +127,7 @@ export class AppComponent {
   }
 
   public watchUserGames(uid:string) {
-    if (this.watchUserGames['_subscription']) {
-      (this.watchUserGames['_subscription'] as Subscription).unsubscribe();
-    }
-    if (!uid) return;
-    this.watchUserGames['_subscription'] = this.userGameService.getGames$(uid).subscribe( o=>{
+    this.userGameService.getGames$(uid).subscribe( o=>{
       const LIMIT = 5;
       const now = Date.now()
       let games = Object.entries(o||{}).map( ([gid, g])=>(g['gameId']=gid, g ));

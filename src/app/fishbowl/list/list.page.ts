@@ -164,12 +164,9 @@ export class ListPage implements OnInit {
   }
 
   public watchUserGames(uid:string) {
-    if (this.watchUserGames['_subscription']) {
-      (this.watchUserGames['_subscription'] as Subscription).unsubscribe();
-    }
     if (!uid) return;
     let now = Date.now();
-    this.watchUserGames['_subscription'] = this.userGameService.getGames$(uid).subscribe( o=>{
+    this.userGameService.getGames$(uid).subscribe( o=>{
       Object.keys(o||{}).forEach( k=>o[k]['countdown']=o[k].gameTime-now );
       this.myGames = o || {};
     });
@@ -211,7 +208,7 @@ export class ListPage implements OnInit {
   getCallToAction( g:Game ) {
     if (FishbowlHelpers.isGameOver(g)) return "Game Over";
     if (FishbowlHelpers.isGametime(g)) return "Join Game";
-    let gameEntries = this.userGameService.getGames$(this.playerId);
+    // let gameEntries = this.userGameService.getGames$(this.playerId);
     let entry = this.myGames[g.uid];
     if (!!entry) {
       if (FishbowlHelpers.isPlayersLoungeOpen(g)) return "Enter the Players Lounge"
