@@ -289,6 +289,7 @@ export class GameSettingsPage implements OnInit {
     let quickPlay = this.activatedRoute.snapshot.paramMap.get('quickPlay');
     let gameDefaults = Object.assign({
       gameTime: dayjs().add(1,'hour').startOf('hour').toDate().getTime(),
+      entries: {},
       moderators: {
         [this.player.uid]: true
       }
@@ -360,7 +361,7 @@ export class GameSettingsPage implements OnInit {
         let dontwait = this.userGameService.setGame(u.uid, this.gameId, item);
         this.gameCodeService.setGameCode(this.gameId, update.gameCode);
         let dest = ['/app/game/', this.gameId];
-        let hasEntry = this.game.entries[u.uid];
+        let hasEntry = this.game.entries && this.game.entries[u.uid];
         if (!hasEntry) dest.push('player');
         this.router.navigate( dest );
       }

@@ -51,7 +51,7 @@ export class UserGameService {
       }),
       tap( validated=>{
         // update Subject and firebase
-        this._userGames$.next(validated);
+        this._userGames$.next(validated || {});
         const {uid} = this._subscriptions;
         this.db.object<Game>(`/userGames/${uid}`).update(validated);
         return validated;
@@ -67,7 +67,7 @@ export class UserGameService {
       const sub = this.db.object<UserGames>(`/userGames/${uid}`).valueChanges()
       .pipe(
         tap( o=>{
-          this._userGames$.next(o);
+          this._userGames$.next(o || {});
         }),
         throttleTime(THROTTLE_TIME),
         tap( o=>{
