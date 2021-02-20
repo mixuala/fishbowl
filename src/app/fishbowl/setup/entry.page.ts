@@ -115,6 +115,7 @@ export class EntryPage implements OnInit {
         this.game$ = this.gameRef.valueChanges().pipe( 
           tap( o=>{
             this.game = o;
+            // # do NOT reload if the page is dirty
             this.loadEntries();
           })
         )
@@ -153,7 +154,14 @@ export class EntryPage implements OnInit {
     );
   }
 
-  loadEntries(){
+  loadEntries(force=false){
+    // "{"fhffJXHehaUdO4OUiZfZfRQEZVc2":["Benjamin Button","Hollywood","Climbing Wall"],"u1NQyAWAKaSs9sdOKBVQcJSYpGH3":["Alex Trebek","Mt Fuji","Hot Tub"]}"
+    const isDirty = this.entryForm.dirty
+    if (isDirty && !force) {
+      // do NOT reset form if dirty, or after onTakePlayerIdentity()
+      return 
+    }
+
     let entry = {
       name: "",
       word_1: "",
@@ -317,6 +325,7 @@ export class EntryPage implements OnInit {
           this.entryForm.reset(this.entryForm.value);
           this.doValidate(this.entryForm);
           this.entryForm.markAsPristine();
+          this.entryForm.markAsDirty(); // prevent reload
         }
         , (err)=>{
           return Promise.reject(err)
