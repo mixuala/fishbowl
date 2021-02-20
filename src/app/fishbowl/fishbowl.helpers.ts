@@ -21,8 +21,7 @@ const WORDS_PER_QUICK_PLAYER = 3;
 
 export class FishbowlHelpers {
 
-  static
-  isGameOver( g:Game) {
+  static isGameOver( g:Game) {
     return !!g.complete;
   }
 
@@ -31,8 +30,8 @@ export class FishbowlHelpers {
    * - 'opens the door" from the Players Lounge early
    * @param g 
    */
-  static
-  isActive( g:Game) {
+  
+   static isActive( g:Game) {
     return !g.complete && (g.activeGame || FishbowlHelpers.isGametime(g));
   }
 
@@ -45,13 +44,12 @@ export class FishbowlHelpers {
    * NOTE: use isActive() for most conditions, moderator can manually toggle true before isGametime()
    * @param g 
    */
-  static
-  isGametime( g:Game) {
+  
+   static isGametime( g:Game) {
     return !g.complete && g.gameTime < Date.now();
   }
 
-  static
-  isPlayersLoungeOpen( g:Game ) {
+  static isPlayersLoungeOpen( g:Game ) {
     if (FishbowlHelpers.isActive(g)) return true;
     if (FishbowlHelpers.isGameOver(g)) return false;
     const PLAYERS_LOUNGE_OPEN_TIME = 10*60*1000;
@@ -59,8 +57,7 @@ export class FishbowlHelpers {
     return countdown < PLAYERS_LOUNGE_OPEN_TIME;
   }
 
-  static 
-  setGameDateTime(day:number=5, hour:number=19):dayjs.Dayjs {
+  static setGameDateTime(day:number=5, hour:number=19):dayjs.Dayjs {
     let min = dayjs().day();
     day = day<min ? day+7 : day;
     let datetime = {
@@ -76,8 +73,7 @@ export class FishbowlHelpers {
     return startTime;
   }
 
-  static
-  assignTeams(players:PlayerByUids, teamNames:string[]):TeamRosters {
+  static assignTeams(players:PlayerByUids, teamNames:string[]):TeamRosters {
     let shuffledPlayerUids = Helpful.shuffle(Object.keys(players));
     let teamCount = teamNames.length;
 
@@ -95,8 +91,7 @@ export class FishbowlHelpers {
    * @param pid 
    * @param teams 
    */
-  static
-  assignPlayerToTeam( pid:string, teams:TeamRosters):TeamRosters {
+  static assignPlayerToTeam( pid:string, teams:TeamRosters):TeamRosters {
     let doTeamAssignment = !Object.values(teams).find( playerIds=>playerIds.includes(pid));
     if (doTeamAssignment) {
       let playerCounts = Object.values(teams).map( playerIds=>playerIds.length);
@@ -115,8 +110,7 @@ export class FishbowlHelpers {
     return null;
   }
 
-  static
-  getCheckedInPlayers(game:Game):PlayerByUids {
+  static getCheckedInPlayers(game:Game):PlayerByUids {
     return Object.entries(game.checkIn).reduce( (o, [pid, v])=>{
       if (typeof v=='boolean' && v===false) {
         return o; // skip
@@ -126,8 +120,7 @@ export class FishbowlHelpers {
     },{});
   }
 
-  static
-  doPlayerEntryLookup(name:string=null, game:Game):[string, string] {
+  static doPlayerEntryLookup(name:string=null, game:Game):[string, string] {
     let {players, checkIn} = game;
     // console.warn( "doPlayerEntryLookup()")
     if (game.activeRound){
@@ -147,8 +140,7 @@ export class FishbowlHelpers {
     return !!found ? found : null;
   }
 
-  static
-  buildGamePlayRound(gameId: string, game:Game, type:RoundEnum, teams:TeamRosters=null, words:string[]=null): GamePlayRound{
+  static buildGamePlayRound(gameId: string, game:Game, type:RoundEnum, teams:TeamRosters=null, words:string[]=null): GamePlayRound{
     let teamNames = game.teamNames;
     if (!teamNames) teamNames = ['mahi mahi', 'yoko ono']
     let combined = Object.assign({}, game.players, game.checkIn)
@@ -186,8 +178,7 @@ export class FishbowlHelpers {
     }
   }
 
-  static 
-  getRoundIndex(gameDict:GameDict):{next:string, prev:string} {
+  static getRoundIndex(gameDict:GameDict):{next:string, prev:string} {
     // find next round and make active
     let game = gameDict.game;
     if (!game.rounds) return null;
@@ -214,8 +205,7 @@ export class FishbowlHelpers {
    * @param gameDict 
    * @param reset 
    */
-  static
-  getLatestRoster(gameDict: GameDict):Partial<GamePlayRound> {
+  static getLatestRoster(gameDict: GameDict):Partial<GamePlayRound> {
     let roundIndex = FishbowlHelpers.getRoundIndex(gameDict);
     if (!roundIndex) {
       let {complete, teams, players} = gameDict.game;
@@ -230,8 +220,7 @@ export class FishbowlHelpers {
     return Helpful.pick( copyFrom, 'teams', 'players', 'orderOfPlay' );
   }
 
-  static
-  getPlayerSettings(pid:string, game:Game, round:GamePlayRound):{
+  static getPlayerSettings(pid:string, game:Game, round:GamePlayRound):{
     displayName:string, teamName?:string, teamId?:string
   } 
   {
@@ -257,8 +246,7 @@ export class FishbowlHelpers {
     return playerTeam
   }
 
-  static 
-  getSpotlightPlayer(gamePlay:GamePlayState, round:GamePlayRound):SpotlightPlayer{
+  static getSpotlightPlayer(gamePlay:GamePlayState, round:GamePlayRound):SpotlightPlayer{
     if (!round) return null;
     if (!gamePlay) return null;  // round is complete
 
@@ -298,8 +286,7 @@ export class FishbowlHelpers {
    *  
    * )
    */
-  static 
-  preparePlayerRound$( timerState:boolean, timerComplete$:Observable<void>) {
+  static preparePlayerRound$( timerState:boolean, timerComplete$:Observable<void>) {
 
   }
 
@@ -313,8 +300,7 @@ export class FishbowlHelpers {
    * @param gamePlay 
    * @param lastResult { [word]: available }
    */ 
-  static
-  nextWord(round:GamePlayRound, gamePlay:GamePlayState, lastResult: {[word:string]: boolean}=null): {
+  static nextWord(round:GamePlayRound, gamePlay:GamePlayState, lastResult: {[word:string]: boolean}=null): {
       word: string,
       remaining: number[],      // array of index values from Object.keys(round.entries)
     } 
@@ -360,8 +346,7 @@ export class FishbowlHelpers {
    * @param round 
    * @param lastResult { [word]: available }
    */
-  static
-  updateFishbowl(round:GamePlayRound, logEntries:GamePlayLogEntries={}, lastResult: {[word:string]:boolean}={}): {[word:string]: boolean} {
+  static updateFishbowl(round:GamePlayRound, logEntries:GamePlayLogEntries={}, lastResult: {[word:string]:boolean}={}): {[word:string]: boolean} {
 
     // let path = `/round/${rid}/entries`
     let playerBowl = Object.values(logEntries).reduce( (res, o)=>{
@@ -383,13 +368,11 @@ export class FishbowlHelpers {
 
 
   static BEGIN_ROUND_MARKER = "##begin-round##"
-  static
-  filter_BeginRoundMarker = (o={})=>{
+  static filter_BeginRoundMarker = (o={})=>{
     return Object.entries(o).filter( ([k,v]:[string, WordResult])=>v.word!=FishbowlHelpers.BEGIN_ROUND_MARKER ).reduce( (o,[k,v])=>(o[k]=v,o), {});
   }
 
-  static
-  DEV_patchMissingAttrs(o, type:string){
+  static DEV_patchMissingAttrs(o, type:string){
     switch(type) {
       case "game": {
         let g = o as Game;
@@ -399,15 +382,13 @@ export class FishbowlHelpers {
     }
   }
 
-  static
-  getRemaining (gamePlay:GamePlayState):string {
+  static getRemaining (gamePlay:GamePlayState):string {
     let count = gamePlay && gamePlay.remaining && gamePlay.remaining.length;
     return count ? count.toString() : "––";
   }
 
 
-  static 
-  pipeSort(key:string, asc=true){
+  static pipeSort(key:string, asc=true){
     let order = !!asc ? 1 : -1;
     return pipe(
       map( (arr:any[])=>{
@@ -417,8 +398,7 @@ export class FishbowlHelpers {
     )
   }
 
-  static 
-  pipeSortKeys(keys:string[], asc:boolean[]=[], compareAsBoolean:string[]=[]){
+  static pipeSortKeys(keys:string[], asc:boolean[]=[], compareAsBoolean:string[]=[]){
     return pipe(
       map( (arr:any[])=>{
         arr = arr.sort( (a,b)=>{
@@ -447,8 +427,7 @@ export class FishbowlHelpers {
     )
   }
 
-  static
-  pipeSnapshot2Data() {
+  static pipeSnapshot2Data() {
     return pipe( 
       map( (sa:SnapshotAction<any>|Array<SnapshotAction<any>>)=>{
         let items = sa instanceof Array ? sa : [sa];
@@ -462,8 +441,7 @@ export class FishbowlHelpers {
     )
   }
 
-  static
-  pipeGameIsPublished(player$: Observable<Player>) {
+  static pipeGameIsPublished(player$: Observable<Player>) {
     return pipe(
       withLatestFrom(player$),
       map( (res)=>{
@@ -477,8 +455,7 @@ export class FishbowlHelpers {
     )
   }
 
-  // static
-  // pipeStyleTimerFromRound(target:HTMLElement) {
+  // static // pipeStyleTimerFromRound(target:HTMLElement) {
   //   let state:string;
   //   return pipe(
   //     tap((round:GamePlayRound)=>{
