@@ -9,6 +9,7 @@
     "declaration": false,
     "module": "esnext",
     "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "target": "es2015",
@@ -19,5 +20,8 @@
       "es2018",
       "dom"
     ]
-  }
+  },
+  "angularCompilerOptions": { 
+    "enableIvy": false 
+  } 
 }

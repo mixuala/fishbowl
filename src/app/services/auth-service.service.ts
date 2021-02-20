@@ -56,7 +56,7 @@ export class AuthService {
 
   doLogout():Promise<void>{
     return new Promise((resolve, reject) => {
-      this.afAuth.auth.signOut()
+      this.afAuth.signOut()
       .then( async () => {
         // this.firebaseService.unsubscribeOnLogOut();
         Storage.keys().then( o=>{

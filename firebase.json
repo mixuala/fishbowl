@@ -2,7 +2,7 @@
   "hosting": [
     {
       "target": "fishbowl0",
-      "public": "www",
+      "public": "dist/app/browser",
       "ignore": [
         "firebase.json",
         "**/.*",
@@ -63,7 +63,7 @@
     },
     {
       "target": "fishbowl", // fishbowl-game.web.app  avoid FB block
-      "public": "www",
+      "public": "dist/app/browser",
       "ignore": [
         "firebase.json",
         "**/.*",
@@ -124,7 +124,7 @@
     },
     {
       "target": "dev", 
-      "public": "www",
+      "public": "dist/app/browser",
       "ignore": [
         "firebase.json",
         "**/.*",
