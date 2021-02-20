@@ -139,9 +139,18 @@ Players:
 
 ### bugs
 BUGS:
-o- moveSpotlight through end of GameRound
+- game-page:618 exception onGameOver???
+    - if (!round) throw new Error("round should not be empty when playerRoundComplete==true")
+
+- validate gameIds in userGames
+- [OK/Submit] for player/settings
+x- fix onTakePlayerIdentity(), exception on stagename, doesn't show clues
+X- a player submits a new entry, causes other players with open entries to reload the page and lose data
+x- create new game is not added to UserGames
+x- moderator/new game not asked to submit entry [Review Game Entry] should be [submit Game Entry]
+x- moderator calls move spotlight a 2nd time when [change Player] is playing as moderator
+x- moveSpotlight fixes
   x- after PlayerRoundComplete, teleprompter should say [done] says [start]
-  f- ???: moveSpotlight? or rollover time into next round?
   x- long delay until GameRoundComplete
 - PlayersLounge, review game entry for "null"
 - beginRound, moderator pushes gamePlay.log={}, doesn't appear in cloud gamePlayState
@@ -154,12 +163,6 @@ o- gameOver event does not render game score in final view, must reload
 
 
 
-x- [OK] not [submit] after Entry.onTakePlayerIdentity()
-f- manage stageNames
-f- current player CONTINUES TURN after gameRoundComplete, do not fire playerRoundComplete
-f- web: shrink browser window to 320px wide
-f- determinate wordAction (firebase fuction)
-f- save TimerDuration to localStorage, or use serverTime
 
 x- team background not updating because this.player$.value.teamName is null after wake from LONG sleep, call setGamePlayer()
   x- trigger reload when GameHelpers.gamePlay$.getValue() is null, use this.onTheSpotTeam
@@ -212,11 +215,11 @@ x- playAsAlias should return to original player AFTER playerRound is complete.
 
 
 
-o- round number is null for playerRoundComplete
-o- timer (cloud) renders impossibly large number. make sure timer renders max {seconds}
-- next player bug appears with VERY high latency on network
+x- round number is null for playerRoundComplete
+x- timer (cloud) renders impossibly large number. make sure timer renders max {seconds}
+x- next player bug appears with VERY high latency on network
 
-o- player round complete scoreboard flashed again for the next player(?) or playingAsId player?
+x- player round complete scoreboard flashed again for the next player(?) or playingAsId player?
 
 - moderator DQ after buzzer made it to screen, but not DB
 - Only one timer is animating for the moderator. usually the moderator, or the first??
@@ -290,6 +293,13 @@ x- lastword in overtime does not complete round properly
 o- spotlight position should copy to nextRound
 
 features:
+x- current player CONTINUES TURN after gameRoundComplete, do not fire playerRoundComplete
+  x- don't moveSpotlight after gameRoundComplete if remaining time > 10sec
+x- find game by game code, 4 chars
+x- manage stageNames
+- web: shrink browser window to 320px wide
+- determinate wordAction (firebase fuction)
+- save TimerDuration to localStorage, or use serverTime
 o-checkIn players mid-round, add to round.teams
 - add SocialSharing 
 - add pregame Chat to encourage entries. or "social share" game entry
@@ -299,6 +309,7 @@ o-checkIn players mid-round, add to round.teams
 ?- moderator control panel: add latecomer to game, TEST: at beginning of next round
 - highlight words remaining BEFORE the player round begins
 
+x- [OK] not [submit] after Entry
 x- add autoFill
 x- 3-5 words, or just extra words
 x- "QuickPlay/Instant", GamePack, "Animals" Edition. preset game words, like HeadsUp

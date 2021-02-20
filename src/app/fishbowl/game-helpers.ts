@@ -1091,7 +1091,7 @@ export class GameHelpers {
     }));
 
     // patch user_games
-    let stageName = game.players[changeId.new];
+    let stageName = game.players[changeId.old] || game.players[changeId.new];
     let item = Object.assign({stageName}, Helpful.pick(game, 'label', 'gameTime')) as UserGameEntry;
     let waitFor3 = [
       // delete gameId from uid=changeId.old

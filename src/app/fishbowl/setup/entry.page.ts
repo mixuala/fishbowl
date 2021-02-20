@@ -325,7 +325,8 @@ export class EntryPage implements OnInit {
           this.entryForm.reset(this.entryForm.value);
           this.doValidate(this.entryForm);
           this.entryForm.markAsPristine();
-          this.entryForm.markAsDirty(); // prevent reload
+          // load entries AFTER playerIdentity switch
+          this.loadEntries(true);
         }
         , (err)=>{
           return Promise.reject(err)
