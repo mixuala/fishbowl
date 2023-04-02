@@ -1,5 +1,9 @@
 Fishbowl App
 
+changelog fixes:
+- Since ngOnDestroy() might not fire when you navigate from the current page, we will use `ionViewWillLeave()` to cleanup Subscriptions.
+
+
 CLOUD UX event loop
 players lounge
 - player checkin
